@@ -6,7 +6,7 @@ function usage(): never {
   console.log(`Ruro — GitHub portfolio scorecard (zero AI)
 
 Usage:
-  ruro [--config ruro.yml] [--owner LOGIN] [--token TOKEN] [--dry-run]
+  ruro [--config ruro.yml] [--owner LOGIN] [--token TOKEN] [--dry-run] [--sync-profile]
 
 Env:
   GITHUB_TOKEN / GH_TOKEN   required unless --token is set
@@ -20,9 +20,9 @@ async function main(): Promise<void> {
 
   let configPath = "ruro.yml";
   let owner: string | undefined;
-  let token =
-    process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
+  let token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
   let dryRun = false;
+  let syncProfile: boolean | undefined;
 
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i];
@@ -30,6 +30,8 @@ async function main(): Promise<void> {
     else if (a === "--owner") owner = args[++i];
     else if (a === "--token") token = args[++i];
     else if (a === "--dry-run") dryRun = true;
+    else if (a === "--sync-profile") syncProfile = true;
+    else if (a === "--no-sync-profile") syncProfile = false;
     else {
       console.error(`Unknown arg: ${a}`);
       usage();
@@ -53,7 +55,7 @@ async function main(): Promise<void> {
     }
   })();
 
-  const result = await runRuro({ token, config, dryRun });
+  const result = await runRuro({ token, config, dryRun, syncProfile });
   console.log(
     `Ruro: ${result.report.included_count} repos scored. Dashboard → ${result.dashboardPath}`,
   );
@@ -62,6 +64,9 @@ async function main(): Promise<void> {
     console.log(
       `Top: ${top.signals.fullName} (${top.status}, score ${top.score})`,
     );
+  }
+  if (result.profileSynced) {
+    console.log(`Profile synced → ${config.profile.repo}/${config.profile.readme_path}`);
   }
 }
 

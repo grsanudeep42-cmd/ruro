@@ -38,6 +38,8 @@ const signal: RepoSignals = {
   hasLockfile: true,
   hasPackageManifest: true,
   substantialCodebase: true,
+  hasSrcLayout: true,
+  hasContainerfile: false,
   recentWorkflowConclusion: "success",
   recentWorkflowAgeDays: 3,
   commitsLast30Days: 4,

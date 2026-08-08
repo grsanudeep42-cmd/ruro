@@ -47,6 +47,8 @@ function stubRepo(
       hasLockfile: false,
       hasPackageManifest: true,
       substantialCodebase: false,
+      hasSrcLayout: false,
+      hasContainerfile: false,
       recentWorkflowConclusion: null,
       recentWorkflowAgeDays: null,
       commitsLast30Days: 0,

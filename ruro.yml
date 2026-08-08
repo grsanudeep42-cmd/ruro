@@ -40,3 +40,9 @@ render:
 privacy:
   # full = write every scanned repo into DASHBOARD.md (use a private meta-repo for private repos)
   mode: full
+
+profile:
+  enabled: true
+  repo: grsanudeep42-cmd/grsanudeep42-cmd
+  readme_path: README.md
+  commit_message: "chore(ruro): refresh profile portfolio truth"

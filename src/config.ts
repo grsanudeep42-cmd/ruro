@@ -50,6 +50,21 @@ const ConfigSchema = z.object({
       mode: z.enum(["full", "public_only_render"]).default("full"),
     })
     .default({ mode: "full" }),
+  profile: z
+    .object({
+      enabled: z.boolean().default(false),
+      repo: z.string().default(""),
+      readme_path: z.string().default("README.md"),
+      commit_message: z
+        .string()
+        .default("chore(ruro): refresh profile portfolio truth"),
+    })
+    .default({
+      enabled: false,
+      repo: "",
+      readme_path: "README.md",
+      commit_message: "chore(ruro): refresh profile portfolio truth",
+    }),
 });
 
 export type RuroConfig = z.infer<typeof ConfigSchema>;
@@ -96,5 +111,11 @@ export function defaultConfig(owner: string): RuroConfig {
       profile_top_n: 5,
     },
     privacy: { mode: "full" },
+    profile: {
+      enabled: false,
+      repo: `${owner}/${owner}`,
+      readme_path: "README.md",
+      commit_message: "chore(ruro): refresh profile portfolio truth",
+    },
   });
 }

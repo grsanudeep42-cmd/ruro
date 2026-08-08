@@ -81,6 +81,9 @@ interface GraphqlRepo {
   srcTestDir: { id: string } | null;
   underscoreTests: { id: string } | null;
   specDir: { id: string } | null;
+  srcDir: { id: string } | null;
+  dockerfile: { id: string } | null;
+  containerfile: { id: string } | null;
   releases: {
     totalCount: number;
     nodes: Array<{ publishedAt: string | null; createdAt: string }>;
@@ -167,6 +170,9 @@ const REPO_FIELDS = `
         srcTestDir: object(expression: "HEAD:src/__tests__") { ... on Tree { id } }
         underscoreTests: object(expression: "HEAD:__tests__") { ... on Tree { id } }
         specDir: object(expression: "HEAD:spec") { ... on Tree { id } }
+        srcDir: object(expression: "HEAD:src") { ... on Tree { id } }
+        dockerfile: object(expression: "HEAD:Dockerfile") { ... on Blob { id } }
+        containerfile: object(expression: "HEAD:Containerfile") { ... on Blob { id } }
         releases(first: 1, orderBy: { field: CREATED_AT, direction: DESC }) {
           totalCount
           nodes { publishedAt createdAt }
@@ -341,6 +347,8 @@ function mapRepo(node: GraphqlRepo, now: Date): RepoSignals {
     ),
     hasPackageManifest,
     substantialCodebase: (node.diskUsage ?? 0) >= 200,
+    hasSrcLayout: Boolean(node.srcDir),
+    hasContainerfile: Boolean(node.dockerfile || node.containerfile),
     recentWorkflowConclusion: null,
     recentWorkflowAgeDays: null,
     commitsLast30Days: countCommitsSince(commitDates, now, 30),

@@ -47,6 +47,8 @@ function stubRepo(name: string, score: number, status: ScoredRepo["status"]): Sc
       hasLockfile: true,
       hasPackageManifest: true,
       substantialCodebase: true,
+  hasSrcLayout: true,
+  hasContainerfile: false,
       recentWorkflowConclusion: "success",
       recentWorkflowAgeDays: 1,
       commitsLast30Days: 3,

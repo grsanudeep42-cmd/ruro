@@ -30,6 +30,16 @@ function scoreQuality(s: RepoSignals): { score: number; drivers: string[]; block
     drivers.push("substantial_code");
   }
 
+  if (s.hasSrcLayout) {
+    score += 4;
+    drivers.push("src_layout");
+  }
+
+  if (s.hasContainerfile) {
+    score += 4;
+    drivers.push("containerized");
+  }
+
   if (s.hasTestsHeuristic) {
     score += 20;
     drivers.push("tests_present");

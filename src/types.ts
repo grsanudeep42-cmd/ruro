@@ -50,6 +50,8 @@ export interface RepoSignals {
   hasLockfile: boolean;
   hasPackageManifest: boolean;
   substantialCodebase: boolean;
+  hasSrcLayout: boolean;
+  hasContainerfile: boolean;
   recentWorkflowConclusion: string | null;
   recentWorkflowAgeDays: number | null;
   commitsLast30Days: number;

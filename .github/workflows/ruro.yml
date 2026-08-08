@@ -17,16 +17,25 @@ jobs:
   scorecard:
     runs-on: ubuntu-latest
     steps:
+      - name: Require RURO_TOKEN
+        env:
+          RURO_TOKEN: ${{ secrets.RURO_TOKEN }}
+        run: |
+          if [ -z "$RURO_TOKEN" ]; then
+            echo "RURO_TOKEN secret is required so commits stay under your account (not github-actions[bot])."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.RURO_TOKEN || github.token }}
+          token: ${{ secrets.RURO_TOKEN }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
 
       - name: Install
@@ -38,13 +47,15 @@ jobs:
       - name: Run Ruro
         uses: ./
         with:
-          token: ${{ secrets.RURO_TOKEN || github.token }}
+          token: ${{ secrets.RURO_TOKEN }}
           config-path: ruro.yml
+          sync-profile: "true"
 
-      - name: Commit scorecard
+      - name: Commit scorecard as owner
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(ruro): refresh portfolio scorecard"
-          file_pattern: DASHBOARD.md data/latest.json data/history/*.json
-          commit_user_name: github-actions[bot]
-          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          file_pattern: DASHBOARD.md PROFILE_SNIPPET.md assets/ruro-card.svg data/latest.json data/history/*.json
+          commit_user_name: Anudeep GRS
+          commit_user_email: grsanudeep42@gmail.com
+          commit_author: Anudeep GRS <grsanudeep42@gmail.com>
