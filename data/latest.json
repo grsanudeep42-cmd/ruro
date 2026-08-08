@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-08T18:25:21.464Z",
+  "generated_at": "2026-08-08T18:44:31.937Z",
   "owner": "grsanudeep42-cmd",
-  "repo_count": 18,
-  "included_count": 16,
+  "repo_count": 26,
+  "included_count": 24,
   "excluded_count": 2,
   "status_counts": {
-    "LIVE": 3,
-    "ACTIVE": 7,
-    "STALE": 6,
+    "LIVE": 5,
+    "ACTIVE": 11,
+    "STALE": 7,
     "DORMANT": 0,
     "DEAD": 0,
-    "ARCHIVED": 0
+    "ARCHIVED": 1
   },
   "weights": {
     "quality": 0.4,
@@ -19,6 +19,87 @@
     "structure": 0.25
   },
   "repos": [
+    {
+      "signals": {
+        "name": "aryanbloodbank",
+        "fullName": "grsanudeep42-cmd/aryanbloodbank",
+        "url": "https://github.com/grsanudeep42-cmd/aryanbloodbank",
+        "description": null,
+        "homepageUrl": "https://aryanbloodbank.vercel.app",
+        "primaryLanguage": "TypeScript",
+        "languages": [
+          "TypeScript",
+          "PLpgSQL",
+          "JavaScript",
+          "CSS",
+          "Swift"
+        ],
+        "topics": [],
+        "isPrivate": true,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-08-07T14:21:57Z",
+        "updatedAt": "2026-08-07T14:31:36Z",
+        "pushedAt": "2026-08-07T14:23:22Z",
+        "stars": 0,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 13213,
+        "readmeBytes": null,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": true,
+        "hasTestScript": true,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": false,
+        "hasPackageManifest": true,
+        "substantialCodebase": true,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "commitsLast30Days": 8,
+        "commitsLast90Days": 8,
+        "commitsLast365Days": 8,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "UP",
+          "url": "https://aryanbloodbank.vercel.app/",
+          "httpStatus": 200,
+          "latencyMs": 192,
+          "error": null
+        }
+      },
+      "score": 60,
+      "pillars": {
+        "quality": 60,
+        "alive": 80,
+        "structure": 33
+      },
+      "status": "LIVE",
+      "drivers": [
+        "demo_up",
+        "pushed_2w",
+        "high_cadence_30d",
+        "manifest",
+        "substantial_code",
+        "tests_present",
+        "test_script",
+        "homepage_set"
+      ],
+      "blockers": [
+        "no_ci",
+        "weak_description",
+        "thin_readme",
+        "no_license",
+        "no_topics"
+      ]
+    },
     {
       "signals": {
         "name": "portfolio_v2",
@@ -69,7 +150,7 @@
           "status": "UP",
           "url": "https://portfolio-v2-pi-liard.vercel.app/",
           "httpStatus": 200,
-          "latencyMs": 265,
+          "latencyMs": 476,
           "error": null
         }
       },
@@ -237,7 +318,7 @@
           "status": "UP",
           "url": "https://railtrack-ai-ntlv.vercel.app/",
           "httpStatus": 200,
-          "latencyMs": 1076,
+          "latencyMs": 479,
           "error": null
         }
       },
@@ -377,7 +458,7 @@
         "hasPackageManifest": false,
         "substantialCodebase": true,
         "recentWorkflowConclusion": "success",
-        "recentWorkflowAgeDays": 0.2234303935185185,
+        "recentWorkflowAgeDays": 0.23660855324074073,
         "commitsLast30Days": 0,
         "commitsLast90Days": 22,
         "commitsLast365Days": 22,
@@ -408,6 +489,238 @@
       ],
       "blockers": [
         "no_tests_detected",
+        "weak_description",
+        "no_license",
+        "no_topics"
+      ]
+    },
+    {
+      "signals": {
+        "name": "synapse",
+        "fullName": "grsanudeep42-cmd/synapse",
+        "url": "https://github.com/grsanudeep42-cmd/synapse",
+        "description": null,
+        "homepageUrl": null,
+        "primaryLanguage": "Python",
+        "languages": [
+          "Python",
+          "TypeScript",
+          "TeX",
+          "CSS",
+          "JavaScript"
+        ],
+        "topics": [],
+        "isPrivate": true,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-05-02T10:36:47Z",
+        "updatedAt": "2026-07-18T16:41:18Z",
+        "pushedAt": "2026-07-18T16:41:14Z",
+        "stars": 1,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 3686,
+        "readmeBytes": 4677,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": true,
+        "hasTestScript": false,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": false,
+        "hasPackageManifest": true,
+        "substantialCodebase": true,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "commitsLast30Days": 1,
+        "commitsLast90Days": 22,
+        "commitsLast365Days": 26,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "NONE",
+          "url": null,
+          "httpStatus": null,
+          "latencyMs": null,
+          "error": null
+        }
+      },
+      "score": 44,
+      "pillars": {
+        "quality": 56,
+        "alive": 30,
+        "structure": 43
+      },
+      "status": "ACTIVE",
+      "drivers": [
+        "pushed_active_window",
+        "cadence_30d",
+        "manifest",
+        "substantial_code",
+        "tests_present",
+        "readme_substance"
+      ],
+      "blockers": [
+        "no_ci",
+        "weak_description",
+        "no_license",
+        "no_topics"
+      ]
+    },
+    {
+      "signals": {
+        "name": "freelance",
+        "fullName": "grsanudeep42-cmd/freelance",
+        "url": "https://github.com/grsanudeep42-cmd/freelance",
+        "description": null,
+        "homepageUrl": "https://freelance-woad-rho.vercel.app",
+        "primaryLanguage": "TypeScript",
+        "languages": [
+          "TypeScript",
+          "CSS",
+          "JavaScript",
+          "HTML"
+        ],
+        "topics": [],
+        "isPrivate": true,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-03-20T09:51:23Z",
+        "updatedAt": "2026-05-03T04:51:23Z",
+        "pushedAt": "2026-05-03T04:51:19Z",
+        "stars": 1,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 529638,
+        "readmeBytes": 7214,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": false,
+        "hasTestScript": false,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": false,
+        "hasPackageManifest": false,
+        "substantialCodebase": true,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "commitsLast30Days": 0,
+        "commitsLast90Days": 0,
+        "commitsLast365Days": 27,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "UP",
+          "url": "https://freelance-woad-rho.vercel.app/",
+          "httpStatus": 200,
+          "latencyMs": 207,
+          "error": null
+        }
+      },
+      "score": 41,
+      "pillars": {
+        "quality": 28,
+        "alive": 47,
+        "structure": 53
+      },
+      "status": "LIVE",
+      "drivers": [
+        "demo_up",
+        "substantial_code",
+        "readme_substance",
+        "homepage_set"
+      ],
+      "blockers": [
+        "no_tests_detected",
+        "no_ci",
+        "weak_description",
+        "no_license",
+        "no_topics"
+      ]
+    },
+    {
+      "signals": {
+        "name": "lancr",
+        "fullName": "grsanudeep42-cmd/lancr",
+        "url": "https://github.com/grsanudeep42-cmd/lancr",
+        "description": null,
+        "homepageUrl": null,
+        "primaryLanguage": "TypeScript",
+        "languages": [
+          "TypeScript",
+          "JavaScript",
+          "CSS",
+          "Dockerfile"
+        ],
+        "topics": [],
+        "isPrivate": true,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-05-03T05:44:52Z",
+        "updatedAt": "2026-06-15T09:27:07Z",
+        "pushedAt": "2026-06-15T09:27:03Z",
+        "stars": 1,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 6189,
+        "readmeBytes": 17907,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": false,
+        "hasTestScript": false,
+        "hasLintConfigHeuristic": true,
+        "hasLockfile": true,
+        "hasPackageManifest": true,
+        "substantialCodebase": true,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "commitsLast30Days": 0,
+        "commitsLast90Days": 100,
+        "commitsLast365Days": 100,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "NONE",
+          "url": null,
+          "httpStatus": null,
+          "latencyMs": null,
+          "error": null
+        }
+      },
+      "score": 41,
+      "pillars": {
+        "quality": 52,
+        "alive": 27,
+        "structure": 43
+      },
+      "status": "ACTIVE",
+      "drivers": [
+        "pushed_active_window",
+        "manifest",
+        "substantial_code",
+        "lint_config",
+        "lockfile",
+        "readme_substance"
+      ],
+      "blockers": [
+        "no_tests_detected",
+        "no_ci",
         "weak_description",
         "no_license",
         "no_topics"
@@ -465,7 +778,7 @@
           "status": "UP",
           "url": "https://explainmycode-chi.vercel.app/",
           "httpStatus": 200,
-          "latencyMs": 359,
+          "latencyMs": 198,
           "error": null
         }
       },
@@ -481,6 +794,83 @@
         "pushed_active_window",
         "readme_substance",
         "homepage_set"
+      ],
+      "blockers": [
+        "no_tests_detected",
+        "no_ci",
+        "weak_description",
+        "no_license",
+        "no_topics"
+      ]
+    },
+    {
+      "signals": {
+        "name": "part-time-seekers",
+        "fullName": "grsanudeep42-cmd/part-time-seekers",
+        "url": "https://github.com/grsanudeep42-cmd/part-time-seekers",
+        "description": null,
+        "homepageUrl": null,
+        "primaryLanguage": "Python",
+        "languages": [
+          "Python",
+          "TypeScript",
+          "CSS",
+          "Dockerfile",
+          "JavaScript"
+        ],
+        "topics": [],
+        "isPrivate": true,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-08-05T17:53:08Z",
+        "updatedAt": "2026-08-05T19:38:40Z",
+        "pushedAt": "2026-08-05T19:37:43Z",
+        "stars": 0,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 1123,
+        "readmeBytes": 1496,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": false,
+        "hasTestScript": false,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": false,
+        "hasPackageManifest": false,
+        "substantialCodebase": true,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "commitsLast30Days": 10,
+        "commitsLast90Days": 10,
+        "commitsLast365Days": 10,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "NONE",
+          "url": null,
+          "httpStatus": null,
+          "latencyMs": null,
+          "error": null
+        }
+      },
+      "score": 38,
+      "pillars": {
+        "quality": 28,
+        "alive": 45,
+        "structure": 43
+      },
+      "status": "ACTIVE",
+      "drivers": [
+        "pushed_2w",
+        "high_cadence_30d",
+        "substantial_code",
+        "readme_substance"
       ],
       "blockers": [
         "no_tests_detected",
@@ -735,6 +1125,83 @@
         "no_tests_detected",
         "no_ci",
         "no_license"
+      ]
+    },
+    {
+      "signals": {
+        "name": "styxos",
+        "fullName": "grsanudeep42-cmd/styxos",
+        "url": "https://github.com/grsanudeep42-cmd/styxos",
+        "description": null,
+        "homepageUrl": null,
+        "primaryLanguage": "C",
+        "languages": [
+          "C",
+          "Python",
+          "Assembly",
+          "Shell",
+          "Makefile"
+        ],
+        "topics": [],
+        "isPrivate": true,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-06-20T18:01:43Z",
+        "updatedAt": "2026-07-25T13:03:14Z",
+        "pushedAt": "2026-07-25T13:02:03Z",
+        "stars": 1,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 2047,
+        "readmeBytes": 6115,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": false,
+        "hasTestScript": false,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": false,
+        "hasPackageManifest": false,
+        "substantialCodebase": true,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "commitsLast30Days": 14,
+        "commitsLast90Days": 18,
+        "commitsLast365Days": 18,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "NONE",
+          "url": null,
+          "httpStatus": null,
+          "latencyMs": null,
+          "error": null
+        }
+      },
+      "score": 35,
+      "pillars": {
+        "quality": 28,
+        "alive": 37,
+        "structure": 43
+      },
+      "status": "ACTIVE",
+      "drivers": [
+        "pushed_active_window",
+        "high_cadence_30d",
+        "substantial_code",
+        "readme_substance"
+      ],
+      "blockers": [
+        "no_tests_detected",
+        "no_ci",
+        "weak_description",
+        "no_license",
+        "no_topics"
       ]
     },
     {
@@ -1130,6 +1597,153 @@
     },
     {
       "signals": {
+        "name": "railpulse",
+        "fullName": "grsanudeep42-cmd/railpulse",
+        "url": "https://github.com/grsanudeep42-cmd/railpulse",
+        "description": null,
+        "homepageUrl": "https://railpulse-pearl.vercel.app",
+        "primaryLanguage": "JavaScript",
+        "languages": [
+          "JavaScript",
+          "CSS",
+          "Python",
+          "HTML"
+        ],
+        "topics": [],
+        "isPrivate": true,
+        "isFork": false,
+        "isArchived": true,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2025-09-19T19:49:19Z",
+        "updatedAt": "2026-06-19T08:54:04Z",
+        "pushedAt": "2025-09-19T19:58:14Z",
+        "stars": 1,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "master",
+        "diskUsageKb": 59,
+        "readmeBytes": null,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": false,
+        "hasTestScript": false,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": false,
+        "hasPackageManifest": false,
+        "substantialCodebase": false,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "commitsLast30Days": 0,
+        "commitsLast90Days": 0,
+        "commitsLast365Days": 2,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "UP",
+          "url": "https://railpulse-pearl.vercel.app/",
+          "httpStatus": 200,
+          "latencyMs": 492,
+          "error": null
+        }
+      },
+      "score": 29,
+      "pillars": {
+        "quality": 18,
+        "alive": 40,
+        "structure": 33
+      },
+      "status": "ARCHIVED",
+      "drivers": [
+        "demo_up",
+        "homepage_set"
+      ],
+      "blockers": [
+        "quiet_long",
+        "no_tests_detected",
+        "no_ci",
+        "weak_description",
+        "thin_readme",
+        "no_license",
+        "no_topics"
+      ]
+    },
+    {
+      "signals": {
+        "name": "luna_v1",
+        "fullName": "grsanudeep42-cmd/luna_v1",
+        "url": "https://github.com/grsanudeep42-cmd/luna_v1",
+        "description": null,
+        "homepageUrl": null,
+        "primaryLanguage": "Python",
+        "languages": [
+          "Python"
+        ],
+        "topics": [],
+        "isPrivate": true,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-03-19T10:06:56Z",
+        "updatedAt": "2026-04-09T06:06:44Z",
+        "pushedAt": "2026-03-19T10:10:39Z",
+        "stars": 1,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 168,
+        "readmeBytes": null,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": true,
+        "hasTestScript": false,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": false,
+        "hasPackageManifest": true,
+        "substantialCodebase": false,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "commitsLast30Days": 0,
+        "commitsLast90Days": 0,
+        "commitsLast365Days": 2,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "NONE",
+          "url": null,
+          "httpStatus": null,
+          "latencyMs": null,
+          "error": null
+        }
+      },
+      "score": 28,
+      "pillars": {
+        "quality": 46,
+        "alive": 12,
+        "structure": 23
+      },
+      "status": "STALE",
+      "drivers": [
+        "manifest",
+        "tests_present"
+      ],
+      "blockers": [
+        "no_ci",
+        "weak_description",
+        "thin_readme",
+        "no_license",
+        "no_topics"
+      ]
+    },
+    {
+      "signals": {
         "name": "polaris-core",
         "fullName": "grsanudeep42-cmd/polaris-core",
         "url": "https://github.com/grsanudeep42-cmd/polaris-core",
@@ -1275,5 +1889,6 @@
         "no_topics"
       ]
     }
-  ]
+  ],
+  "transitions": []
 }
