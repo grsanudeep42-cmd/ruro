@@ -1,0 +1,33 @@
+# grsanudeep42-cmd/aryanbloodbank
+
+Status: ACTIVE · Score: 45 · Review: ok
+
+## Why showable
+Couldn't read the repo due to permission errors, but the project can be interview-ready if it demonstrates reproducible setup, meaningful tests, and honest documentation. Recruiters want confidence the code works, is maintained, and that you understand trade‑offs.
+
+## Strengths
+- If present: clear README with quickstart and screenshots sells the project quickly.
+- Small, focused codebase is a plus — easier to reason about and test.
+- Any included CI badges, Dockerfile, or demo script increase trust immediately.
+- Good commit messages and issue history show ownership and communication.
+
+## Weaknesses
+- Missing or shallow tests: no unit tests for core logic, no integration/E2E tests.
+- No CI or failing/absent status badges → recruiter can’t verify build/test status.
+- README that’s aspirational rather than prescriptive (no exact commands, missing expected outputs) looks dishonest.
+- Secrets, plaintext credentials, or unpinned dependencies are red flags.
+- Lack of demo (sample data, seed scripts, Docker) makes it hard to verify quickly.
+- Sparse commit history or mono-commit “initial” suggests staged/throwaway work.
+
+## Code review
+Be blunt and fix these before interviews:
+- Add a focused test suite covering core algorithms and edge cases; aim for deterministic, fast unit tests. Include at least 1 integration test that runs in CI.
+- Add GitHub Actions (or similar) that run lint → test → build on push/PR; display badges in README.
+- Provide reproducible demo: Dockerfile or single script (setup, seed, run) and a short video/GIF or screenshots.
+- Pin dependencies and add a security note; run static analysis and fix high‑severity findings.
+- Remove hardcoded secrets, add .env.example, and document required credentials.
+- Improve README: concise elevator pitch, exact setup commands, expected output, how to run tests, and architecture diagram (one image).
+- Clean commit history (squash WIP commits if noisy) and include small, descriptive commits showing iterative work.
+
+Do these and a recruiter can verify correctness in 10–15 minutes; skip them and the project reads like a demo, not a reliable portfolio piece.
+

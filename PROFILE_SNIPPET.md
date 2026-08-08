@@ -9,11 +9,11 @@
 
 | Project | Status | Score | Stack | Demo |
 |---|---|---:|---|---|
-| **[aryanbloodbank](https://github.com/grsanudeep42-cmd/aryanbloodbank)** | `LIVE` | **60** | TypeScript | live demo |
-| **[portfolio_v2](https://github.com/grsanudeep42-cmd/portfolio_v2)** | `LIVE` | **53** | JavaScript | live demo |
-| **[phantom](https://github.com/grsanudeep42-cmd/phantom)** | `ACTIVE` | **51** | Python | no demo |
-| **[railtrack-ai](https://github.com/grsanudeep42-cmd/railtrack-ai)** | `LIVE` | **50** | TypeScript | live demo |
-| **[tpm-attest](https://github.com/grsanudeep42-cmd/tpm-attest)** | `ACTIVE` | **46** | Python | no demo |
+| **[phantom](https://github.com/grsanudeep42-cmd/phantom)** | `ACTIVE` | **59** | Python | no demo |
+| **[tpm-attest](https://github.com/grsanudeep42-cmd/tpm-attest)** | `ACTIVE` | **54** | Python | no demo |
+| **[synapse](https://github.com/grsanudeep42-cmd/synapse)** | `ACTIVE` | **49** | Python | no demo |
+| **[explainmycode](https://github.com/grsanudeep42-cmd/explainmycode)** | `LIVE` | **48** | Python | live demo |
+| **[railtrack-ai](https://github.com/grsanudeep42-cmd/railtrack-ai)** | `LIVE` | **48** | TypeScript | live demo |
 
 <sub>Auto-maintained by [Ruro](https://github.com/grsanudeep42-cmd/ruro) · 2026-08-08 · zero AI</sub>
 <!-- RURO:END -->
