@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import { loadConfig, defaultConfig } from "./config.js";
+import { annotateWithCopilot, readAiCache } from "./ai/copilot.js";
 import {
+  findRepo,
   loadLatestReport,
+  printReviews,
   printStatus,
   printTop,
   printView,
@@ -16,9 +19,11 @@ Usage:
   ruro view [--config ruro.yml]
   ruro top [n] [--config ruro.yml]
   ruro status <repo> [--config ruro.yml]
+  ruro review [repo] [--config ruro.yml] [--token TOKEN] [--force]
 
 Env:
-  GITHUB_TOKEN / GH_TOKEN   required for scan unless --token is set
+  GITHUB_TOKEN / GH_TOKEN   required for scan/review unless --token is set
+  Copilot CLI               required for review (copilot on PATH)
 `);
   process.exit(1);
 }
@@ -92,8 +97,68 @@ async function runScan(args: string[]): Promise<void> {
     );
   }
   if (result.aiAnnotated > 0) {
-    console.log(`AI annotations → ${result.aiAnnotated} repos`);
+    console.log(`AI reviews → ${result.aiAnnotated} repos`);
   }
+}
+
+async function runReview(args: string[]): Promise<void> {
+  let configPath = "ruro.yml";
+  let token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
+  let force = false;
+  let query: string | undefined;
+
+  for (let i = 0; i < args.length; i += 1) {
+    const a = args[i];
+    if (a === "--config") configPath = args[++i];
+    else if (a === "--token") token = args[++i];
+    else if (a === "--force") force = true;
+    else if (a.startsWith("-")) {
+      console.error(`Unknown arg: ${a}`);
+      usage();
+    } else {
+      query = a;
+    }
+  }
+
+  if (!token) {
+    console.error("Missing token. Set GITHUB_TOKEN or pass --token.");
+    process.exit(1);
+  }
+
+  const config = loadCfg(configPath);
+  const report = loadLatestReport(config);
+  const aiConfig = {
+    ...config,
+    ai: {
+      ...config.ai,
+      enabled: true,
+      provider: "copilot" as const,
+      top_n: query ? 1 : config.ai.top_n,
+    },
+  };
+
+  const scoped = query
+    ? { ...report, repos: [findRepo(report, query)] }
+    : { ...report, repos: report.repos.slice(0, config.ai.top_n) };
+
+  if (!force && !config.ai.enabled) {
+    console.log(
+      "Running one-shot Copilot review (config ai.enabled is still false for scans).",
+    );
+  }
+
+  const result = await annotateWithCopilot({
+    report: scoped,
+    config: aiConfig,
+    cwd: process.cwd(),
+    token,
+  });
+  console.log(
+    result.skipped
+      ? `Review skipped: ${result.reason ?? "unknown"}`
+      : `Reviewed ${result.annotated} repo(s) → ${config.ai.cache_dir}`,
+  );
+  printReviews(readAiCache(process.cwd(), config.ai.cache_dir), query);
 }
 
 async function main(): Promise<void> {
@@ -105,7 +170,8 @@ async function main(): Promise<void> {
     cmd === "scan" ||
     cmd === "view" ||
     cmd === "top" ||
-    cmd === "status";
+    cmd === "status" ||
+    cmd === "review";
 
   if (!isSub) {
     await runScan(argv);
@@ -116,6 +182,11 @@ async function main(): Promise<void> {
 
   if (cmd === "scan") {
     await runScan(subArgs);
+    return;
+  }
+
+  if (cmd === "review") {
+    await runReview(subArgs);
     return;
   }
 
@@ -145,6 +216,7 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     printStatus(report, query);
+    printReviews(readAiCache(process.cwd(), config.ai.cache_dir), query);
   }
 }
 

@@ -72,12 +72,15 @@ const ConfigSchema = z.object({
       provider: z.enum(["copilot", "none"]).default("none"),
       top_n: z.number().int().positive().default(5),
       cache_dir: z.string().default("data/ai"),
+      /** Per-repo Copilot CLI timeout (ms). */
+      timeout_ms: z.number().int().positive().default(180_000),
     })
     .default({
       enabled: false,
       provider: "none",
       top_n: 5,
       cache_dir: "data/ai",
+      timeout_ms: 180_000,
     }),
 });
 
@@ -137,6 +140,7 @@ export function defaultConfig(owner: string): RuroConfig {
       provider: "none",
       top_n: 5,
       cache_dir: "data/ai",
+      timeout_ms: 180_000,
     },
   });
 }

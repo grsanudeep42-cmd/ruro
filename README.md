@@ -1,47 +1,30 @@
 # Ruro
 
-**Portfolio Jarvis for GitHub.**  
-Which of your projects are alive, good, and worth showing — answered with checkable signals, not vibes.
+**GitHub OS** for your engineering truth — automatic, portable, GitHub-native.  
+Not a scoreboard. A living operating surface (Pages + CLI) that proves what is alive, deployed, and worth showing.
 
-Core is **zero AI** (deterministic). Optional Copilot annotations are Phase 2 and off by default.
+Core is **zero AI**. Copilot is optional judgment. Deployed means **verified by probe**.
 
 ## Surfaces
 
 | Surface | What |
 | --- | --- |
-| **Web** | `docs/index.html` — recruiter-facing ranked portfolio (GitHub Pages) |
-| **CLI** | `ruro view` / `top` / `status` — daily offline read of `data/latest.json` |
-| **Markdown** | `DASHBOARD.md` + SVG card for README embeds |
+| **Web OS** | `docs/index.html` — Attention, verified deploys, showables, fleet |
+| **CLI** | `ruro view` / `top` / `status` / `review` |
+| **Memory** | `data/latest.json` + history + optional `data/ai/` |
 
 ## Quick start
 
-1. Fork/use this meta-repo; set `owner` in `ruro.yml`.
-2. Create a classic PAT with `repo` scope → repo secret **`RURO_TOKEN`**.
-3. Run **Actions → Ruro Scorecard → Run workflow**.
-4. Enable Pages: **Settings → Pages → Deploy from branch → `main` / `/docs`**.
-
-Public URL (this repo): `https://grsanudeep42-cmd.github.io/ruro/`
-
-```yaml
-- uses: grsanudeep42-cmd/ruro@v0.1.0
-  with:
-    token: ${{ secrets.RURO_TOKEN }}
-    config-path: ruro.yml
-    sync-profile: "false"
-```
-
-Scorecard commits as **you** via `RURO_TOKEN` — never `github-actions[bot]`. Profile README sync stays off until you turn `profile.enabled` on.
-
-## Local
+1. Set `owner` in `ruro.yml`.
+2. Secret **`RURO_TOKEN`** (classic PAT, `repo` scope).
+3. Run **Actions → Ruro Scorecard**.
+4. Pages: **Settings → Pages → branch `main` → `/docs`**.
 
 ```bash
 npm ci && npm test && npm run build
-GITHUB_TOKEN=$(gh auth token) npm run ruro -- scan --config ruro.yml
-
-# Offline after a scan:
+GITHUB_TOKEN=$(gh auth token) npm run ruro -- scan
 npm run ruro -- view
-npm run ruro -- top 5
-npm run ruro -- status my-repo
+GITHUB_TOKEN=$(gh auth token) npm run ruro -- review aryanbloodbank
 ```
 
 ## Score model
@@ -50,29 +33,7 @@ npm run ruro -- status my-repo
 Showability = 0.40*Quality + 0.35*Alive + 0.25*Structure
 ```
 
-Statuses: `LIVE` · `ACTIVE` · `STALE` · `DORMANT` · `DEAD` · `ARCHIVED`
-
-See [BIBLE.md](./BIBLE.md) for the full product canon.
-
-## Optional AI (Phase 2)
-
-In `ruro.yml`:
-
-```yaml
-ai:
-  enabled: false
-  provider: none   # set to copilot when ready
-  top_n: 5
-  cache_dir: data/ai
-```
-
-When enabled, Ruro may write short narratives under `data/ai/`. Scores never depend on AI; missing Copilot/credits fails soft.
-
-## Safety
-
-- No third-party SaaS reads your code for scoring
-- Prefer a **private** meta-repo if you scan private projects
-- Probes only hit declared homepage URLs
+`LIVE` only if deployment probe is **verified** (not github.com/repo, not parking pages).
 
 ## License
 

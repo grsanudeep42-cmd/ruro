@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeTransitions } from "../src/history/transitions.js";
 import type { RuroReport, ScoredRepo } from "../src/types.js";
+import { baseSignals, emptyDemo } from "./helpers.js";
 
 function stubRepo(
   name: string,
@@ -13,57 +14,13 @@ function stubRepo(
     pillars: { quality: score, alive: score, structure: score },
     drivers: [],
     blockers: [],
-    signals: {
+    signals: baseSignals({
       name,
       fullName: `acme/${name}`,
       url: `https://github.com/acme/${name}`,
-      description: null,
       homepageUrl: null,
-      primaryLanguage: "TypeScript",
-      languages: ["TypeScript"],
-      topics: [],
-      isPrivate: false,
-      isFork: false,
-      isArchived: false,
-      isTemplate: false,
-      licenseSpdx: null,
-      createdAt: "2024-01-01T00:00:00.000Z",
-      updatedAt: "2026-08-01T00:00:00.000Z",
-      pushedAt: "2026-08-01T00:00:00.000Z",
-      stars: 0,
-      forks: 0,
-      openIssues: 0,
-      hasIssuesEnabled: true,
-      defaultBranch: "main",
-      diskUsageKb: 100,
-      readmeBytes: 100,
-      hasLicenseFile: false,
-      hasWorkflows: false,
-      hasDependabotConfig: false,
-      hasCodeowners: false,
-      hasTestsHeuristic: false,
-      hasTestScript: false,
-      hasLintConfigHeuristic: false,
-      hasLockfile: false,
-      hasPackageManifest: true,
-      substantialCodebase: false,
-      hasSrcLayout: false,
-      hasContainerfile: false,
-      recentWorkflowConclusion: null,
-      recentWorkflowAgeDays: null,
-      commitsLast30Days: 0,
-      commitsLast90Days: 0,
-      commitsLast365Days: 0,
-      releasesCount: 0,
-      latestReleaseAt: null,
-      demo: {
-        status: "NONE",
-        url: null,
-        httpStatus: null,
-        latencyMs: null,
-        error: null,
-      },
-    },
+      demo: emptyDemo(),
+    }),
   };
 }
 

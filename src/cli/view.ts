@@ -65,7 +65,7 @@ export function printTop(report: RuroReport, n: number): void {
   });
 }
 
-export function printStatus(report: RuroReport, query: string): void {
+export function findRepo(report: RuroReport, query: string): ScoredRepo {
   const q = query.toLowerCase();
   const repo = report.repos.find(
     (r) =>
@@ -76,6 +76,11 @@ export function printStatus(report: RuroReport, query: string): void {
   if (!repo) {
     throw new Error(`Repo not found in latest scorecard: ${query}`);
   }
+  return repo;
+}
+
+export function printStatus(report: RuroReport, query: string): void {
+  const repo = findRepo(report, query);
   console.log(repo.signals.fullName);
   console.log(`url        ${repo.signals.url}`);
   console.log(`status     ${repo.status}`);
@@ -83,8 +88,60 @@ export function printStatus(report: RuroReport, query: string): void {
   console.log(
     `pillars    quality=${repo.pillars.quality} alive=${repo.pillars.alive} structure=${repo.pillars.structure}`,
   );
-  console.log(`demo       ${repo.signals.demo.status}${repo.signals.demo.url ? ` (${repo.signals.demo.url})` : ""}`);
+  console.log(
+    `demo       ${repo.signals.demo.status}${repo.signals.demo.verified ? " VERIFIED" : ""}${repo.signals.demo.url ? ` (${repo.signals.demo.url})` : ""}`,
+  );
+  console.log(
+    `fitness    ${repo.signals.fitness.score} (${repo.signals.fitness.sourceFiles} src / ${repo.signals.fitness.testFiles} test)`,
+  );
   console.log(`language   ${repo.signals.primaryLanguage ?? "—"}`);
   console.log(`drivers    ${repo.drivers.join(", ") || "—"}`);
   console.log(`blockers   ${repo.blockers.join(", ") || "—"}`);
+}
+
+export function printReviews(
+  cache: {
+    status: string;
+    note?: string;
+    repos: Array<{
+      fullName: string;
+      status: string;
+      why_showable: string;
+      review: string;
+      strengths: string[];
+      weaknesses: string[];
+      error?: string;
+    }>;
+  } | null,
+  filter?: string,
+): void {
+  if (!cache || !cache.repos.length) {
+    console.log(
+      "No Copilot reviews yet. Enable ai in ruro.yml and run `ruro review` (needs Copilot CLI).",
+    );
+    return;
+  }
+  console.log(`Copilot reviews · ${cache.status}`);
+  if (cache.note) console.log(cache.note);
+  console.log("");
+  const q = filter?.toLowerCase();
+  const items = q
+    ? cache.repos.filter(
+        (r) =>
+          r.fullName.toLowerCase().includes(q) ||
+          r.fullName.toLowerCase().endsWith(`/${q}`),
+      )
+    : cache.repos;
+  if (!items.length) {
+    throw new Error(`No review for: ${filter}`);
+  }
+  for (const r of items) {
+    console.log(`## ${r.fullName} [${r.status}]`);
+    console.log(`why: ${r.why_showable || "—"}`);
+    console.log(`strengths: ${r.strengths.join(", ") || "—"}`);
+    console.log(`weaknesses: ${r.weaknesses.join(", ") || "—"}`);
+    console.log(r.review || "—");
+    if (r.error) console.log(`error: ${r.error}`);
+    console.log("");
+  }
 }

@@ -1,26 +1,25 @@
 # Ruro — The Bible
 
-> Self-maintaining portfolio scorecard for every repo you own.  
-> GitHub Action + meta-repo. Never leaves GitHub. Zero AI. One view. All projects.
+> GitHub-native operating system for your engineering truth.  
+> Automatic. Portable. Nothing leaves GitHub for the core. Not a scoreboard.
 
-**Product name:** Ruro  
-**Category:** Developer tooling / GitHub portfolio metrics (not data science, not AI)  
-**Distribution:** Reusable GitHub Action + this meta-repo for config, data, and `DASHBOARD.md`  
-**Status:** Canon  
+**Product name:** Ruro (GitHub OS)  
+**Category:** Developer tooling / personal GitHub operating surface  
+**Distribution:** Reusable Action + meta-repo (Pages web + CLI + data)  
 **Owner:** sir  
 **Builder:** Jarvis  
 
-**Principle:** Objective signals beat vibes. Automation maintains truth.
+**Principle:** Claimed is not proven. Objective signals first. Copilot judgment optional.
 
 ---
 
 ## 1. Mission
 
-You have many repos. You need one honest answer:
+People use Notion as a home for work. Ruro is the **GitHub OS** for portfolio and project truth:
 
-> Which projects are actually good, actually alive, and actually worth opening?
+> Which projects are real, alive, deployed-for-real, and worth showing — continuously, automatically.
 
-Ruro answers that for **every** owned repo, on a schedule, from checkable evidence — then writes a single scorecard that stays current because it regenerates itself.
+Not a vanity table. A place you operate from (web + CLI), refreshed by Actions.
 
 ---
 
@@ -28,12 +27,12 @@ Ruro answers that for **every** owned repo, on a schedule, from checkable eviden
 
 | Constraint | Meaning |
 |---|---|
-| **GitHub-only** | Collect, score, store, render via GitHub API + Actions + repo files |
-| **No AI** | Heuristics + static/platform signals only. Deterministic |
-| **All projects** | Every non-excluded owned repo is scored |
-| **One view** | Single `DASHBOARD.md` — no multi-audience UIs |
-| **Self-maintaining** | Scheduled Action updates the picture |
-| **Safe by construction** | Metadata + GitHub-hosted runners; no SaaS exfiltration |
+| **GitHub-native** | Collect, score, store, render via GitHub API + Actions + repo files + Pages |
+| **Core zero-AI** | Fitness + probes + scores are deterministic |
+| **Deployed = verified** | Homepage must pass live probe (not github.com/repo, not parking/soft-404) |
+| **Copilot optional** | Code judgment layer; never required for scores; fails soft |
+| **Portable** | Point at another GitHub identity → their OS boots |
+| **Authorship clean** | Commits as owner only — never Cursor / actions bot as author of truth |
 
 ---
 
@@ -41,10 +40,11 @@ Ruro answers that for **every** owned repo, on a schedule, from checkable eviden
 
 | Layer | Role |
 |---|---|
-| **GitHub Action (`action.yml`)** | Versioned engine: collect → probe → score → render |
-| **Meta-repo (`ruro`)** | Owns `ruro.yml`, `data/`, `DASHBOARD.md`, workflows |
-
-This is a **scorecard product**, not a bland vanity dashboard and not a one-shot audit.
+| **Kernel** | Collect → probe → fitness → score → optional Copilot review |
+| **Memory** | `data/latest.json`, history, `data/ai/` |
+| **Desktop** | `docs/index.html` (OS home on Pages) |
+| **Terminal** | `ruro scan` / `view` / `top` / `status` / `review` |
+| **Install** | Action + `ruro.yml` owner switch |
 
 ---
 
@@ -54,38 +54,32 @@ This is a **scorecard product**, not a bland vanity dashboard and not a one-shot
 Showability = 0.40 * Quality + 0.35 * Alive + 0.25 * Structure
 ```
 
-- **Quality** — tests, CI, lint, Dependabot, lockfile, stub penalties  
-- **Alive** — push recency, cadence, demo UP/DOWN, releases, fresh CI  
-- **Structure** — README substance, license, description, topics, homepage  
+- **Quality** — tests, CI, lint, lockfile, **tree fitness** (source/test files without AI)  
+- **Alive** — push cadence, **verified demo**, releases, fresh CI  
+- **Structure** — README, license, description, topics, **verified homepage only**
 
-Every score exposes `drivers` and `blockers`. No unexplained points.
-
-Statuses: `LIVE` | `ACTIVE` | `STALE` | `DORMANT` | `DEAD` | `ARCHIVED`
+`LIVE` requires a **verified** deployment probe.
 
 ---
 
-## 5. Privacy
+## 5. Two brains
+
+1. **Without AI** — tree fitness + live probes + platform signals  
+2. **With Copilot** — `/review` judgment for “is this real / showable” (cached, soft-fail)
+
+---
+
+## 6. Privacy
 
 | Mode | Use when |
 |---|---|
 | `full` | Private meta-repo (recommended if scanning private repos) |
-| `public_only_render` | Public meta-repo; private repos scored internally but omitted from render |
+| `public_only_render` | Public meta-repo; private repos omitted from render |
 
 ---
 
-## 6. Roadmap
+## 7. Bar
 
-- **Done:** Phase 1 — API collectors, demo probes, deterministic scorer, one-view dashboard, CI, Action, dist bundle  
-- **Done:** Phase 2a — richer quality detectors (manifest/test-script/layout signals), authorship guard script  
-- **Next:** history transition chips, Marketplace release packaging, optional GitHub App auth, language packs depth  
-- **Never:** LLM judging, third-party code upload, star-primary ranking, Cursor/bot commit attribution on GitHub  
-
----
-
-## 7. Name
-
-**Ruro** — short, ownable product name. Tagline: *Portfolio scorecard for GitHub.*
-
----
-
-When in doubt: ship ruthlessly, keep scores boring and true.
+If it looks like a scoreboard and not an OS, we failed.  
+If a URL is claimed but not proven live, we failed.  
+If AI moves scores, we failed.

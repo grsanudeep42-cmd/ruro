@@ -359,9 +359,21 @@ function mapRepo(node: GraphqlRepo, now: Date): RepoSignals {
     demo: {
       status: "NONE",
       url: null,
+      finalUrl: null,
       httpStatus: null,
       latencyMs: null,
       error: null,
+      proofBytes: null,
+      contentType: null,
+      verified: false,
+    },
+    fitness: {
+      sourceFiles: 0,
+      testFiles: 0,
+      otherFiles: 0,
+      maxBlobBytes: 0,
+      score: 0,
+      flags: ["pending"],
     },
   };
 }
@@ -415,6 +427,8 @@ export async function collectRepoSignals(
   }
 
   await enrichWorkflowSignals(clients, collected, now);
+  const { enrichCodeFitness } = await import("../fitness/code.js");
+  await enrichCodeFitness(clients, collected);
   return { included: collected, excludedCount };
 }
 

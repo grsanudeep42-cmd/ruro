@@ -60,7 +60,11 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
   );
 
   const probes = await probeAll(
-    included.map((r) => r.homepageUrl),
+    included.map((r) => ({
+      homepageUrl: r.homepageUrl,
+      url: r.url,
+      fullName: r.fullName,
+    })),
     options.config,
   );
   included.forEach((repo, i) => {
@@ -124,6 +128,7 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
         report,
         config: options.config,
         cwd,
+        token: options.token,
       });
       aiAnnotated = ai.annotated;
     }

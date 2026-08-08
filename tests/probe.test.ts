@@ -9,6 +9,17 @@ describe("probeDemoUrl", () => {
     const result = await probeDemoUrl(null, config);
     expect(result.status).toBe("NONE");
     expect(result.url).toBeNull();
+    expect(result.verified).toBe(false);
+  });
+
+  it("rejects github.com repo URLs as deployments", async () => {
+    const result = await probeDemoUrl("https://github.com/acme/alpha", config, {
+      fullName: "acme/alpha",
+      repoHtmlUrl: "https://github.com/acme/alpha",
+    });
+    expect(result.status).toBe("DOWN");
+    expect(result.verified).toBe(false);
+    expect(result.error).toMatch(/github_repo/);
   });
 
   it("normalizes bare domains to https", async () => {

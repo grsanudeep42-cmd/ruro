@@ -30,6 +30,31 @@ function scoreQuality(s: RepoSignals): { score: number; drivers: string[]; block
     drivers.push("substantial_code");
   }
 
+  // Without-AI tree fitness (real files, not vibes).
+  if (s.fitness.score >= 70) {
+    score += 14;
+    drivers.push("code_fitness_high");
+  } else if (s.fitness.score >= 45) {
+    score += 8;
+    drivers.push("code_fitness_ok");
+  } else if (s.fitness.flags.includes("no_source_files")) {
+    score -= 18;
+    blockers.push("no_source_files");
+  } else if (s.fitness.flags.includes("tiny_tree")) {
+    score -= 10;
+    blockers.push("tiny_tree");
+  }
+
+  if (s.fitness.flags.includes("has_test_files")) {
+    score += 6;
+    drivers.push("test_files_in_tree");
+  }
+
+  if (s.fitness.flags.includes("god_file")) {
+    score -= 6;
+    blockers.push("god_file");
+  }
+
   if (s.hasSrcLayout) {
     score += 4;
     drivers.push("src_layout");
@@ -109,12 +134,15 @@ function scoreAlive(
   const now = new Date();
   const pushAge = daysSince(s.pushedAt, now);
 
-  if (s.demo.status === "UP") {
+  if (s.demo.status === "UP" && s.demo.verified) {
     score += 35;
-    drivers.push("demo_up");
+    drivers.push("demo_verified");
   } else if (s.demo.status === "DOWN" || s.demo.status === "ERROR") {
     score -= 10;
-    blockers.push("demo_down");
+    blockers.push("demo_unproven");
+    if (s.demo.error) blockers.push(s.demo.error.replace(/\s+/g, "_").slice(0, 40));
+  } else if (s.homepageUrl) {
+    blockers.push("homepage_unproven");
   }
 
   if (pushAge === null) {
@@ -206,9 +234,11 @@ function scoreStructure(s: RepoSignals): {
     blockers.push("no_topics");
   }
 
-  if (s.homepageUrl) {
+  if (s.homepageUrl && s.demo.verified) {
     score += 10;
-    drivers.push("homepage_set");
+    drivers.push("homepage_verified");
+  } else if (s.homepageUrl) {
+    blockers.push("homepage_unproven");
   }
 
   if (s.primaryLanguage) {
@@ -230,7 +260,7 @@ export function deriveStatus(
   if (s.isArchived) return "ARCHIVED";
 
   const pushAge = daysSince(s.pushedAt, new Date());
-  const demoUp = s.demo.status === "UP";
+  const demoUp = s.demo.status === "UP" && s.demo.verified;
 
   if (demoUp && (pushAge === null || pushAge <= thresholds.dormant_days)) {
     return "LIVE";

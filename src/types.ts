@@ -11,9 +11,26 @@ export type DemoStatus = "UP" | "DOWN" | "NONE" | "ERROR";
 export interface DemoProbeResult {
   status: DemoStatus;
   url: string | null;
+  /** URL after redirects */
+  finalUrl: string | null;
   httpStatus: number | null;
   latencyMs: number | null;
   error: string | null;
+  /** Response body size used as liveness proof */
+  proofBytes: number | null;
+  contentType: string | null;
+  /** True only when probe proved a real deployment (not github.com/repo, not parking). */
+  verified: boolean;
+}
+
+/** Deterministic without-AI code fitness from repo tree. */
+export interface CodeFitness {
+  sourceFiles: number;
+  testFiles: number;
+  otherFiles: number;
+  maxBlobBytes: number;
+  score: number;
+  flags: string[];
 }
 
 export interface RepoSignals {
@@ -60,6 +77,7 @@ export interface RepoSignals {
   releasesCount: number;
   latestReleaseAt: string | null;
   demo: DemoProbeResult;
+  fitness: CodeFitness;
 }
 
 export interface PillarBreakdown {

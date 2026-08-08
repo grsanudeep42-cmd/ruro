@@ -1,3 +1,162 @@
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
+// src/github/retry.ts
+async function withRetries(label, fn, opts = {}) {
+  const attempts = opts.attempts ?? 5;
+  const baseDelayMs = opts.baseDelayMs ?? 400;
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const message = err instanceof Error ? err.message : String(err);
+      const retryable = /502|503|504|ECONNRESET|ETIMEDOUT|rate limit|secondary rate|ABORTED|fetch failed/i.test(
+        message
+      ) || typeof err === "object" && err !== null && "status" in err && [502, 503, 504, 429].includes(Number(err.status));
+      if (!retryable || attempt === attempts) break;
+      const delay = baseDelayMs * 2 ** (attempt - 1);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  const detail = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(`${label} failed after ${attempts} attempts: ${detail}`);
+}
+var init_retry = __esm({
+  "src/github/retry.ts"() {
+    "use strict";
+  }
+});
+
+// src/fitness/code.ts
+var code_exports = {};
+__export(code_exports, {
+  analyzeTreeEntries: () => analyzeTreeEntries,
+  enrichCodeFitness: () => enrichCodeFitness
+});
+function emptyFitness() {
+  return {
+    sourceFiles: 0,
+    testFiles: 0,
+    otherFiles: 0,
+    maxBlobBytes: 0,
+    score: 0,
+    flags: ["tree_unavailable"]
+  };
+}
+function analyzeTreeEntries(entries) {
+  let sourceFiles = 0;
+  let testFiles = 0;
+  let otherFiles = 0;
+  let maxBlobBytes = 0;
+  const flags = [];
+  for (const e of entries) {
+    if (e.type !== "blob" || !e.path) continue;
+    if (SKIP.test(e.path)) continue;
+    const size = e.size ?? 0;
+    if (size > maxBlobBytes) maxBlobBytes = size;
+    if (SOURCE_EXT.test(e.path)) {
+      if (TEST_HINT.test(e.path)) testFiles += 1;
+      else sourceFiles += 1;
+    } else {
+      otherFiles += 1;
+    }
+  }
+  let score = 10;
+  if (sourceFiles >= 3) {
+    score += 25;
+    flags.push("has_source");
+  } else if (sourceFiles === 0) {
+    flags.push("no_source_files");
+    score -= 20;
+  } else {
+    flags.push("thin_source");
+  }
+  if (testFiles >= 1) {
+    score += 25;
+    flags.push("has_test_files");
+  } else {
+    flags.push("no_test_files");
+  }
+  if (sourceFiles >= 10) {
+    score += 15;
+    flags.push("nontrivial_tree");
+  }
+  if (sourceFiles > 0 && testFiles / Math.max(sourceFiles, 1) >= 0.15) {
+    score += 15;
+    flags.push("healthy_test_ratio");
+  } else if (sourceFiles >= 5 && testFiles === 0) {
+    score -= 10;
+  }
+  if (maxBlobBytes > 25e4) {
+    score -= 12;
+    flags.push("god_file");
+  }
+  if (sourceFiles + testFiles + otherFiles < 5) {
+    score -= 15;
+    flags.push("tiny_tree");
+  }
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  return {
+    sourceFiles,
+    testFiles,
+    otherFiles,
+    maxBlobBytes,
+    score,
+    flags: flags.slice(0, 8)
+  };
+}
+async function enrichCodeFitness(clients, repos) {
+  for (const repo of repos) {
+    repo.fitness = emptyFitness();
+    const [owner, name] = repo.fullName.split("/");
+    const branch = repo.defaultBranch;
+    if (!owner || !name || !branch) continue;
+    try {
+      const ref = await withRetries(
+        `ref:${repo.fullName}`,
+        () => clients.octokit.git.getRef({
+          owner,
+          repo: name,
+          ref: `heads/${branch}`
+        }),
+        { attempts: 2, baseDelayMs: 200 }
+      );
+      const sha = ref.data.object.sha;
+      const tree = await withRetries(
+        `tree:${repo.fullName}`,
+        () => clients.octokit.git.getTree({
+          owner,
+          repo: name,
+          tree_sha: sha,
+          recursive: "true"
+        }),
+        { attempts: 2, baseDelayMs: 200 }
+      );
+      repo.fitness = analyzeTreeEntries(tree.data.tree);
+    } catch {
+    }
+  }
+}
+var SOURCE_EXT, TEST_HINT, SKIP;
+var init_code = __esm({
+  "src/fitness/code.ts"() {
+    "use strict";
+    init_retry();
+    SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|kts|swift|c|cc|cpp|h|hpp|cs|rb|php|vue|svelte|scala|dart)$/i;
+    TEST_HINT = /(^|\/)(tests?|__tests__|spec)(\/|$)|[._-](test|spec)\.[^.]+$/i;
+    SKIP = /(^|\/)(node_modules|dist|build|\.git|vendor|coverage|\.next|target)(\/|$)/i;
+  }
+});
+
 // src/index.ts
 import * as core from "@actions/core";
 import * as github from "@actions/github";
@@ -65,12 +224,15 @@ var ConfigSchema = z.object({
     enabled: z.boolean().default(false),
     provider: z.enum(["copilot", "none"]).default("none"),
     top_n: z.number().int().positive().default(5),
-    cache_dir: z.string().default("data/ai")
+    cache_dir: z.string().default("data/ai"),
+    /** Per-repo Copilot CLI timeout (ms). */
+    timeout_ms: z.number().int().positive().default(18e4)
   }).default({
     enabled: false,
     provider: "none",
     top_n: 5,
-    cache_dir: "data/ai"
+    cache_dir: "data/ai",
+    timeout_ms: 18e4
   })
 });
 function loadConfig(path, ownerOverride) {
@@ -87,72 +249,258 @@ function loadConfig(path, ownerOverride) {
 }
 
 // src/run.ts
-import { existsSync as existsSync3, mkdirSync as mkdirSync2, readFileSync as readFileSync3, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname, join as join2, resolve as resolve3 } from "node:path";
+import { existsSync as existsSync4, mkdirSync as mkdirSync2, readFileSync as readFileSync4, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname, join as join2, resolve as resolve4 } from "node:path";
 
 // src/ai/copilot.ts
-import { existsSync as existsSync2, mkdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
+import {
+  existsSync as existsSync2,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync as readFileSync2,
+  rmSync,
+  writeFileSync
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve as resolve2 } from "node:path";
+import { spawnSync } from "node:child_process";
 async function annotateWithCopilot(opts) {
-  const { report, config, cwd } = opts;
+  const { report, config, cwd, token } = opts;
   if (!config.ai.enabled || config.ai.provider !== "copilot") {
-    return { annotated: 0, skipped: true, reason: "ai disabled" };
+    return { annotated: 0, skipped: true, reason: "ai disabled", reviews: [] };
   }
   const cacheDir = resolve2(cwd, config.ai.cache_dir);
   mkdirSync(cacheDir, { recursive: true });
-  const hasCli = await commandExists("copilot");
-  if (!hasCli) {
-    const stub = {
-      generated_at: (/* @__PURE__ */ new Date()).toISOString(),
-      provider: "copilot",
-      status: "unavailable",
-      note: "Copilot CLI not found on PATH. Scores unchanged; enable CLI/credits to annotate.",
-      repos: []
-    };
-    writeFileSync(
-      join(cacheDir, "latest.json"),
-      `${JSON.stringify(stub, null, 2)}
-`,
-      "utf8"
+  if (!await commandExists("copilot")) {
+    const stub = emptyPayload(
+      "unavailable",
+      "Copilot CLI not on PATH. Install @github/copilot and authenticate. Scores unchanged."
     );
-    return { annotated: 0, skipped: true, reason: "copilot cli missing" };
+    writeJson(join(cacheDir, "latest.json"), stub);
+    return {
+      annotated: 0,
+      skipped: true,
+      reason: "copilot cli missing",
+      reviews: []
+    };
   }
   const top = report.repos.slice(0, config.ai.top_n);
-  const narratives = top.map((repo) => {
-    const narrative = [
-      `${repo.signals.name} is ${repo.status} at score ${repo.score}.`,
-      repo.drivers.length ? `Drivers: ${repo.drivers.join(", ")}.` : null,
-      repo.blockers.length ? `Blockers: ${repo.blockers.join(", ")}.` : null,
-      repo.signals.demo.status === "UP" ? "Demo responds." : "No live demo confirmed."
-    ].filter(Boolean).join(" ");
-    return { fullName: repo.signals.fullName, narrative };
-  });
+  const reviews = [];
+  for (const repo of top) {
+    const reviewed = await reviewOneRepo({
+      repo,
+      config,
+      token: token ?? process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN,
+      cacheDir
+    });
+    reviews.push(reviewed);
+  }
+  const ok = reviews.filter((r) => r.status === "ok");
   const payload = {
     generated_at: (/* @__PURE__ */ new Date()).toISOString(),
     provider: "copilot",
-    status: "signal_fallback",
-    note: "Live Copilot prompting is gated. Cached signal-derived annotations written for top repos.",
-    repos: narratives
+    status: ok.length ? "reviewed" : "partial",
+    note: "Scores stay signal-based. Copilot only annotates showability + code review.",
+    repos: reviews
   };
-  writeFileSync(
-    join(cacheDir, "latest.json"),
-    `${JSON.stringify(payload, null, 2)}
-`,
-    "utf8"
-  );
-  for (const item of narratives) {
-    const safe = item.fullName.replace(/[^\w.-]+/g, "_");
-    writeFileSync(join(cacheDir, `${safe}.md`), `${item.narrative}
-`, "utf8");
+  writeJson(join(cacheDir, "latest.json"), payload);
+  return {
+    annotated: ok.length,
+    skipped: ok.length === 0,
+    reason: ok.length ? void 0 : "all reviews failed or skipped",
+    reviews
+  };
+}
+async function reviewOneRepo(opts) {
+  const { repo, config, token, cacheDir } = opts;
+  const fullName = repo.signals.fullName;
+  const safe = fullName.replace(/[^\w.-]+/g, "_");
+  const base = {
+    fullName,
+    status: "skipped",
+    score: repo.score,
+    repoStatus: repo.status,
+    why_showable: "",
+    strengths: repo.drivers.slice(0, 5),
+    weaknesses: repo.blockers.slice(0, 5),
+    review: ""
+  };
+  if (!token) {
+    return {
+      ...base,
+      status: "error",
+      error: "missing token for clone",
+      why_showable: signalWhy(repo),
+      review: signalFallbackReview(repo)
+    };
   }
-  return { annotated: narratives.length, skipped: false };
+  let work = null;
+  try {
+    work = mkdtempSync(join(tmpdir(), "ruro-review-"));
+    const cloneUrl = `https://x-access-token:${token}@github.com/${fullName}.git`;
+    const clone = spawnSync(
+      "git",
+      [
+        "clone",
+        "--depth",
+        "1",
+        "--single-branch",
+        cloneUrl,
+        join(work, "repo")
+      ],
+      { encoding: "utf8", timeout: 12e4 }
+    );
+    if (clone.status !== 0) {
+      throw new Error(
+        (clone.stderr || clone.stdout || "git clone failed").slice(0, 400)
+      );
+    }
+    const repoDir = join(work, "repo");
+    const prompt = [
+      "/review this repository as portfolio evidence for interviews.",
+      "Focus on: correctness risks, missing tests/CI, demo readiness, README honesty, and what would make a recruiter trust or distrust it.",
+      "Reply in markdown with exactly these sections:",
+      "## Why showable",
+      "## Strengths",
+      "## Weaknesses",
+      "## Code review",
+      "Keep total under 400 words. Be blunt."
+    ].join(" ");
+    const env = {
+      ...process.env,
+      COPILOT_GITHUB_TOKEN: token,
+      GITHUB_TOKEN: token,
+      GH_TOKEN: token
+    };
+    const result = spawnSync(
+      "copilot",
+      [
+        "-p",
+        prompt,
+        "-s",
+        "--no-ask-user",
+        "--allow-tool=shell(git:*),shell(find:*),shell(ls:*),shell(rg:*),shell(cat:*),shell(head:*),read"
+      ],
+      {
+        cwd: repoDir,
+        encoding: "utf8",
+        timeout: config.ai.timeout_ms,
+        env,
+        maxBuffer: 2 * 1024 * 1024
+      }
+    );
+    const text = (result.stdout || "").trim() || (result.stderr || "").trim();
+    if (!text || result.status !== 0) {
+      throw new Error(
+        text.slice(0, 400) || `copilot exited ${result.status ?? "null"} with no output`
+      );
+    }
+    const parsed = parseReviewMarkdown(text, repo);
+    const out = {
+      ...base,
+      status: "ok",
+      why_showable: parsed.why_showable,
+      strengths: parsed.strengths.length ? parsed.strengths : base.strengths,
+      weaknesses: parsed.weaknesses.length ? parsed.weaknesses : base.weaknesses,
+      review: parsed.review || text
+    };
+    writeFileSync(join(cacheDir, `${safe}.md`), formatReviewMd(out), "utf8");
+    writeJson(join(cacheDir, `${safe}.json`), out);
+    return out;
+  } catch (err) {
+    const fallback = {
+      ...base,
+      status: "error",
+      error: err instanceof Error ? err.message : String(err),
+      why_showable: signalWhy(repo),
+      review: signalFallbackReview(repo)
+    };
+    writeFileSync(
+      join(cacheDir, `${safe}.md`),
+      formatReviewMd(fallback),
+      "utf8"
+    );
+    writeJson(join(cacheDir, `${safe}.json`), fallback);
+    return fallback;
+  } finally {
+    if (work) {
+      try {
+        rmSync(work, { recursive: true, force: true });
+      } catch {
+      }
+    }
+  }
+}
+function parseReviewMarkdown(text, repo) {
+  const why = section(text, "Why showable") || section(text, "Why Showable") || signalWhy(repo);
+  const strengths = bullets(section(text, "Strengths"));
+  const weaknesses = bullets(section(text, "Weaknesses"));
+  const review = section(text, "Code review") || section(text, "Code Review") || text;
+  return { why_showable: why, strengths, weaknesses, review };
+}
+function section(text, title) {
+  const re = new RegExp(
+    `##\\s*${title}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$)`,
+    "i"
+  );
+  const m = text.match(re);
+  return m?.[1]?.trim() ?? "";
+}
+function bullets(block) {
+  if (!block) return [];
+  return block.split("\n").map((l) => l.replace(/^[-*•]\s+/, "").replace(/^\d+\.\s+/, "").trim()).filter((l) => l.length > 0).slice(0, 8);
+}
+function signalWhy(repo) {
+  return `${repo.signals.name} ranks ${repo.status} at score ${repo.score}. Drivers: ${repo.drivers.slice(0, 4).join(", ") || "\u2014"}.`;
+}
+function signalFallbackReview(repo) {
+  return [
+    `Signal-only fallback (Copilot review unavailable).`,
+    `Blockers: ${repo.blockers.slice(0, 5).join(", ") || "\u2014"}.`,
+    `Demo: ${repo.signals.demo.status}.`
+  ].join(" ");
+}
+function formatReviewMd(r) {
+  return [
+    `# ${r.fullName}`,
+    "",
+    `Status: ${r.repoStatus} \xB7 Score: ${r.score} \xB7 Review: ${r.status}`,
+    "",
+    "## Why showable",
+    r.why_showable || "\u2014",
+    "",
+    "## Strengths",
+    ...r.strengths.map((s) => `- ${s}`) || ["- \u2014"],
+    "",
+    "## Weaknesses",
+    ...r.weaknesses.map((s) => `- ${s}`) || ["- \u2014"],
+    "",
+    "## Code review",
+    r.review || "\u2014",
+    r.error ? `
+
+_Error:_ ${r.error}` : "",
+    ""
+  ].join("\n");
+}
+function emptyPayload(status, note) {
+  return {
+    generated_at: (/* @__PURE__ */ new Date()).toISOString(),
+    provider: "copilot",
+    status,
+    note,
+    repos: []
+  };
+}
+function writeJson(path, data) {
+  writeFileSync(path, `${JSON.stringify(data, null, 2)}
+`, "utf8");
 }
 async function commandExists(bin) {
   try {
-    const { spawnSync } = await import("node:child_process");
     const result = spawnSync(bin, ["--help"], {
       stdio: "ignore",
-      timeout: 2e3
+      timeout: 3e3
     });
     return result.status === 0 || result.status === 1;
   } catch {
@@ -161,33 +509,9 @@ async function commandExists(bin) {
 }
 
 // src/github/collect.ts
+init_retry();
 import { graphql } from "@octokit/graphql";
 import { Octokit } from "@octokit/rest";
-
-// src/github/retry.ts
-async function withRetries(label, fn, opts = {}) {
-  const attempts = opts.attempts ?? 5;
-  const baseDelayMs = opts.baseDelayMs ?? 400;
-  let lastError;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      return await fn();
-    } catch (err) {
-      lastError = err;
-      const message = err instanceof Error ? err.message : String(err);
-      const retryable = /502|503|504|ECONNRESET|ETIMEDOUT|rate limit|secondary rate|ABORTED|fetch failed/i.test(
-        message
-      ) || typeof err === "object" && err !== null && "status" in err && [502, 503, 504, 429].includes(Number(err.status));
-      if (!retryable || attempt === attempts) break;
-      const delay = baseDelayMs * 2 ** (attempt - 1);
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-  const detail = lastError instanceof Error ? lastError.message : String(lastError);
-  throw new Error(`${label} failed after ${attempts} attempts: ${detail}`);
-}
-
-// src/github/collect.ts
 function createClients(token) {
   const octokit = new Octokit({ auth: token, userAgent: "ruro/0.1" });
   const gqlClient = graphql.defaults({
@@ -410,9 +734,21 @@ function mapRepo(node, now) {
     demo: {
       status: "NONE",
       url: null,
+      finalUrl: null,
       httpStatus: null,
       latencyMs: null,
-      error: null
+      error: null,
+      proofBytes: null,
+      contentType: null,
+      verified: false
+    },
+    fitness: {
+      sourceFiles: 0,
+      testFiles: 0,
+      otherFiles: 0,
+      maxBlobBytes: 0,
+      score: 0,
+      flags: ["pending"]
     }
   };
 }
@@ -458,6 +794,8 @@ async function collectRepoSignals(clients, config) {
     cursor = conn.pageInfo.endCursor;
   }
   await enrichWorkflowSignals(clients, collected, now);
+  const { enrichCodeFitness: enrichCodeFitness2 } = await Promise.resolve().then(() => (init_code(), code_exports));
+  await enrichCodeFitness2(clients, collected);
   return { included: collected, excludedCount };
 }
 async function enrichWorkflowSignals(clients, repos, now) {
@@ -514,6 +852,23 @@ function computeTransitions(previous, current) {
 }
 
 // src/probes/demo.ts
+var PARKING_MARKERS = [
+  "buy this domain",
+  "domain is for sale",
+  "parked domain",
+  "coming soon",
+  "under construction",
+  "this site can\u2019t be reached",
+  "this site can't be reached",
+  "404 not found",
+  "page not found",
+  "deployment not found",
+  "project not found",
+  "vercel 404",
+  "netlify 404",
+  "there isn't a github pages site here",
+  "failed to find a valid digest"
+];
 function normalizeUrl(raw) {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -526,25 +881,70 @@ function normalizeUrl(raw) {
     return null;
   }
 }
-async function probeDemoUrl(homepageUrl, config) {
+function isGithubRepoUrl(candidate, ctx) {
+  try {
+    const u = new URL(candidate);
+    if (!/(^|\.)github\.com$/i.test(u.hostname)) return false;
+    const parts = u.pathname.split("/").filter(Boolean);
+    if (parts.length < 2) return false;
+    if (ctx.fullName) {
+      const [o, r] = ctx.fullName.split("/");
+      if (parts[0]?.toLowerCase() === o?.toLowerCase() && parts[1]?.toLowerCase() === r?.toLowerCase()) {
+        return true;
+      }
+    }
+    if (ctx.repoHtmlUrl) {
+      const repo = new URL(ctx.repoHtmlUrl);
+      return u.hostname === repo.hostname && u.pathname.replace(/\/$/, "") === repo.pathname.replace(/\/$/, "");
+    }
+    return !u.hostname.endsWith("github.io");
+  } catch {
+    return false;
+  }
+}
+function looksParkedOrFake(body, contentType) {
+  const lower = body.slice(0, 8e4).toLowerCase();
+  if (PARKING_MARKERS.some((m) => lower.includes(m))) return true;
+  const isHtml = !contentType || contentType.includes("text/html") || contentType.includes("application/xhtml");
+  if (isHtml) {
+    const textish = lower.replace(/<script[\s\S]*?<\/script>/g, " ");
+    const stripped = textish.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (stripped.length < 40) return true;
+  }
+  return false;
+}
+function emptyResult(status, patch = {}) {
+  return {
+    status,
+    url: null,
+    finalUrl: null,
+    httpStatus: null,
+    latencyMs: null,
+    error: null,
+    proofBytes: null,
+    contentType: null,
+    verified: false,
+    ...patch
+  };
+}
+async function probeDemoUrl(homepageUrl, config, ctx = {}) {
   if (!config.probes.enabled) {
-    return {
-      status: homepageUrl ? "NONE" : "NONE",
+    return emptyResult("NONE", {
       url: homepageUrl ?? null,
-      httpStatus: null,
-      latencyMs: null,
-      error: null
-    };
+      verified: false
+    });
   }
   const url = homepageUrl ? normalizeUrl(homepageUrl) : null;
   if (!url) {
-    return {
-      status: "NONE",
-      url: null,
-      httpStatus: null,
-      latencyMs: null,
-      error: null
-    };
+    return emptyResult("NONE");
+  }
+  if (isGithubRepoUrl(url, ctx)) {
+    return emptyResult("DOWN", {
+      url,
+      finalUrl: url,
+      error: "homepage_is_github_repo_not_deploy",
+      verified: false
+    });
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.probes.timeout_ms);
@@ -560,38 +960,99 @@ async function probeDemoUrl(homepageUrl, config) {
       }
     });
     const latencyMs = Date.now() - started;
-    const ok = response.status >= 200 && response.status < 400;
+    const finalUrl = response.url || url;
+    const contentType = response.headers.get("content-type");
+    const buf = Buffer.from(await response.arrayBuffer());
+    const proofBytes = buf.byteLength;
+    const bodyText = buf.toString("utf8");
+    if (isGithubRepoUrl(finalUrl, ctx)) {
+      return emptyResult("DOWN", {
+        url,
+        finalUrl,
+        httpStatus: response.status,
+        latencyMs,
+        error: "redirected_to_github_repo",
+        proofBytes,
+        contentType,
+        verified: false
+      });
+    }
+    const httpOk = response.status >= 200 && response.status < 400;
+    if (!httpOk) {
+      return emptyResult("DOWN", {
+        url,
+        finalUrl,
+        httpStatus: response.status,
+        latencyMs,
+        error: `HTTP ${response.status}`,
+        proofBytes,
+        contentType,
+        verified: false
+      });
+    }
+    if (proofBytes < 64) {
+      return emptyResult("DOWN", {
+        url,
+        finalUrl,
+        httpStatus: response.status,
+        latencyMs,
+        error: "empty_or_tiny_response",
+        proofBytes,
+        contentType,
+        verified: false
+      });
+    }
+    if (looksParkedOrFake(bodyText, contentType)) {
+      return emptyResult("DOWN", {
+        url,
+        finalUrl,
+        httpStatus: response.status,
+        latencyMs,
+        error: "parking_or_soft_404",
+        proofBytes,
+        contentType,
+        verified: false
+      });
+    }
     return {
-      status: ok ? "UP" : "DOWN",
+      status: "UP",
       url,
+      finalUrl,
       httpStatus: response.status,
       latencyMs,
-      error: ok ? null : `HTTP ${response.status}`
+      error: null,
+      proofBytes,
+      contentType,
+      verified: true
     };
   } catch (err) {
-    return {
-      status: "ERROR",
+    return emptyResult("ERROR", {
       url,
-      httpStatus: null,
+      finalUrl: null,
       latencyMs: Date.now() - started,
-      error: err instanceof Error ? err.message : String(err)
-    };
+      error: err instanceof Error ? err.message : String(err),
+      verified: false
+    });
   } finally {
     clearTimeout(timer);
   }
 }
-async function probeAll(homepageUrls, config, concurrency = 6) {
-  const results = new Array(homepageUrls.length);
+async function probeAll(repos, config, concurrency = 6) {
+  const results = new Array(repos.length);
   let index = 0;
   async function worker() {
-    while (index < homepageUrls.length) {
+    while (index < repos.length) {
       const current = index;
       index += 1;
-      results[current] = await probeDemoUrl(homepageUrls[current], config);
+      const repo = repos[current];
+      results[current] = await probeDemoUrl(repo.homepageUrl, config, {
+        repoHtmlUrl: repo.url,
+        fullName: repo.fullName
+      });
     }
   }
   const workers = Array.from(
-    { length: Math.min(concurrency, Math.max(1, homepageUrls.length)) },
+    { length: Math.min(concurrency, Math.max(1, repos.length)) },
     () => worker()
   );
   await Promise.all(workers);
@@ -599,6 +1060,7 @@ async function probeAll(homepageUrls, config, concurrency = 6) {
 }
 
 // src/profile/sync.ts
+init_retry();
 import { Octokit as Octokit2 } from "@octokit/rest";
 
 // src/profile/inject.ts
@@ -891,159 +1353,212 @@ ${rows}
 }
 
 // src/render/web.ts
+import { existsSync as existsSync3, readFileSync as readFileSync3 } from "node:fs";
+import { resolve as resolve3 } from "node:path";
 function esc2(text) {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function statusClass(status) {
   return `st-${status.toLowerCase()}`;
 }
-function row(repo, rank) {
-  const lang = repo.signals.primaryLanguage ?? "\u2014";
-  const demo = repo.signals.demo.status;
-  const notes = [...repo.drivers.slice(0, 2), ...repo.blockers.slice(0, 1)].join(", ");
-  return `<tr>
-  <td class="rank">${rank}</td>
-  <td class="name"><a href="${esc2(repo.signals.url)}" target="_blank" rel="noreferrer">${esc2(repo.signals.name)}</a></td>
-  <td><span class="pill ${statusClass(repo.status)}">${esc2(repo.status)}</span></td>
-  <td class="score"><strong>${repo.score}</strong></td>
-  <td>${repo.pillars.quality}</td>
-  <td>${repo.pillars.alive}</td>
-  <td>${repo.pillars.structure}</td>
-  <td><span class="pill demo-${demo.toLowerCase()}">${esc2(demo)}</span></td>
-  <td>${esc2(lang)}</td>
-  <td class="notes">${esc2(notes || "\u2014")}</td>
-</tr>`;
+function loadAiReviews(config, cwd = process.cwd()) {
+  const path = resolve3(cwd, config.ai.cache_dir, "latest.json");
+  if (!existsSync3(path)) return [];
+  try {
+    const parsed = JSON.parse(readFileSync3(path, "utf8"));
+    return Array.isArray(parsed.repos) ? parsed.repos : [];
+  } catch {
+    return [];
+  }
 }
-function renderWebDashboard(report, config) {
-  const top = report.repos.slice(0, 3);
-  const topHtml = top.map(
-    (r, i) => `<article class="top-card">
-  <div class="top-rank">0${i + 1}</div>
-  <h2><a href="${esc2(r.signals.url)}" target="_blank" rel="noreferrer">${esc2(r.signals.name)}</a></h2>
-  <p><span class="pill ${statusClass(r.status)}">${esc2(r.status)}</span> <span class="score-lg">${r.score}</span></p>
+function attentionItems(report) {
+  return report.repos.filter(
+    (r) => r.blockers.some(
+      (b) => /demo_|homepage_unproven|ci_failing|no_tests|no_source|tiny_tree/.test(
+        b
+      )
+    ) || r.signals.homepageUrl && !r.signals.demo.verified
+  ).slice(0, 8);
+}
+function liveVerified(report) {
+  return report.repos.filter((r) => r.signals.demo.verified).slice(0, 8);
+}
+function renderWebDashboard(report, config, cwd = process.cwd()) {
+  const aiReviews = loadAiReviews(config, cwd);
+  const attention = attentionItems(report);
+  const live = liveVerified(report);
+  const top = report.repos.slice(0, 5);
+  const mix = Object.entries(report.status_counts).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}`).join(" \xB7 ");
+  const attentionHtml = attention.length === 0 ? `<p class="muted">No urgent blockers. Fleet looks clean.</p>` : `<ul class="list">${attention.map(
+    (r) => `<li><a href="${esc2(r.signals.url)}">${esc2(r.signals.name)}</a> <span class="pill ${statusClass(r.status)}">${esc2(r.status)}</span> <span class="muted">${esc2(r.blockers.slice(0, 3).join(" \xB7 "))}</span></li>`
+  ).join("")}</ul>`;
+  const liveHtml = live.length === 0 ? `<p class="muted">No verified deployments yet. Claimed URLs without proof do not count.</p>` : `<ul class="list">${live.map((r) => {
+    const d = r.signals.demo;
+    return `<li><a href="${esc2(d.finalUrl || d.url || r.signals.url)}" target="_blank" rel="noreferrer">${esc2(r.signals.name)}</a> <span class="pill demo-up">VERIFIED</span> <span class="muted">${d.latencyMs ?? "\u2014"}ms \xB7 ${d.proofBytes ?? 0}B</span></li>`;
+  }).join("")}</ul>`;
+  const showHtml = top.map(
+    (r, i) => `<article class="show-card">
+  <div class="rank">0${i + 1}</div>
+  <h2><a href="${esc2(r.signals.url)}">${esc2(r.signals.name)}</a></h2>
+  <p><span class="pill ${statusClass(r.status)}">${esc2(r.status)}</span> <span class="score">${r.score}</span>
+  <span class="muted">fitness ${r.signals.fitness.score}</span></p>
   <p class="muted">${esc2(r.drivers.slice(0, 3).join(" \xB7 ") || "\u2014")}</p>
 </article>`
   ).join("\n");
-  const rows = report.repos.map((r, i) => row(r, i + 1)).join("\n");
-  const mix = Object.entries(report.status_counts).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}`).join(" \xB7 ");
-  const transitions = report.transitions.length === 0 ? `<p class="muted">No status changes since the previous run.</p>` : `<ul class="transitions">${report.transitions.map(
-    (t) => `<li><a href="${esc2(t.url)}">${esc2(t.name)}</a>: <code>${esc2(t.from)}</code> \u2192 <code>${esc2(t.to)}</code> (${t.scoreFrom} \u2192 ${t.scoreTo})</li>`
-  ).join("")}</ul>`;
+  const aiHtml = aiReviews.length === 0 ? `<p class="muted">Copilot judgment off. Run <code>ruro review</code> when you want code-depth. Scores never depend on AI.</p>` : aiReviews.map(
+    (r) => `<article class="ai-card">
+  <h4>${esc2(r.fullName)} <span class="pill">${esc2(r.status)}</span></h4>
+  <p>${esc2(r.why_showable || "\u2014")}</p>
+  <p class="muted">${esc2((r.weaknesses ?? []).slice(0, 4).join(" \xB7 ") || "\u2014")}</p>
+</article>`
+  ).join("\n");
+  const fleetRows = report.repos.map((r, i) => {
+    const demo = r.signals.demo.verified ? "VERIFIED" : r.signals.demo.status;
+    return `<tr>
+  <td>${i + 1}</td>
+  <td><a href="${esc2(r.signals.url)}">${esc2(r.signals.name)}</a></td>
+  <td><span class="pill ${statusClass(r.status)}">${esc2(r.status)}</span></td>
+  <td>${r.score}</td>
+  <td>${r.signals.fitness.score}</td>
+  <td><span class="pill demo-${demo.toLowerCase()}">${esc2(demo)}</span></td>
+  <td>${esc2(r.signals.primaryLanguage ?? "\u2014")}</td>
+</tr>`;
+  }).join("\n");
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${esc2(config.render.title)}</title>
+  <title>Ruro \xB7 GitHub OS</title>
   <style>
     :root {
-      --bg: #07090d;
-      --panel: #0f141c;
-      --line: #1f2937;
-      --text: #f8fafc;
-      --muted: #94a3b8;
-      --lime: #b6ff3b;
-      --sky: #7dd3fc;
-      --amber: #fbbf24;
-      --orange: #fb923c;
-      --red: #f87171;
-      --slate: #94a3b8;
+      --bg: #06080c;
+      --ink: #e8edf5;
+      --muted: #8b97a8;
+      --line: #1a2330;
+      --panel: #0c1118;
+      --lime: #c8f531;
+      --sky: #6ec8ff;
+      --warn: #ffb020;
+      --bad: #ff6b6b;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--ink);
+      font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
       background:
-        radial-gradient(1200px 500px at 10% -10%, #122018 0%, transparent 55%),
+        radial-gradient(900px 420px at 0% 0%, #132418 0%, transparent 55%),
+        radial-gradient(700px 380px at 100% 10%, #0d1a28 0%, transparent 50%),
         var(--bg);
-      color: var(--text);
       min-height: 100vh;
     }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 20px 80px; }
-    .eyebrow { color: var(--lime); letter-spacing: 0.18em; font-size: 12px; margin: 0 0 10px; }
-    h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 40px); font-weight: 600; }
-    .sub { color: var(--muted); margin: 0 0 28px; line-height: 1.5; }
-    .stats {
+    .shell { max-width: 1080px; margin: 0 auto; padding: 36px 20px 96px; }
+    .brand {
+      font-size: clamp(42px, 8vw, 72px);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      margin: 0 0 10px;
+      font-weight: 600;
+    }
+    .brand span { color: var(--lime); }
+    .lede { color: var(--muted); max-width: 46rem; line-height: 1.55; margin: 0 0 28px; }
+    .pulse {
       display: flex; flex-wrap: wrap; gap: 10px 18px;
-      padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px;
-      background: rgba(15,20,28,0.85); margin-bottom: 28px;
+      border: 1px solid var(--line); background: rgba(12,17,24,0.9);
+      padding: 12px 14px; margin-bottom: 28px;
     }
-    .stats span { color: var(--muted); font-size: 12px; }
-    .stats strong { color: var(--text); }
-    .tops { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
-    @media (max-width: 860px) { .tops { grid-template-columns: 1fr; } }
-    .top-card {
-      background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
-      padding: 18px; min-height: 140px;
-    }
-    .top-rank { color: var(--lime); font-size: 12px; letter-spacing: 0.12em; margin-bottom: 8px; }
-    .top-card h2 { margin: 0 0 10px; font-size: 18px; }
-    .top-card a { color: var(--text); text-decoration: none; }
-    .top-card a:hover { color: var(--lime); }
-    .score-lg { color: var(--lime); font-size: 20px; margin-left: 8px; }
-    .muted { color: var(--muted); font-size: 12px; }
-    h3 { margin: 0 0 12px; font-size: 14px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+    .pulse strong { color: var(--ink); }
+    .pulse span { color: var(--muted); font-size: 12px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
     .panel {
-      background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
-      padding: 18px; margin-bottom: 22px; overflow: auto;
+      background: var(--panel); border: 1px solid var(--line); padding: 16px 18px;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #17202b; vertical-align: top; }
-    th { color: var(--muted); font-weight: 500; white-space: nowrap; }
-    td.rank, td.score { font-variant-numeric: tabular-nums; }
-    td.name a { color: var(--text); text-decoration: none; }
-    td.name a:hover { color: var(--lime); }
-    td.notes { color: var(--muted); max-width: 220px; }
+    .panel h3 {
+      margin: 0 0 12px; font-size: 11px; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--muted); font-weight: 500;
+    }
+    .list { list-style: none; margin: 0; padding: 0; }
+    .list li { padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+    .list li:first-child { border-top: 0; padding-top: 0; }
+    .list a { color: var(--ink); text-decoration: none; }
+    .list a:hover { color: var(--lime); }
+    .shows { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 14px 0 22px; }
+    @media (max-width: 960px) { .shows { grid-template-columns: 1fr 1fr; } }
+    .show-card { border: 1px solid var(--line); background: var(--panel); padding: 14px; min-height: 120px; }
+    .rank { color: var(--lime); font-size: 11px; letter-spacing: 0.12em; margin-bottom: 8px; }
+    .show-card h2 { margin: 0 0 8px; font-size: 15px; }
+    .show-card a { color: var(--ink); text-decoration: none; }
+    .show-card a:hover { color: var(--lime); }
+    .score { color: var(--lime); margin-left: 6px; }
+    .muted { color: var(--muted); font-size: 12px; }
     .pill {
-      display: inline-block; padding: 2px 8px; border-radius: 999px;
-      border: 1px solid var(--line); font-size: 11px;
+      display: inline-block; padding: 1px 7px; border: 1px solid var(--line);
+      font-size: 10px; letter-spacing: 0.04em;
     }
-    .st-live { color: #052e16; background: var(--lime); border-color: transparent; }
-    .st-active { color: #0c4a6e; background: var(--sky); border-color: transparent; }
-    .st-stale { color: #78350f; background: var(--amber); border-color: transparent; }
-    .st-dormant { color: #7c2d12; background: var(--orange); border-color: transparent; }
-    .st-dead { color: #7f1d1d; background: var(--red); border-color: transparent; }
-    .st-archived { color: #0f172a; background: var(--slate); border-color: transparent; }
-    .demo-up { color: var(--lime); }
-    .demo-down, .demo-error { color: var(--red); }
+    .st-live { background: var(--lime); color: #08110a; border-color: transparent; }
+    .st-active { background: var(--sky); color: #041018; border-color: transparent; }
+    .st-stale { background: var(--warn); color: #1a1000; border-color: transparent; }
+    .st-dormant, .st-dead { background: var(--bad); color: #1a0505; border-color: transparent; }
+    .st-archived { background: #64748b; color: #0b1220; border-color: transparent; }
+    .demo-verified, .demo-up { color: var(--lime); }
+    .demo-down, .demo-error { color: var(--bad); }
     .demo-none { color: var(--muted); }
-    .transitions { margin: 0; padding-left: 18px; color: var(--muted); }
-    .transitions a { color: var(--text); }
-    footer { margin-top: 18px; color: #475569; font-size: 11px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { text-align: left; padding: 9px 6px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 500; }
+    td a { color: var(--ink); text-decoration: none; }
+    td a:hover { color: var(--lime); }
+    .ai-card { border-top: 1px solid var(--line); padding: 12px 0; }
+    .ai-card:first-child { border-top: 0; padding-top: 0; }
+    .ai-card h4 { margin: 0 0 6px; font-size: 13px; }
+    footer { margin-top: 22px; color: #4b5568; font-size: 11px; }
+    code { color: var(--sky); }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <p class="eyebrow">RURO</p>
-    <h1>${esc2(config.render.title)}</h1>
-    <p class="sub">Deterministic portfolio truth for <code>${esc2(report.owner)}</code>. Zero AI core. Generated ${esc2(report.generated_at)}.</p>
-    <div class="stats">
-      <span>scanned <strong>${report.repo_count}</strong></span>
-      <span>included <strong>${report.included_count}</strong></span>
+  <main class="shell">
+    <h1 class="brand">RURO <span>OS</span></h1>
+    <p class="lede">GitHub-native operating surface for <code>${esc2(report.owner)}</code>. Automatic truth. Deployed means verified. Core is zero-AI; Copilot is optional judgment. Generated ${esc2(report.generated_at)}.</p>
+    <div class="pulse">
+      <span>fleet <strong>${report.included_count}</strong>/${report.repo_count}</span>
       <span>excluded <strong>${report.excluded_count}</strong></span>
+      <span>verified live <strong>${live.length}</strong></span>
       <span>${esc2(mix || "\u2014")}</span>
     </div>
-    <section class="tops">${topHtml || "<p class='muted'>No repositories scored.</p>"}</section>
-    <section class="panel">
-      <h3>Status changes</h3>
-      ${transitions}
+
+    <div class="grid">
+      <section class="panel">
+        <h3>Attention</h3>
+        ${attentionHtml}
+      </section>
+      <section class="panel">
+        <h3>Verified deployments</h3>
+        ${liveHtml}
+      </section>
+    </div>
+
+    <section>
+      <h3 style="margin:18px 0 10px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);">Showables</h3>
+      <div class="shows">${showHtml}</div>
     </section>
+
+    <section class="panel" style="margin-bottom:14px">
+      <h3>Copilot judgment</h3>
+      ${aiHtml}
+    </section>
+
     <section class="panel">
-      <h3>All projects</h3>
+      <h3>Fleet</h3>
       <table>
         <thead>
-          <tr>
-            <th>#</th><th>Repo</th><th>Status</th><th>Score</th>
-            <th>Quality</th><th>Alive</th><th>Structure</th>
-            <th>Demo</th><th>Stack</th><th>Notes</th>
-          </tr>
+          <tr><th>#</th><th>Repo</th><th>Status</th><th>Score</th><th>Fitness</th><th>Deploy</th><th>Stack</th></tr>
         </thead>
-        <tbody>
-          ${rows}
-        </tbody>
+        <tbody>${fleetRows}</tbody>
       </table>
     </section>
-    <footer>Same inputs \u21D2 same scores. Host via GitHub Pages from /docs.</footer>
+    <footer>Claimed homepage \u2260 live. Same inputs \u21D2 same scores. Host from /docs on GitHub Pages.</footer>
   </main>
 </body>
 </html>
@@ -1069,6 +1584,27 @@ function scoreQuality(s) {
   if (s.substantialCodebase) {
     score += 10;
     drivers.push("substantial_code");
+  }
+  if (s.fitness.score >= 70) {
+    score += 14;
+    drivers.push("code_fitness_high");
+  } else if (s.fitness.score >= 45) {
+    score += 8;
+    drivers.push("code_fitness_ok");
+  } else if (s.fitness.flags.includes("no_source_files")) {
+    score -= 18;
+    blockers.push("no_source_files");
+  } else if (s.fitness.flags.includes("tiny_tree")) {
+    score -= 10;
+    blockers.push("tiny_tree");
+  }
+  if (s.fitness.flags.includes("has_test_files")) {
+    score += 6;
+    drivers.push("test_files_in_tree");
+  }
+  if (s.fitness.flags.includes("god_file")) {
+    score -= 6;
+    blockers.push("god_file");
   }
   if (s.hasSrcLayout) {
     score += 4;
@@ -1133,12 +1669,15 @@ function scoreAlive(s, thresholds) {
   const blockers = [];
   const now = /* @__PURE__ */ new Date();
   const pushAge = daysSince(s.pushedAt, now);
-  if (s.demo.status === "UP") {
+  if (s.demo.status === "UP" && s.demo.verified) {
     score += 35;
-    drivers.push("demo_up");
+    drivers.push("demo_verified");
   } else if (s.demo.status === "DOWN" || s.demo.status === "ERROR") {
     score -= 10;
-    blockers.push("demo_down");
+    blockers.push("demo_unproven");
+    if (s.demo.error) blockers.push(s.demo.error.replace(/\s+/g, "_").slice(0, 40));
+  } else if (s.homepageUrl) {
+    blockers.push("homepage_unproven");
   }
   if (pushAge === null) {
     blockers.push("never_pushed");
@@ -1211,9 +1750,11 @@ function scoreStructure(s) {
   } else if (s.topics.length === 0) {
     blockers.push("no_topics");
   }
-  if (s.homepageUrl) {
+  if (s.homepageUrl && s.demo.verified) {
     score += 10;
-    drivers.push("homepage_set");
+    drivers.push("homepage_verified");
+  } else if (s.homepageUrl) {
+    blockers.push("homepage_unproven");
   }
   if (s.primaryLanguage) {
     score += 8;
@@ -1227,7 +1768,7 @@ function scoreStructure(s) {
 function deriveStatus(s, thresholds) {
   if (s.isArchived) return "ARCHIVED";
   const pushAge = daysSince(s.pushedAt, /* @__PURE__ */ new Date());
-  const demoUp = s.demo.status === "UP";
+  const demoUp = s.demo.status === "UP" && s.demo.verified;
   if (demoUp && (pushAge === null || pushAge <= thresholds.dormant_days)) {
     return "LIVE";
   }
@@ -1274,9 +1815,9 @@ function scoreAll(signals, config) {
 
 // src/run.ts
 function loadPreviousReport(dataPath) {
-  if (!existsSync3(dataPath)) return null;
+  if (!existsSync4(dataPath)) return null;
   try {
-    const parsed = JSON.parse(readFileSync3(dataPath, "utf8"));
+    const parsed = JSON.parse(readFileSync4(dataPath, "utf8"));
     if (parsed?.schema_version !== 1 || !Array.isArray(parsed.repos)) {
       return null;
     }
@@ -1286,8 +1827,8 @@ function loadPreviousReport(dataPath) {
   }
 }
 async function runRuro(options) {
-  const cwd = resolve3(options.cwd ?? process.cwd());
-  const dataPath = resolve3(cwd, options.config.render.data_path);
+  const cwd = resolve4(options.cwd ?? process.cwd());
+  const dataPath = resolve4(cwd, options.config.render.data_path);
   const previous = loadPreviousReport(dataPath);
   const clients = createClients(options.token);
   const { included, excludedCount } = await collectRepoSignals(
@@ -1295,7 +1836,11 @@ async function runRuro(options) {
     options.config
   );
   const probes = await probeAll(
-    included.map((r) => r.homepageUrl),
+    included.map((r) => ({
+      homepageUrl: r.homepageUrl,
+      url: r.url,
+      fullName: r.fullName
+    })),
     options.config
   );
   included.forEach((repo, i) => {
@@ -1309,13 +1854,13 @@ async function runRuro(options) {
   const profileSnippet = renderProfileSnippet(report, options.config);
   const profileSvg = renderProfileSvg(report, options.config);
   const webHtml = renderWebDashboard(report, options.config);
-  const dashboardPath = resolve3(cwd, options.config.render.dashboard_path);
-  const profileSnippetPath = resolve3(
+  const dashboardPath = resolve4(cwd, options.config.render.dashboard_path);
+  const profileSnippetPath = resolve4(
     cwd,
     options.config.render.profile_snippet_path
   );
-  const profileSvgPath = resolve3(cwd, options.config.render.profile_svg_path);
-  const webPath = resolve3(cwd, options.config.render.web_path);
+  const profileSvgPath = resolve4(cwd, options.config.render.profile_svg_path);
+  const webPath = resolve4(cwd, options.config.render.web_path);
   let profileSynced = false;
   let aiAnnotated = 0;
   if (!options.dryRun) {
@@ -1332,7 +1877,7 @@ async function runRuro(options) {
     writeFileSync2(webPath, webHtml, "utf8");
     if (options.config.render.history) {
       const day = report.generated_at.slice(0, 10);
-      const historyPath = resolve3(
+      const historyPath = resolve4(
         cwd,
         join2(options.config.render.history_dir, `${day}.json`)
       );
@@ -1353,7 +1898,8 @@ async function runRuro(options) {
       const ai = await annotateWithCopilot({
         report,
         config: options.config,
-        cwd
+        cwd,
+        token: options.token
       });
       aiAnnotated = ai.annotated;
     }
