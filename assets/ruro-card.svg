@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="386" viewBox="0 0 600 386" role="img" aria-label="Ruro portfolio scorecard">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#07090d"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="386" rx="18" fill="url(#bg)"/>
+  <rect x="1" y="1" width="598" height="384" rx="17" fill="none" stroke="#1f2937"/>
+  <text x="28" y="42" fill="#b6ff3b" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="2">RURO</text>
+  <text x="28" y="68" fill="#f8fafc" font-size="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">portfolio truth</text>
+  <text x="572" y="42" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">2026-08-08</text>
+  <text x="28" y="92" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">24 scored · LIVE 5 · ACTIVE 11 · STALE 7</text>
+  <line x1="28" y1="104" x2="572" y2="104" stroke="#1f2937"/>
+
+  <text x="28" y="118" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">1</text>
+  <text x="48" y="118" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">aryanbloodbank</text>
+  <text x="48" y="134" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">TypeScript · LIVE</text>
+  <rect x="430" y="108" width="120" height="8" rx="4" fill="#1e293b"/>
+  <rect x="430" y="108" width="72" height="8" rx="4" fill="#b6ff3b"/>
+  <text x="560" y="118" fill="#b6ff3b" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">60</text>
+
+  <text x="28" y="162" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">2</text>
+  <text x="48" y="162" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">portfolio_v2</text>
+  <text x="48" y="178" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">JavaScript · LIVE</text>
+  <rect x="430" y="152" width="120" height="8" rx="4" fill="#1e293b"/>
+  <rect x="430" y="152" width="64" height="8" rx="4" fill="#b6ff3b"/>
+  <text x="560" y="162" fill="#b6ff3b" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">53</text>
+
+  <text x="28" y="206" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">3</text>
+  <text x="48" y="206" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">phantom</text>
+  <text x="48" y="222" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">Python · ACTIVE</text>
+  <rect x="430" y="196" width="120" height="8" rx="4" fill="#1e293b"/>
+  <rect x="430" y="196" width="61" height="8" rx="4" fill="#7dd3fc"/>
+  <text x="560" y="206" fill="#7dd3fc" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">51</text>
+
+  <text x="28" y="250" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">4</text>
+  <text x="48" y="250" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">railtrack-ai</text>
+  <text x="48" y="266" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">TypeScript · LIVE</text>
+  <rect x="430" y="240" width="120" height="8" rx="4" fill="#1e293b"/>
+  <rect x="430" y="240" width="60" height="8" rx="4" fill="#b6ff3b"/>
+  <text x="560" y="250" fill="#b6ff3b" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">50</text>
+
+  <text x="28" y="294" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">5</text>
+  <text x="48" y="294" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">tpm-attest</text>
+  <text x="48" y="310" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">Python · ACTIVE</text>
+  <rect x="430" y="284" width="120" height="8" rx="4" fill="#1e293b"/>
+  <rect x="430" y="284" width="55" height="8" rx="4" fill="#7dd3fc"/>
+  <text x="560" y="294" fill="#7dd3fc" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">46</text>
+  <text x="28" y="370" fill="#475569" font-size="10" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">deterministic · zero AI · github-native</text>
+</svg>
