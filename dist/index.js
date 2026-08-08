@@ -41,11 +41,37 @@ var ConfigSchema = z.object({
     data_path: z.string().default("data/latest.json"),
     history: z.boolean().default(true),
     history_dir: z.string().default("data/history"),
-    title: z.string().default("Ruro Portfolio Scorecard")
+    title: z.string().default("Ruro Portfolio Scorecard"),
+    profile_snippet_path: z.string().default("PROFILE_SNIPPET.md"),
+    profile_svg_path: z.string().default("assets/ruro-card.svg"),
+    profile_top_n: z.number().int().positive().default(5),
+    web_path: z.string().default("docs/index.html")
   }),
   privacy: z.object({
     mode: z.enum(["full", "public_only_render"]).default("full")
-  }).default({ mode: "full" })
+  }).default({ mode: "full" }),
+  profile: z.object({
+    enabled: z.boolean().default(false),
+    repo: z.string().default(""),
+    readme_path: z.string().default("README.md"),
+    commit_message: z.string().default("chore(ruro): refresh profile portfolio truth")
+  }).default({
+    enabled: false,
+    repo: "",
+    readme_path: "README.md",
+    commit_message: "chore(ruro): refresh profile portfolio truth"
+  }),
+  ai: z.object({
+    enabled: z.boolean().default(false),
+    provider: z.enum(["copilot", "none"]).default("none"),
+    top_n: z.number().int().positive().default(5),
+    cache_dir: z.string().default("data/ai")
+  }).default({
+    enabled: false,
+    provider: "none",
+    top_n: 5,
+    cache_dir: "data/ai"
+  })
 });
 function loadConfig(path, ownerOverride) {
   const abs = resolve(path);
@@ -61,12 +87,107 @@ function loadConfig(path, ownerOverride) {
 }
 
 // src/run.ts
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve as resolve2 } from "node:path";
+import { existsSync as existsSync3, mkdirSync as mkdirSync2, readFileSync as readFileSync3, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname, join as join2, resolve as resolve3 } from "node:path";
+
+// src/ai/copilot.ts
+import { existsSync as existsSync2, mkdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
+import { join, resolve as resolve2 } from "node:path";
+async function annotateWithCopilot(opts) {
+  const { report, config, cwd } = opts;
+  if (!config.ai.enabled || config.ai.provider !== "copilot") {
+    return { annotated: 0, skipped: true, reason: "ai disabled" };
+  }
+  const cacheDir = resolve2(cwd, config.ai.cache_dir);
+  mkdirSync(cacheDir, { recursive: true });
+  const hasCli = await commandExists("copilot");
+  if (!hasCli) {
+    const stub = {
+      generated_at: (/* @__PURE__ */ new Date()).toISOString(),
+      provider: "copilot",
+      status: "unavailable",
+      note: "Copilot CLI not found on PATH. Scores unchanged; enable CLI/credits to annotate.",
+      repos: []
+    };
+    writeFileSync(
+      join(cacheDir, "latest.json"),
+      `${JSON.stringify(stub, null, 2)}
+`,
+      "utf8"
+    );
+    return { annotated: 0, skipped: true, reason: "copilot cli missing" };
+  }
+  const top = report.repos.slice(0, config.ai.top_n);
+  const narratives = top.map((repo) => {
+    const narrative = [
+      `${repo.signals.name} is ${repo.status} at score ${repo.score}.`,
+      repo.drivers.length ? `Drivers: ${repo.drivers.join(", ")}.` : null,
+      repo.blockers.length ? `Blockers: ${repo.blockers.join(", ")}.` : null,
+      repo.signals.demo.status === "UP" ? "Demo responds." : "No live demo confirmed."
+    ].filter(Boolean).join(" ");
+    return { fullName: repo.signals.fullName, narrative };
+  });
+  const payload = {
+    generated_at: (/* @__PURE__ */ new Date()).toISOString(),
+    provider: "copilot",
+    status: "signal_fallback",
+    note: "Live Copilot prompting is gated. Cached signal-derived annotations written for top repos.",
+    repos: narratives
+  };
+  writeFileSync(
+    join(cacheDir, "latest.json"),
+    `${JSON.stringify(payload, null, 2)}
+`,
+    "utf8"
+  );
+  for (const item of narratives) {
+    const safe = item.fullName.replace(/[^\w.-]+/g, "_");
+    writeFileSync(join(cacheDir, `${safe}.md`), `${item.narrative}
+`, "utf8");
+  }
+  return { annotated: narratives.length, skipped: false };
+}
+async function commandExists(bin) {
+  try {
+    const { spawnSync } = await import("node:child_process");
+    const result = spawnSync(bin, ["--help"], {
+      stdio: "ignore",
+      timeout: 2e3
+    });
+    return result.status === 0 || result.status === 1;
+  } catch {
+    return false;
+  }
+}
 
 // src/github/collect.ts
 import { graphql } from "@octokit/graphql";
 import { Octokit } from "@octokit/rest";
+
+// src/github/retry.ts
+async function withRetries(label, fn, opts = {}) {
+  const attempts = opts.attempts ?? 5;
+  const baseDelayMs = opts.baseDelayMs ?? 400;
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const message = err instanceof Error ? err.message : String(err);
+      const retryable = /502|503|504|ECONNRESET|ETIMEDOUT|rate limit|secondary rate|ABORTED|fetch failed/i.test(
+        message
+      ) || typeof err === "object" && err !== null && "status" in err && [502, 503, 504, 429].includes(Number(err.status));
+      if (!retryable || attempt === attempts) break;
+      const delay = baseDelayMs * 2 ** (attempt - 1);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  const detail = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(`${label} failed after ${attempts} attempts: ${detail}`);
+}
+
+// src/github/collect.ts
 function createClients(token) {
   const octokit = new Octokit({ auth: token, userAgent: "ruro/0.1" });
   const gqlClient = graphql.defaults({
@@ -77,7 +198,7 @@ function createClients(token) {
   });
   return {
     octokit,
-    gql: (query, variables) => gqlClient(query, variables)
+    gql: (query, variables) => withRetries(`graphql`, () => gqlClient(query, variables))
   };
 }
 var REPO_FIELDS = `
@@ -147,6 +268,9 @@ var REPO_FIELDS = `
         srcTestDir: object(expression: "HEAD:src/__tests__") { ... on Tree { id } }
         underscoreTests: object(expression: "HEAD:__tests__") { ... on Tree { id } }
         specDir: object(expression: "HEAD:spec") { ... on Tree { id } }
+        srcDir: object(expression: "HEAD:src") { ... on Tree { id } }
+        dockerfile: object(expression: "HEAD:Dockerfile") { ... on Blob { id } }
+        containerfile: object(expression: "HEAD:Containerfile") { ... on Blob { id } }
         releases(first: 1, orderBy: { field: CREATED_AT, direction: DESC }) {
           totalCount
           nodes { publishedAt createdAt }
@@ -274,6 +398,8 @@ function mapRepo(node, now) {
     ),
     hasPackageManifest,
     substantialCodebase: (node.diskUsage ?? 0) >= 200,
+    hasSrcLayout: Boolean(node.srcDir),
+    hasContainerfile: Boolean(node.dockerfile || node.containerfile),
     recentWorkflowConclusion: null,
     recentWorkflowAgeDays: null,
     commitsLast30Days: countCommitsSince(commitDates, now, 30),
@@ -339,12 +465,16 @@ async function enrichWorkflowSignals(clients, repos, now) {
     if (!repo.hasWorkflows) continue;
     try {
       const [owner, name] = repo.fullName.split("/");
-      const { data } = await clients.octokit.actions.listWorkflowRunsForRepo({
-        owner,
-        repo: name,
-        per_page: 1,
-        branch: repo.defaultBranch ?? void 0
-      });
+      const { data } = await withRetries(
+        `actions:${repo.fullName}`,
+        () => clients.octokit.actions.listWorkflowRunsForRepo({
+          owner,
+          repo: name,
+          per_page: 1,
+          branch: repo.defaultBranch ?? void 0
+        }),
+        { attempts: 3, baseDelayMs: 250 }
+      );
       const run = data.workflow_runs[0];
       if (!run) continue;
       repo.recentWorkflowConclusion = run.conclusion ?? run.status ?? null;
@@ -354,6 +484,33 @@ async function enrichWorkflowSignals(clients, repos, now) {
     } catch {
     }
   }
+}
+
+// src/history/transitions.ts
+function computeTransitions(previous, current) {
+  if (!previous) return [];
+  const prevMap = new Map(
+    previous.repos.map((r) => [
+      r.signals.fullName,
+      { status: r.status, score: r.score }
+    ])
+  );
+  const out = [];
+  for (const repo of current.repos) {
+    const prior = prevMap.get(repo.signals.fullName);
+    if (!prior) continue;
+    if (prior.status === repo.status) continue;
+    out.push({
+      fullName: repo.signals.fullName,
+      name: repo.signals.name,
+      url: repo.signals.url,
+      from: prior.status,
+      to: repo.status,
+      scoreFrom: prior.score,
+      scoreTo: repo.score
+    });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // src/probes/demo.ts
@@ -441,6 +598,96 @@ async function probeAll(homepageUrls, config, concurrency = 6) {
   return results;
 }
 
+// src/profile/sync.ts
+import { Octokit as Octokit2 } from "@octokit/rest";
+
+// src/profile/inject.ts
+var START = "<!-- RURO:START -->";
+var END = "<!-- RURO:END -->";
+function injectRuroBlock(readme, block) {
+  const normalizedBlock = block.trim().endsWith(END) ? block.trim() : `${START}
+${block.trim()}
+${END}`;
+  const startIdx = readme.indexOf(START);
+  const endIdx = readme.indexOf(END);
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    const before = readme.slice(0, startIdx);
+    const after = readme.slice(endIdx + END.length);
+    return `${before}${normalizedBlock}${after}`;
+  }
+  const projectsMatch = readme.match(
+    /##\s*[░]?\s*PROJECTS[\s\S]*?(?=\n##\s*[░]|\n---\s*\n|$)/i
+  );
+  if (projectsMatch && projectsMatch.index !== void 0) {
+    const before = readme.slice(0, projectsMatch.index);
+    const after = readme.slice(projectsMatch.index + projectsMatch[0].length);
+    return `${before}${normalizedBlock}
+
+${after}`.replace(/\n{3,}/g, "\n\n");
+  }
+  return `${readme.trimEnd()}
+
+${normalizedBlock}
+`;
+}
+
+// src/profile/sync.ts
+async function syncProfileReadme(token, config, snippetMarkdown) {
+  const profile = config.profile;
+  if (!profile.enabled) {
+    return { updated: false, repo: "", path: "" };
+  }
+  const [owner, repo] = profile.repo.split("/");
+  if (!owner || !repo) {
+    throw new Error(`Invalid profile.repo: ${profile.repo}`);
+  }
+  const octokit = new Octokit2({ auth: token, userAgent: "ruro/0.1" });
+  const path = profile.readme_path;
+  const existing = await withRetries(
+    `profile:get:${profile.repo}`,
+    () => octokit.repos.getContent({ owner, repo, path })
+  );
+  if (Array.isArray(existing.data) || existing.data.type !== "file") {
+    throw new Error(`${profile.repo}/${path} is not a file`);
+  }
+  const file = existing.data;
+  const current = Buffer.from(file.content ?? "", "base64").toString("utf8");
+  const next = injectRuroBlock(current, snippetMarkdown);
+  if (next === current) {
+    return {
+      updated: false,
+      repo: profile.repo,
+      path,
+      sha: file.sha
+    };
+  }
+  const written = await withRetries(
+    `profile:put:${profile.repo}`,
+    () => octokit.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path,
+      message: profile.commit_message,
+      content: Buffer.from(next, "utf8").toString("base64"),
+      sha: file.sha,
+      committer: {
+        name: "Anudeep GRS",
+        email: "grsanudeep42@gmail.com"
+      },
+      author: {
+        name: "Anudeep GRS",
+        email: "grsanudeep42@gmail.com"
+      }
+    })
+  );
+  return {
+    updated: true,
+    repo: profile.repo,
+    path,
+    sha: written.data.content?.sha
+  };
+}
+
 // src/render/dashboard.ts
 function relativeDays(iso) {
   if (!iso) return "\u2014";
@@ -468,7 +715,7 @@ function statusCounts(repos) {
   for (const r of repos) counts[r.status] += 1;
   return counts;
 }
-function buildReport(config, repos, excludedCount) {
+function buildReport(config, repos, excludedCount, transitions = []) {
   const visible = config.privacy.mode === "public_only_render" ? repos.filter((r) => !r.signals.isPrivate) : repos;
   return {
     schema_version: 1,
@@ -479,7 +726,8 @@ function buildReport(config, repos, excludedCount) {
     excluded_count: excludedCount + (repos.length - visible.length),
     status_counts: statusCounts(visible),
     weights: { ...config.weights },
-    repos: visible
+    repos: visible,
+    transitions
   };
 }
 function renderDashboard(report, config) {
@@ -508,6 +756,17 @@ function renderDashboard(report, config) {
       const r = top[i];
       lines.push(
         `${i + 1}. **[${r.signals.name}](${r.signals.url})** \u2014 \`${r.status}\` \xB7 score **${r.score}** \xB7 ${r.drivers.slice(0, 3).join(", ") || "\u2014"}`
+      );
+    }
+    lines.push("");
+  }
+  lines.push("## Status changes", "");
+  if (!report.transitions.length) {
+    lines.push("_No status changes since the previous run._", "");
+  } else {
+    for (const t of report.transitions) {
+      lines.push(
+        `- **[${t.name}](${t.url})**: \`${t.from}\` \u2192 \`${t.to}\` (score ${t.scoreFrom} \u2192 ${t.scoreTo})`
       );
     }
     lines.push("");
@@ -544,6 +803,253 @@ function renderDashboard(report, config) {
   return lines.join("\n");
 }
 
+// src/render/profile.ts
+function escXml(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function statusTone(status) {
+  switch (status) {
+    case "LIVE":
+      return "#b6ff3b";
+    case "ACTIVE":
+      return "#7dd3fc";
+    case "STALE":
+      return "#fbbf24";
+    case "DORMANT":
+      return "#fb923c";
+    case "DEAD":
+      return "#f87171";
+    case "ARCHIVED":
+      return "#94a3b8";
+    default:
+      return "#e2e8f0";
+  }
+}
+function barWidth(score, max = 120) {
+  return Math.max(4, Math.round(Math.min(100, Math.max(0, score)) / 100 * max));
+}
+function renderProfileSvg(report, config) {
+  const top = report.repos.slice(0, config.render.profile_top_n);
+  const generated = report.generated_at.slice(0, 10);
+  const rows = top.map((repo, i) => {
+    const y = 118 + i * 44;
+    const tone = statusTone(repo.status);
+    const w = barWidth(repo.score);
+    return `
+  <text x="28" y="${y}" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${i + 1}</text>
+  <text x="48" y="${y}" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${escXml(repo.signals.name)}</text>
+  <text x="48" y="${y + 16}" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${escXml(repo.signals.primaryLanguage ?? "\u2014")} \xB7 ${escXml(repo.status)}</text>
+  <rect x="430" y="${y - 10}" width="120" height="8" rx="4" fill="#1e293b"/>
+  <rect x="430" y="${y - 10}" width="${w}" height="8" rx="4" fill="${tone}"/>
+  <text x="560" y="${y}" fill="${tone}" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">${repo.score}</text>`;
+  }).join("\n");
+  const height = 130 + top.length * 44 + 36;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="${height}" viewBox="0 0 600 ${height}" role="img" aria-label="Ruro portfolio scorecard">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#07090d"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="${height}" rx="18" fill="url(#bg)"/>
+  <rect x="1" y="1" width="598" height="${height - 2}" rx="17" fill="none" stroke="#1f2937"/>
+  <text x="28" y="42" fill="#b6ff3b" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="2">RURO</text>
+  <text x="28" y="68" fill="#f8fafc" font-size="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">portfolio truth</text>
+  <text x="572" y="42" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">${escXml(generated)}</text>
+  <text x="28" y="92" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${report.included_count} scored \xB7 LIVE ${report.status_counts.LIVE} \xB7 ACTIVE ${report.status_counts.ACTIVE} \xB7 STALE ${report.status_counts.STALE}</text>
+  <line x1="28" y1="104" x2="572" y2="104" stroke="#1f2937"/>
+${rows}
+  <text x="28" y="${height - 16}" fill="#475569" font-size="10" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">deterministic \xB7 zero AI \xB7 github-native</text>
+</svg>
+`;
+}
+function renderProfileSnippet(report, config) {
+  const top = report.repos.slice(0, config.render.profile_top_n);
+  const svgPath = config.render.profile_svg_path;
+  const cardUrl = `https://raw.githubusercontent.com/${config.owner}/ruro/main/${svgPath}`;
+  const rows = top.map((r) => {
+    const demo = r.signals.demo.status === "UP" ? "live demo" : r.signals.demo.status === "NONE" ? "no demo" : "demo down";
+    return `| **[${r.signals.name}](${r.signals.url})** | \`${r.status}\` | **${r.score}** | ${r.signals.primaryLanguage ?? "\u2014"} | ${demo} |`;
+  }).join("\n");
+  return `<!-- RURO:START -->
+## \u2591 PORTFOLIO TRUTH
+
+<div align="center">
+
+<img src="${cardUrl}" width="600" alt="Ruro portfolio scorecard" />
+
+</div>
+
+| Project | Status | Score | Stack | Demo |
+|---|---|---:|---|---|
+${rows}
+
+<sub>Auto-maintained by [Ruro](https://github.com/${config.owner}/ruro) \xB7 ${report.generated_at.slice(0, 10)} \xB7 zero AI</sub>
+<!-- RURO:END -->
+`;
+}
+
+// src/render/web.ts
+function esc2(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function statusClass(status) {
+  return `st-${status.toLowerCase()}`;
+}
+function row(repo, rank) {
+  const lang = repo.signals.primaryLanguage ?? "\u2014";
+  const demo = repo.signals.demo.status;
+  const notes = [...repo.drivers.slice(0, 2), ...repo.blockers.slice(0, 1)].join(", ");
+  return `<tr>
+  <td class="rank">${rank}</td>
+  <td class="name"><a href="${esc2(repo.signals.url)}" target="_blank" rel="noreferrer">${esc2(repo.signals.name)}</a></td>
+  <td><span class="pill ${statusClass(repo.status)}">${esc2(repo.status)}</span></td>
+  <td class="score"><strong>${repo.score}</strong></td>
+  <td>${repo.pillars.quality}</td>
+  <td>${repo.pillars.alive}</td>
+  <td>${repo.pillars.structure}</td>
+  <td><span class="pill demo-${demo.toLowerCase()}">${esc2(demo)}</span></td>
+  <td>${esc2(lang)}</td>
+  <td class="notes">${esc2(notes || "\u2014")}</td>
+</tr>`;
+}
+function renderWebDashboard(report, config) {
+  const top = report.repos.slice(0, 3);
+  const topHtml = top.map(
+    (r, i) => `<article class="top-card">
+  <div class="top-rank">0${i + 1}</div>
+  <h2><a href="${esc2(r.signals.url)}" target="_blank" rel="noreferrer">${esc2(r.signals.name)}</a></h2>
+  <p><span class="pill ${statusClass(r.status)}">${esc2(r.status)}</span> <span class="score-lg">${r.score}</span></p>
+  <p class="muted">${esc2(r.drivers.slice(0, 3).join(" \xB7 ") || "\u2014")}</p>
+</article>`
+  ).join("\n");
+  const rows = report.repos.map((r, i) => row(r, i + 1)).join("\n");
+  const mix = Object.entries(report.status_counts).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}`).join(" \xB7 ");
+  const transitions = report.transitions.length === 0 ? `<p class="muted">No status changes since the previous run.</p>` : `<ul class="transitions">${report.transitions.map(
+    (t) => `<li><a href="${esc2(t.url)}">${esc2(t.name)}</a>: <code>${esc2(t.from)}</code> \u2192 <code>${esc2(t.to)}</code> (${t.scoreFrom} \u2192 ${t.scoreTo})</li>`
+  ).join("")}</ul>`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${esc2(config.render.title)}</title>
+  <style>
+    :root {
+      --bg: #07090d;
+      --panel: #0f141c;
+      --line: #1f2937;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --lime: #b6ff3b;
+      --sky: #7dd3fc;
+      --amber: #fbbf24;
+      --orange: #fb923c;
+      --red: #f87171;
+      --slate: #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background:
+        radial-gradient(1200px 500px at 10% -10%, #122018 0%, transparent 55%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 20px 80px; }
+    .eyebrow { color: var(--lime); letter-spacing: 0.18em; font-size: 12px; margin: 0 0 10px; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 40px); font-weight: 600; }
+    .sub { color: var(--muted); margin: 0 0 28px; line-height: 1.5; }
+    .stats {
+      display: flex; flex-wrap: wrap; gap: 10px 18px;
+      padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px;
+      background: rgba(15,20,28,0.85); margin-bottom: 28px;
+    }
+    .stats span { color: var(--muted); font-size: 12px; }
+    .stats strong { color: var(--text); }
+    .tops { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+    @media (max-width: 860px) { .tops { grid-template-columns: 1fr; } }
+    .top-card {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+      padding: 18px; min-height: 140px;
+    }
+    .top-rank { color: var(--lime); font-size: 12px; letter-spacing: 0.12em; margin-bottom: 8px; }
+    .top-card h2 { margin: 0 0 10px; font-size: 18px; }
+    .top-card a { color: var(--text); text-decoration: none; }
+    .top-card a:hover { color: var(--lime); }
+    .score-lg { color: var(--lime); font-size: 20px; margin-left: 8px; }
+    .muted { color: var(--muted); font-size: 12px; }
+    h3 { margin: 0 0 12px; font-size: 14px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+    .panel {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+      padding: 18px; margin-bottom: 22px; overflow: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #17202b; vertical-align: top; }
+    th { color: var(--muted); font-weight: 500; white-space: nowrap; }
+    td.rank, td.score { font-variant-numeric: tabular-nums; }
+    td.name a { color: var(--text); text-decoration: none; }
+    td.name a:hover { color: var(--lime); }
+    td.notes { color: var(--muted); max-width: 220px; }
+    .pill {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      border: 1px solid var(--line); font-size: 11px;
+    }
+    .st-live { color: #052e16; background: var(--lime); border-color: transparent; }
+    .st-active { color: #0c4a6e; background: var(--sky); border-color: transparent; }
+    .st-stale { color: #78350f; background: var(--amber); border-color: transparent; }
+    .st-dormant { color: #7c2d12; background: var(--orange); border-color: transparent; }
+    .st-dead { color: #7f1d1d; background: var(--red); border-color: transparent; }
+    .st-archived { color: #0f172a; background: var(--slate); border-color: transparent; }
+    .demo-up { color: var(--lime); }
+    .demo-down, .demo-error { color: var(--red); }
+    .demo-none { color: var(--muted); }
+    .transitions { margin: 0; padding-left: 18px; color: var(--muted); }
+    .transitions a { color: var(--text); }
+    footer { margin-top: 18px; color: #475569; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <p class="eyebrow">RURO</p>
+    <h1>${esc2(config.render.title)}</h1>
+    <p class="sub">Deterministic portfolio truth for <code>${esc2(report.owner)}</code>. Zero AI core. Generated ${esc2(report.generated_at)}.</p>
+    <div class="stats">
+      <span>scanned <strong>${report.repo_count}</strong></span>
+      <span>included <strong>${report.included_count}</strong></span>
+      <span>excluded <strong>${report.excluded_count}</strong></span>
+      <span>${esc2(mix || "\u2014")}</span>
+    </div>
+    <section class="tops">${topHtml || "<p class='muted'>No repositories scored.</p>"}</section>
+    <section class="panel">
+      <h3>Status changes</h3>
+      ${transitions}
+    </section>
+    <section class="panel">
+      <h3>All projects</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Repo</th><th>Status</th><th>Score</th>
+            <th>Quality</th><th>Alive</th><th>Structure</th>
+            <th>Demo</th><th>Stack</th><th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </section>
+    <footer>Same inputs \u21D2 same scores. Host via GitHub Pages from /docs.</footer>
+  </main>
+</body>
+</html>
+`;
+}
+
 // src/score/score.ts
 function clamp(n, min = 0, max = 100) {
   return Math.max(min, Math.min(max, Math.round(n)));
@@ -563,6 +1069,14 @@ function scoreQuality(s) {
   if (s.substantialCodebase) {
     score += 10;
     drivers.push("substantial_code");
+  }
+  if (s.hasSrcLayout) {
+    score += 4;
+    drivers.push("src_layout");
+  }
+  if (s.hasContainerfile) {
+    score += 4;
+    drivers.push("containerized");
   }
   if (s.hasTestsHeuristic) {
     score += 20;
@@ -759,8 +1273,22 @@ function scoreAll(signals, config) {
 }
 
 // src/run.ts
+function loadPreviousReport(dataPath) {
+  if (!existsSync3(dataPath)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync3(dataPath, "utf8"));
+    if (parsed?.schema_version !== 1 || !Array.isArray(parsed.repos)) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 async function runRuro(options) {
-  const cwd = resolve2(options.cwd ?? process.cwd());
+  const cwd = resolve3(options.cwd ?? process.cwd());
+  const dataPath = resolve3(cwd, options.config.render.data_path);
+  const previous = loadPreviousReport(dataPath);
   const clients = createClients(options.token);
   const { included, excludedCount } = await collectRepoSignals(
     clients,
@@ -774,28 +1302,73 @@ async function runRuro(options) {
     repo.demo = probes[i];
   });
   const scored = scoreAll(included, options.config);
-  const report = buildReport(options.config, scored, excludedCount);
+  const draft = buildReport(options.config, scored, excludedCount, []);
+  const transitions = computeTransitions(previous, draft);
+  const report = { ...draft, transitions };
   const dashboardMarkdown = renderDashboard(report, options.config);
-  const dashboardPath = resolve2(cwd, options.config.render.dashboard_path);
-  const dataPath = resolve2(cwd, options.config.render.data_path);
+  const profileSnippet = renderProfileSnippet(report, options.config);
+  const profileSvg = renderProfileSvg(report, options.config);
+  const webHtml = renderWebDashboard(report, options.config);
+  const dashboardPath = resolve3(cwd, options.config.render.dashboard_path);
+  const profileSnippetPath = resolve3(
+    cwd,
+    options.config.render.profile_snippet_path
+  );
+  const profileSvgPath = resolve3(cwd, options.config.render.profile_svg_path);
+  const webPath = resolve3(cwd, options.config.render.web_path);
+  let profileSynced = false;
+  let aiAnnotated = 0;
   if (!options.dryRun) {
-    mkdirSync(dirname(dashboardPath), { recursive: true });
-    mkdirSync(dirname(dataPath), { recursive: true });
-    writeFileSync(dashboardPath, dashboardMarkdown, "utf8");
-    writeFileSync(dataPath, `${JSON.stringify(report, null, 2)}
+    mkdirSync2(dirname(dashboardPath), { recursive: true });
+    mkdirSync2(dirname(dataPath), { recursive: true });
+    mkdirSync2(dirname(profileSnippetPath), { recursive: true });
+    mkdirSync2(dirname(profileSvgPath), { recursive: true });
+    mkdirSync2(dirname(webPath), { recursive: true });
+    writeFileSync2(dashboardPath, dashboardMarkdown, "utf8");
+    writeFileSync2(dataPath, `${JSON.stringify(report, null, 2)}
 `, "utf8");
+    writeFileSync2(profileSnippetPath, profileSnippet, "utf8");
+    writeFileSync2(profileSvgPath, profileSvg, "utf8");
+    writeFileSync2(webPath, webHtml, "utf8");
     if (options.config.render.history) {
       const day = report.generated_at.slice(0, 10);
-      const historyPath = resolve2(
+      const historyPath = resolve3(
         cwd,
-        join(options.config.render.history_dir, `${day}.json`)
+        join2(options.config.render.history_dir, `${day}.json`)
       );
-      mkdirSync(dirname(historyPath), { recursive: true });
-      writeFileSync(historyPath, `${JSON.stringify(report, null, 2)}
+      mkdirSync2(dirname(historyPath), { recursive: true });
+      writeFileSync2(historyPath, `${JSON.stringify(report, null, 2)}
 `, "utf8");
     }
+    const shouldSync = options.syncProfile ?? options.config.profile.enabled;
+    if (shouldSync && options.config.profile.enabled) {
+      const sync = await syncProfileReadme(
+        options.token,
+        options.config,
+        profileSnippet
+      );
+      profileSynced = sync.updated;
+    }
+    if (options.config.ai.enabled && options.config.ai.provider === "copilot") {
+      const ai = await annotateWithCopilot({
+        report,
+        config: options.config,
+        cwd
+      });
+      aiAnnotated = ai.annotated;
+    }
   }
-  return { report, dashboardMarkdown, dashboardPath, dataPath };
+  return {
+    report,
+    dashboardMarkdown,
+    dashboardPath,
+    dataPath,
+    profileSnippetPath,
+    profileSvgPath,
+    webPath,
+    profileSynced,
+    aiAnnotated
+  };
 }
 
 // src/index.ts
@@ -804,21 +1377,33 @@ async function main() {
   const configPath = core.getInput("config-path") || "ruro.yml";
   const ownerInput = core.getInput("owner") || void 0;
   const dryRun = core.getBooleanInput("dry-run");
-  const owner = ownerInput || void 0;
-  let config = loadConfig(configPath, owner);
+  const syncProfileInput = core.getInput("sync-profile");
+  const syncProfile = syncProfileInput === "" ? void 0 : syncProfileInput === "true";
+  let config = loadConfig(configPath, ownerInput);
   if (!config.owner) {
     config = {
       ...config,
       owner: github.context.repo.owner
     };
   }
-  core.info(`Ruro scanning owner=${config.owner} dryRun=${dryRun}`);
-  const result = await runRuro({ token, config, dryRun });
+  core.info(
+    `Ruro scanning owner=${config.owner} dryRun=${dryRun} syncProfile=${syncProfile ?? config.profile.enabled}`
+  );
+  const result = await runRuro({ token, config, dryRun, syncProfile });
   core.setOutput("repo-count", String(result.report.included_count));
   core.setOutput("dashboard-path", result.dashboardPath);
+  core.setOutput("web-path", result.webPath);
+  core.setOutput("profile-synced", String(result.profileSynced));
   core.info(
     `Scored ${result.report.included_count} repos \u2192 ${result.dashboardPath}`
   );
+  core.info(`Web dashboard \u2192 ${result.webPath}`);
+  if (result.profileSynced) {
+    core.info(`Profile README synced for ${config.profile.repo}`);
+  }
+  if (result.aiAnnotated > 0) {
+    core.info(`AI annotations written for ${result.aiAnnotated} repos`);
+  }
 }
 main().catch((err) => {
   core.setFailed(err instanceof Error ? err.message : String(err));

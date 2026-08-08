@@ -1,7 +1,7 @@
 {
   "name": "ruro",
   "version": "0.1.0",
-  "description": "Production-grade GitHub portfolio scorecard. Zero AI. Never leaves GitHub.",
+  "description": "Portfolio Jarvis for GitHub — ranked living projects. Core is zero AI.",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",

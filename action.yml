@@ -1,5 +1,5 @@
 name: Ruro
-description: Production-grade GitHub portfolio scorecard. Zero AI. Never leaves GitHub.
+description: Portfolio Jarvis for GitHub — ranked living projects. Core is zero AI.
 author: Ruro
 branding:
   icon: activity
@@ -30,6 +30,8 @@ outputs:
     description: Number of repositories scored.
   dashboard-path:
     description: Path to the generated dashboard markdown.
+  web-path:
+    description: Path to the generated web dashboard HTML.
   profile-synced:
     description: Whether the profile README was updated.
 

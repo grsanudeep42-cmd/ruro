@@ -55,7 +55,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(ruro): refresh portfolio scorecard"
-          file_pattern: DASHBOARD.md PROFILE_SNIPPET.md assets/ruro-card.svg data/latest.json data/history/*.json
+          file_pattern: DASHBOARD.md PROFILE_SNIPPET.md assets/ruro-card.svg docs/** data/latest.json data/history/*.json data/ai/**
           commit_user_name: Anudeep GRS
           commit_user_email: grsanudeep42@gmail.com
           commit_author: Anudeep GRS <grsanudeep42@gmail.com>

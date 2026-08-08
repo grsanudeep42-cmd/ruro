@@ -27,12 +27,17 @@ async function main(): Promise<void> {
 
   core.setOutput("repo-count", String(result.report.included_count));
   core.setOutput("dashboard-path", result.dashboardPath);
+  core.setOutput("web-path", result.webPath);
   core.setOutput("profile-synced", String(result.profileSynced));
   core.info(
     `Scored ${result.report.included_count} repos → ${result.dashboardPath}`,
   );
+  core.info(`Web dashboard → ${result.webPath}`);
   if (result.profileSynced) {
     core.info(`Profile README synced for ${config.profile.repo}`);
+  }
+  if (result.aiAnnotated > 0) {
+    core.info(`AI annotations written for ${result.aiAnnotated} repos`);
   }
 }
 

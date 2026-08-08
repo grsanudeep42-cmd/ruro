@@ -36,6 +36,7 @@ render:
   profile_snippet_path: PROFILE_SNIPPET.md
   profile_svg_path: assets/ruro-card.svg
   profile_top_n: 5
+  web_path: docs/index.html
 
 privacy:
   # full = write every scanned repo into DASHBOARD.md (use a private meta-repo for private repos)
@@ -46,3 +47,9 @@ profile:
   repo: grsanudeep42-cmd/grsanudeep42-cmd
   readme_path: README.md
   commit_message: "chore(ruro): refresh profile portfolio truth"
+
+ai:
+  enabled: false
+  provider: none
+  top_n: 5
+  cache_dir: data/ai

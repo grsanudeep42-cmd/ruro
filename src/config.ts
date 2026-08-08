@@ -44,6 +44,7 @@ const ConfigSchema = z.object({
     profile_snippet_path: z.string().default("PROFILE_SNIPPET.md"),
     profile_svg_path: z.string().default("assets/ruro-card.svg"),
     profile_top_n: z.number().int().positive().default(5),
+    web_path: z.string().default("docs/index.html"),
   }),
   privacy: z
     .object({
@@ -64,6 +65,19 @@ const ConfigSchema = z.object({
       repo: "",
       readme_path: "README.md",
       commit_message: "chore(ruro): refresh profile portfolio truth",
+    }),
+  ai: z
+    .object({
+      enabled: z.boolean().default(false),
+      provider: z.enum(["copilot", "none"]).default("none"),
+      top_n: z.number().int().positive().default(5),
+      cache_dir: z.string().default("data/ai"),
+    })
+    .default({
+      enabled: false,
+      provider: "none",
+      top_n: 5,
+      cache_dir: "data/ai",
     }),
 });
 
@@ -109,6 +123,7 @@ export function defaultConfig(owner: string): RuroConfig {
       profile_snippet_path: "PROFILE_SNIPPET.md",
       profile_svg_path: "assets/ruro-card.svg",
       profile_top_n: 5,
+      web_path: "docs/index.html",
     },
     privacy: { mode: "full" },
     profile: {
@@ -116,6 +131,12 @@ export function defaultConfig(owner: string): RuroConfig {
       repo: `${owner}/${owner}`,
       readme_path: "README.md",
       commit_message: "chore(ruro): refresh profile portfolio truth",
+    },
+    ai: {
+      enabled: false,
+      provider: "none",
+      top_n: 5,
+      cache_dir: "data/ai",
     },
   });
 }
