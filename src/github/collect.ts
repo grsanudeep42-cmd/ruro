@@ -2,6 +2,7 @@ import { graphql } from "@octokit/graphql";
 import { Octokit } from "@octokit/rest";
 import type { RuroConfig } from "../config.js";
 import type { RepoSignals } from "../types.js";
+import { withRetries } from "./retry.js";
 
 export interface GithubClients {
   octokit: Octokit;
@@ -19,7 +20,7 @@ export function createClients(token: string): GithubClients {
   return {
     octokit,
     gql: <T>(query: string, variables?: Record<string, unknown>) =>
-      gqlClient(query, variables) as Promise<T>,
+      withRetries(`graphql`, () => gqlClient(query, variables) as Promise<T>),
   };
 }
 
@@ -418,12 +419,17 @@ async function enrichWorkflowSignals(
     if (!repo.hasWorkflows) continue;
     try {
       const [owner, name] = repo.fullName.split("/");
-      const { data } = await clients.octokit.actions.listWorkflowRunsForRepo({
-        owner,
-        repo: name,
-        per_page: 1,
-        branch: repo.defaultBranch ?? undefined,
-      });
+      const { data } = await withRetries(
+        `actions:${repo.fullName}`,
+        () =>
+          clients.octokit.actions.listWorkflowRunsForRepo({
+            owner,
+            repo: name,
+            per_page: 1,
+            branch: repo.defaultBranch ?? undefined,
+          }),
+        { attempts: 3, baseDelayMs: 250 },
+      );
       const run = data.workflow_runs[0];
       if (!run) continue;
       repo.recentWorkflowConclusion = run.conclusion ?? run.status ?? null;
