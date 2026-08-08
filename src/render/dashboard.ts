@@ -1,4 +1,5 @@
 import type { RuroConfig } from "../config.js";
+import type { StatusTransition } from "../history/transitions.js";
 import type { RepoStatus, RuroReport, ScoredRepo } from "../types.js";
 
 function relativeDays(iso: string | null): string {
@@ -34,6 +35,7 @@ export function buildReport(
   config: RuroConfig,
   repos: ScoredRepo[],
   excludedCount: number,
+  transitions: StatusTransition[] = [],
 ): RuroReport {
   const visible =
     config.privacy.mode === "public_only_render"
@@ -50,6 +52,7 @@ export function buildReport(
     status_counts: statusCounts(visible),
     weights: { ...config.weights },
     repos: visible,
+    transitions,
   };
 }
 
@@ -84,6 +87,18 @@ export function renderDashboard(report: RuroReport, config: RuroConfig): string 
       const r = top[i];
       lines.push(
         `${i + 1}. **[${r.signals.name}](${r.signals.url})** — \`${r.status}\` · score **${r.score}** · ${r.drivers.slice(0, 3).join(", ") || "—"}`,
+      );
+    }
+    lines.push("");
+  }
+
+  lines.push("## Status changes", "");
+  if (!report.transitions.length) {
+    lines.push("_No status changes since the previous run._", "");
+  } else {
+    for (const t of report.transitions) {
+      lines.push(
+        `- **[${t.name}](${t.url})**: \`${t.from}\` → \`${t.to}\` (score ${t.scoreFrom} → ${t.scoreTo})`,
       );
     }
     lines.push("");

@@ -1,7 +1,8 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { RuroConfig } from "./config.js";
 import { collectRepoSignals, createClients } from "./github/collect.js";
+import { computeTransitions } from "./history/transitions.js";
 import { probeAll } from "./probes/demo.js";
 import { buildReport, renderDashboard } from "./render/dashboard.js";
 import { scoreAll } from "./score/score.js";
@@ -21,8 +22,22 @@ export interface RunResult {
   dataPath: string;
 }
 
+function loadPreviousReport(dataPath: string): RuroReport | null {
+  if (!existsSync(dataPath)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(dataPath, "utf8")) as RuroReport;
+    if (parsed?.schema_version !== 1 || !Array.isArray(parsed.repos)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export async function runRuro(options: RunOptions): Promise<RunResult> {
   const cwd = resolve(options.cwd ?? process.cwd());
+  const dataPath = resolve(cwd, options.config.render.data_path);
+  const previous = loadPreviousReport(dataPath);
+
   const clients = createClients(options.token);
   const { included, excludedCount } = await collectRepoSignals(
     clients,
@@ -38,11 +53,11 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
   });
 
   const scored = scoreAll(included, options.config);
-  const report = buildReport(options.config, scored, excludedCount);
+  const draft = buildReport(options.config, scored, excludedCount, []);
+  const transitions = computeTransitions(previous, draft);
+  const report: RuroReport = { ...draft, transitions };
   const dashboardMarkdown = renderDashboard(report, options.config);
-
   const dashboardPath = resolve(cwd, options.config.render.dashboard_path);
-  const dataPath = resolve(cwd, options.config.render.data_path);
 
   if (!options.dryRun) {
     mkdirSync(dirname(dashboardPath), { recursive: true });

@@ -85,4 +85,13 @@ export interface RuroReport {
   status_counts: Record<RepoStatus, number>;
   weights: PillarBreakdown;
   repos: ScoredRepo[];
+  transitions: Array<{
+    fullName: string;
+    name: string;
+    url: string;
+    from: RepoStatus;
+    to: RepoStatus;
+    scoreFrom: number;
+    scoreTo: number;
+  }>;
 }

@@ -63,6 +63,7 @@ describe("renderDashboard", () => {
     expect(md).toContain("# Ruro Portfolio Scorecard");
     expect(md).toContain("## All projects");
     expect(md).toContain("acme/alpha".split("/")[1]);
+    expect(md).toContain("## Status changes");
     expect(md).toContain("`LIVE`");
     expect(md).toContain("Zero AI");
   });
