@@ -33,6 +33,9 @@ render:
   history: true
   history_dir: data/history
   title: Ruro Portfolio Scorecard
+  profile_snippet_path: PROFILE_SNIPPET.md
+  profile_svg_path: assets/ruro-card.svg
+  profile_top_n: 5
 
 privacy:
   # full = write every scanned repo into DASHBOARD.md (use a private meta-repo for private repos)

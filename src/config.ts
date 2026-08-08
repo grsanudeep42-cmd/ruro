@@ -41,6 +41,9 @@ const ConfigSchema = z.object({
     history: z.boolean().default(true),
     history_dir: z.string().default("data/history"),
     title: z.string().default("Ruro Portfolio Scorecard"),
+    profile_snippet_path: z.string().default("PROFILE_SNIPPET.md"),
+    profile_svg_path: z.string().default("assets/ruro-card.svg"),
+    profile_top_n: z.number().int().positive().default(5),
   }),
   privacy: z
     .object({
@@ -88,6 +91,9 @@ export function defaultConfig(owner: string): RuroConfig {
       history: true,
       history_dir: "data/history",
       title: "Ruro Portfolio Scorecard",
+      profile_snippet_path: "PROFILE_SNIPPET.md",
+      profile_svg_path: "assets/ruro-card.svg",
+      profile_top_n: 5,
     },
     privacy: { mode: "full" },
   });
