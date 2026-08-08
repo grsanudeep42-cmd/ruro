@@ -42,7 +42,7 @@ privacy:
   mode: full
 
 profile:
-  enabled: true
+  enabled: false
   repo: grsanudeep42-cmd/grsanudeep42-cmd
   readme_path: README.md
   commit_message: "chore(ruro): refresh profile portfolio truth"
