@@ -1,0 +1,33 @@
+name: Ruro
+description: Production-grade GitHub portfolio scorecard. Zero AI. Never leaves GitHub.
+author: Ruro
+branding:
+  icon: activity
+  color: blue
+
+inputs:
+  token:
+    description: GitHub token with repo read access (and contents write on the meta-repo via the job).
+    required: true
+    default: ${{ github.token }}
+  config-path:
+    description: Path to ruro config YAML.
+    required: false
+    default: ruro.yml
+  owner:
+    description: GitHub user or org to scan. Defaults to config or the current repository owner.
+    required: false
+  dry-run:
+    description: If true, compute scores but do not write files.
+    required: false
+    default: "false"
+
+outputs:
+  repo-count:
+    description: Number of repositories scored.
+  dashboard-path:
+    description: Path to the generated dashboard markdown.
+
+runs:
+  using: node20
+  main: dist/index.js

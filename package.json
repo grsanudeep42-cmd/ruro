@@ -1,0 +1,46 @@
+{
+  "name": "ruro",
+  "version": "0.1.0",
+  "description": "Production-grade GitHub portfolio scorecard. Zero AI. Never leaves GitHub.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "ruro": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts src/cli.ts --bundle --platform=node --target=node20 --outdir=dist --format=esm --packages=external",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "ruro": "tsx src/cli.ts",
+    "lint": "tsc --noEmit",
+    "prepush:auth": "bash scripts/strip-cursor-coauthor.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "github",
+    "actions",
+    "portfolio",
+    "scorecard",
+    "repo-health"
+  ],
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.1",
+    "@octokit/graphql": "^8.2.2",
+    "@octokit/rest": "^21.1.1",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.13.10",
+    "esbuild": "^0.25.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}

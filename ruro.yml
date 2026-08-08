@@ -1,0 +1,39 @@
+# Ruro — portfolio scorecard config
+schema_version: 1
+
+owner: grsanudeep42-cmd
+
+scan:
+  include_private: true
+  include_forks: false
+  include_archived: true
+  exclude_repos:
+    - ruro
+    - ".github"
+
+weights:
+  quality: 0.40
+  alive: 0.35
+  structure: 0.25
+
+thresholds:
+  active_days: 90
+  stale_days: 180
+  dormant_days: 365
+
+probes:
+  enabled: true
+  timeout_ms: 8000
+  user_agent: "ruro-probe/0.1 (+https://github.com/grsanudeep42-cmd/ruro)"
+  follow_redirects: true
+
+render:
+  dashboard_path: DASHBOARD.md
+  data_path: data/latest.json
+  history: true
+  history_dir: data/history
+  title: Ruro Portfolio Scorecard
+
+privacy:
+  # full = write every scanned repo into DASHBOARD.md (use a private meta-repo for private repos)
+  mode: full
