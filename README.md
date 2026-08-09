@@ -22,15 +22,15 @@ npm run ruro
 ```
 
 ```text
-ruro › view
-ruro › status aryanbloodbank
-ruro › why phantom
-ruro › review aryanbloodbank
-ruro › scan
-ruro › exit
+› view
+› aryanbloodbank
+› why phantom
+› review aryanbloodbank
+› scan
+› /exit
 ```
 
-The process **stays open** until you `exit` — same idea as OpenClaw’s live CLI, not one-shot scripts.
+Agent-style session: Ruri answers in prose (not box tables). Stays open until `/exit`.
 
 **One-shot** (scripts/CI) still works: `npm run ruro -- view`, `npm run ruro -- why <repo>`, etc.
 

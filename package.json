@@ -1,7 +1,7 @@
 {
   "name": "ruro",
   "version": "0.1.0",
-  "description": "Portfolio Jarvis for GitHub — ranked living projects. Core is zero AI.",
+  "description": "GitHub OS CLI — deterministic fleet truth + optional Copilot audit.",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",

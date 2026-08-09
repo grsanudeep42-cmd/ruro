@@ -1,33 +1,36 @@
 import * as readline from "node:readline";
 import type { RuroConfig } from "../config.js";
 import { annotateWithCopilot, readAiCache } from "../ai/copilot.js";
-import { color, printBanner, ruriArt } from "./banner.js";
 import {
-  findRepo,
-  loadLatestReport,
-  printReviews,
-  printStatus,
-  printTop,
-  printView,
-  printWhy,
-} from "./view.js";
+  findIn,
+  narrateFull,
+  narrateReview,
+  narrateStatus,
+  narrateTop,
+  narrateView,
+  narrateWhy,
+  parseIntent,
+} from "./narrate.js";
+import { loadLatestReport } from "./view.js";
+import { agent, c, printBoot, tool } from "./tui.js";
 import { runRuro } from "../run.js";
 
-function helpLive(): void {
-  console.log(`
- ${color("lime", "live session")} — type a command, Ruri stays up
-
-  view                 fleet board
-  top [n]              top N showables
-  status <repo>        full dossier + audit cache
-  why <repo>           score math + explained codes
-  review <repo>        Copilot audit (needs GITHUB_TOKEN)
-  scan                 refresh truth (needs GITHUB_TOKEN)
-  reload               re-read data/latest.json
-  clear                clear screen + banner
-  help                 this help
-  exit | quit | q      leave session
-`);
+function help(): void {
+  agent(
+    [
+      "I’m Ruri — fleet operator for this GitHub OS.",
+      "",
+      "  view                 show path",
+      "  top 5                ranked shortlist",
+      "  aryanbloodbank      short dossier (any repo name)",
+      "  full phantom         long dossier",
+      "  why phantom          score math",
+      "  review <repo>        Copilot audit",
+      "  scan                 refresh truth",
+      "",
+      "Slash forms work too. /exit to leave.",
+    ].join("\n"),
+  );
 }
 
 export async function startRepl(opts: {
@@ -35,151 +38,136 @@ export async function startRepl(opts: {
   cwd?: string;
 }): Promise<void> {
   const cwd = opts.cwd ?? process.cwd();
-  let config = opts.config;
+  const config = opts.config;
   let report = loadLatestReport(config, cwd);
 
-  printBanner("live");
-  console.log(color("mute", "  OpenClaw-style session. Commands keep running until you exit."));
-  console.log(color("mute", `  owner=${report.owner}  repos=${report.included_count}  generated=${report.generated_at.slice(0, 19)}`));
-  console.log(color("mute", "  type help · exit with q"));
-  console.log("");
+  printBoot({ owner: report.owner, repos: report.included_count });
+  agent(
+    `Online. Ask for the fleet, a repo name, why, or a review.`,
+  );
 
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: color("lime", "ruro") + color("mute", " › "),
+    prompt: `${c("lime", "›")} `,
     terminal: true,
   });
 
   const reload = (): void => {
     report = loadLatestReport(config, cwd);
-    console.log(
-      color("mute", `[ruro] reloaded ${report.included_count} repos @ ${report.generated_at.slice(0, 19)}`),
+    agent(
+      `Reloaded · ${report.included_count} repos · ${report.generated_at.slice(0, 19)}`,
     );
   };
 
-  const runLine = async (line: string): Promise<"continue" | "exit"> => {
-    const raw = line.trim();
-    if (!raw) return "continue";
-    const parts = raw.split(/\s+/);
-    const cmd = parts[0]?.toLowerCase() ?? "";
-    const args = parts.slice(1);
-
+  const handle = async (line: string): Promise<"continue" | "exit"> => {
+    const intent = parseIntent(line);
     try {
-      if (cmd === "exit" || cmd === "quit" || cmd === "q") {
-        console.log(color("sand", "  ruri out."));
-        return "exit";
-      }
-      if (cmd === "help" || cmd === "?") {
-        helpLive();
-        return "continue";
-      }
-      if (cmd === "clear") {
-        console.clear();
-        printBanner("live");
-        console.log(ruriArt());
-        return "continue";
-      }
-      if (cmd === "reload") {
-        reload();
-        return "continue";
-      }
-      if (cmd === "view") {
-        printView(report);
-        return "continue";
-      }
-      if (cmd === "top") {
-        const n = args[0] ? Number.parseInt(args[0], 10) : 5;
-        if (!Number.isFinite(n) || n < 1) {
-          console.error("usage: top [n]");
+      switch (intent.kind) {
+        case "exit":
+          agent("Offline.");
+          return "exit";
+        case "help":
+          help();
+          return "continue";
+        case "clear":
+          console.clear();
+          printBoot({ owner: report.owner, repos: report.included_count });
+          return "continue";
+        case "reload":
+          reload();
+          return "continue";
+        case "view":
+          narrateView(report);
+          return "continue";
+        case "top":
+          narrateTop(report, intent.n ?? 5);
+          return "continue";
+        case "status":
+          if (!intent.arg) {
+            agent("Which repo? e.g. aryanbloodbank");
+            return "continue";
+          }
+          narrateStatus(report, intent.arg);
+          return "continue";
+        case "full":
+          if (!intent.arg) {
+            agent("Which repo? e.g. full aryanbloodbank");
+            return "continue";
+          }
+          narrateFull(report, intent.arg);
+          return "continue";
+        case "why":
+          if (!intent.arg) {
+            agent("Which repo? e.g. why phantom");
+            return "continue";
+          }
+          narrateWhy(report, config, intent.arg);
+          return "continue";
+        case "review": {
+          const token =
+            process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
+          if (!token) {
+            agent("Set GITHUB_TOKEN (or GH_TOKEN) in this shell, then retry.");
+            return "continue";
+          }
+          if (!intent.arg) {
+            agent("Which repo? e.g. review aryanbloodbank");
+            return "continue";
+          }
+          const target = findIn(report, intent.arg);
+          tool(`auditing ${target.signals.fullName} with Copilot…`);
+          const aiConfig = {
+            ...config,
+            ai: {
+              ...config.ai,
+              enabled: true,
+              provider: "copilot" as const,
+              top_n: 1,
+            },
+          };
+          const result = await annotateWithCopilot({
+            report: { ...report, repos: [target] },
+            config: aiConfig,
+            cwd,
+            token,
+          });
+          if (result.skipped) {
+            agent(`Audit skipped — ${result.reason ?? "unknown"}`);
+          } else {
+            agent(`Audit stored.`);
+          }
+          narrateReview(readAiCache(cwd, config.ai.cache_dir), intent.arg);
           return "continue";
         }
-        printTop(report, n);
-        return "continue";
-      }
-      if (cmd === "status") {
-        if (!args[0]) {
-          console.error("usage: status <repo>");
+        case "scan": {
+          const token =
+            process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
+          if (!token) {
+            agent("Set GITHUB_TOKEN (or GH_TOKEN) to scan.");
+            return "continue";
+          }
+          tool("scanning GitHub + probes + fitness…");
+          const result = await runRuro({ token, config, cwd });
+          agent(
+            `Done · ${result.report.included_count} scored · lead ${result.report.repos[0]?.signals.name ?? "—"}`,
+          );
+          reload();
           return "continue";
         }
-        printStatus(report, args[0]);
-        printReviews(readAiCache(cwd, config.ai.cache_dir), args[0]);
-        return "continue";
-      }
-      if (cmd === "why" || cmd === "explain") {
-        if (!args[0]) {
-          console.error("usage: why <repo>");
+        default:
+          agent(`Didn’t catch that. Try “view”, a repo name, or /help.`);
           return "continue";
-        }
-        printWhy(report, config, args[0]);
-        return "continue";
       }
-      if (cmd === "review") {
-        const token =
-          process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
-        if (!token) {
-          console.error("set GITHUB_TOKEN / GH_TOKEN for review");
-          return "continue";
-        }
-        const query = args[0];
-        const aiConfig = {
-          ...config,
-          ai: {
-            ...config.ai,
-            enabled: true,
-            provider: "copilot" as const,
-            top_n: query ? 1 : config.ai.top_n,
-          },
-        };
-        const scoped = query
-          ? { ...report, repos: [findRepo(report, query)] }
-          : { ...report, repos: report.repos.slice(0, config.ai.top_n) };
-        console.log(
-          color(
-            "mute",
-            `[ruro] reviewing ${scoped.repos.map((r) => r.signals.name).join(", ")}…`,
-          ),
-        );
-        const result = await annotateWithCopilot({
-          report: scoped,
-          config: aiConfig,
-          cwd,
-          token,
-        });
-        console.log(
-          result.skipped
-            ? `[ruro] skipped: ${result.reason ?? "unknown"}`
-            : `[ruro] audited ${result.annotated}`,
-        );
-        printReviews(readAiCache(cwd, config.ai.cache_dir), query);
-        return "continue";
-      }
-      if (cmd === "scan") {
-        const token =
-          process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
-        if (!token) {
-          console.error("set GITHUB_TOKEN / GH_TOKEN for scan");
-          return "continue";
-        }
-        console.log(color("mute", "[ruro] scanning…"));
-        const result = await runRuro({ token, config, cwd });
-        console.log(
-          `[ruro] scored ${result.report.included_count} → ${result.dashboardPath}`,
-        );
-        reload();
-        return "continue";
-      }
-
-      console.error(`unknown: ${cmd}  (type help)`);
     } catch (err) {
-      console.error(err instanceof Error ? err.message : err);
+      agent(err instanceof Error ? err.message : String(err));
+      return "continue";
     }
-    return "continue";
   };
 
   rl.prompt();
   for await (const line of rl) {
-    const next = await runLine(line);
+    const next = await handle(line);
     if (next === "exit") {
       rl.close();
       break;

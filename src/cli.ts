@@ -17,18 +17,17 @@ import { runRuro } from "./run.js";
 function usage(): never {
   printBanner("help");
   console.log(`
-  ruro                      start LIVE session (stays open — like OpenClaw)
-  ruro repl                 same as above
-  ruro scan [...]           one-shot scan
-  ruro view | top | status | why | review   one-shot commands
+  ruro                      start LIVE agent session (stays open)
+  ruro repl                 same
+  ruro scan | view | top | status | why | review   one-shot
 
-Live session (recommended):
+Live (what you want):
   $ npm run ruro
-  ruro › view
-  ruro › status aryanbloodbank
-  ruro › why phantom
-  ruro › review aryanbloodbank
-  ruro › exit
+  › view
+  › aryanbloodbank
+  › why phantom
+  › review aryanbloodbank
+  › /exit
 
 Env: GITHUB_TOKEN / GH_TOKEN for scan & review
 `);

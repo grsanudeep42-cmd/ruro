@@ -1,31 +1,18 @@
-/** Terminal face for Ruro — unique operator mascot (not a lobster clone). */
+/** Terminal face — Ruri, fleet operator mascot. */
 
-const C = {
-  reset: "\x1b[0m",
-  dim: "\x1b[2m",
-  bold: "\x1b[1m",
-  lime: "\x1b[38;2;214;255;60m",
-  sand: "\x1b[38;2;196;184;160m",
-  mute: "\x1b[38;2;138;134;124m",
-  red: "\x1b[38;2;255;92;77m",
-  ink: "\x1b[38;2;244;241;234m",
-};
-
-export function color(kind: keyof typeof C, text: string): string {
-  if (!process.stdout.isTTY) return text;
-  return `${C[kind]}${text}${C.reset}`;
-}
+import { ansi, c } from "./tui.js";
 
 /**
- * Ruri — fleet operator. Small unique girl mark for the CLI.
+ * Ruri — small unique girl mark for the CLI (not a lobster clone).
  */
 export function ruriArt(): string {
-  const L = (s: string) => color("lime", s);
-  const M = (s: string) => color("mute", s);
-  const S = (s: string) => color("sand", s);
+  const L = (s: string) => c("lime", s);
+  const M = (s: string) => c("mute", s);
+  const S = (s: string) => c("sand", s);
+  const B = (s: string) => c("bold", c("ink", s));
   return [
     L("        .--.      "),
-    L("       |o_o |     ") + M("  RURI"),
+    L("       |o_o |     ") + B("  RURI"),
     L("       |:_/ |     ") + S("  ruro fleet operator"),
     L("      //   \\ \\    ") + M("  github os · no vibes"),
     L("     (|     | )   "),
@@ -35,34 +22,38 @@ export function ruriArt(): string {
 }
 
 export function printBanner(cmd: string): void {
-  const bar = color("mute", "═".repeat(64));
+  const bar = c("mute", "─".repeat(56));
+  console.log("");
   console.log(bar);
   console.log(ruriArt());
   console.log(
-    `${color("bold", color("ink", "  RURO"))} ${color("mute", "v0.1.0")}  ${color("lime", "▸")} ${color("sand", cmd)}`,
+    `  ${c("bold", c("ink", "RURO"))} ${c("mute", "v0.1.0")}  ${c("lime", "▸")} ${c("sand", cmd)}`,
   );
   console.log(
-    color(
-      "mute",
-      "  scan · view · top · status · why · review    truth stays on github",
-    ),
+    c("mute", "  scan · view · top · status · why · review"),
   );
   console.log(bar);
+  console.log("");
 }
 
 export function statusTone(status: string): string {
   switch (status) {
     case "LIVE":
-      return color("lime", status);
+      return c("lime", status);
     case "ACTIVE":
-      return color("sand", status);
+      return c("sand", status);
     case "STALE":
     case "DORMANT":
-      return color("mute", status);
+      return c("mute", status);
     case "DEAD":
     case "ARCHIVED":
-      return color("red", status);
+      return c("red", status);
     default:
       return status;
   }
+}
+
+// re-export for older imports that expected color()
+export function color(kind: keyof typeof ansi, text: string): string {
+  return c(kind, text);
 }
