@@ -53,7 +53,7 @@ You’re in a live session. Type `/` for the command menu.
 › /                 # Cursor-style slash menu (filters as you type)
 › brief             # show path + regressions + next fixes
 › why phantom       # score math + playbook
-› status aryanbloodbank
+› status explainmycode
 › /br               # unique prefix → runs /brief
 › /exit
 ```
@@ -104,7 +104,7 @@ npm run build
 node dist/cli.js --json view
 node dist/cli.js --json brief
 node dist/cli.js --json why phantom
-node dist/cli.js --json status aryanbloodbank
+node dist/cli.js --json status explainmycode
 ```
 
 Or: `npm run --silent ruro -- --json view`
