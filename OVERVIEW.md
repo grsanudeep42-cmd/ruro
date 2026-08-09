@@ -10,16 +10,16 @@ GitHub OS for `grsanudeep42-cmd` — automatic truth, verified deploys, optional
 
 ```text
 $ ruro view
-  24 fleet · 4 verified live · 2026-08-09 15:19 UTC
+  16 fleet · 3 verified live · 2026-08-09 18:34 UTC
 ```
 
 | Project | Status | Score | Stack | Deploy |
 |---|---|---:|---|---|
-| **[aryanbloodbank](https://github.com/grsanudeep42-cmd/aryanbloodbank)** | `LIVE` | **63** | TypeScript | verified |
-| **[phantom](https://github.com/grsanudeep42-cmd/phantom)** | `ACTIVE` | **59** | Python | none |
-| **[tpm-attest](https://github.com/grsanudeep42-cmd/tpm-attest)** | `ACTIVE` | **54** | Python | none |
-| **[synapse](https://github.com/grsanudeep42-cmd/synapse)** | `ACTIVE` | **49** | Python | none |
-| **[explainmycode](https://github.com/grsanudeep42-cmd/explainmycode)** | `LIVE` | **48** | Python | verified |
+| **[explainmycode](https://github.com/grsanudeep42-cmd/explainmycode)** | `LIVE` | **67** | Python | verified |
+| **[medico](https://github.com/grsanudeep42-cmd/medico)** | `ACTIVE` | **67** | Python | none |
+| **[phantom](https://github.com/grsanudeep42-cmd/phantom)** | `ACTIVE` | **62** | Python | none |
+| **[railtrack-ai](https://github.com/grsanudeep42-cmd/railtrack-ai)** | `STALE` | **62** | TypeScript | verified |
+| **[skillswap](https://github.com/grsanudeep42-cmd/skillswap)** | `STALE` | **57** | Dart | none |
 
 **Surfaces**
 
@@ -31,4 +31,4 @@ $ ruro view
 | [docs/](./docs/) | Pages OS |
 | [DASHBOARD.md](./DASHBOARD.md) | Full markdown scorecard |
 
-<sub>Generated 2026-08-09T15:19:27.889Z · [Open OS](https://grsanudeep42-cmd.github.io/ruro/)</sub>
+<sub>Generated 2026-08-09T18:34:03.676Z · [Open OS](https://grsanudeep42-cmd.github.io/ruro/)</sub>

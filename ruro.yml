@@ -4,7 +4,8 @@ schema_version: 1
 owner: grsanudeep42-cmd
 
 scan:
-  include_private: true
+  # Public meta-repo: do not pull private repos into committed data/
+  include_private: false
   include_forks: false
   include_archived: true
   exclude_repos:
@@ -40,8 +41,8 @@ render:
   overview_path: OVERVIEW.md
 
 privacy:
-  # full = write every scanned repo into DASHBOARD.md (use a private meta-repo for private repos)
-  mode: full
+  # Never publish private repo names into Pages / DASHBOARD / data on a public meta-repo
+  mode: public_only_render
 
 profile:
   enabled: false

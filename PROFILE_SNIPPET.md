@@ -15,11 +15,11 @@ npx --yes tsx github.com/grsanudeep42-cmd/ruro  # or clone + npm run ruro -- vie
 
 | Project | Status | Score | Stack | Deploy |
 |---|---|---:|---|---|
-| **[aryanbloodbank](https://github.com/grsanudeep42-cmd/aryanbloodbank)** | `LIVE` | **63** | TypeScript | verified |
-| **[phantom](https://github.com/grsanudeep42-cmd/phantom)** | `ACTIVE` | **59** | Python | none |
-| **[tpm-attest](https://github.com/grsanudeep42-cmd/tpm-attest)** | `ACTIVE` | **54** | Python | none |
-| **[synapse](https://github.com/grsanudeep42-cmd/synapse)** | `ACTIVE` | **49** | Python | none |
-| **[explainmycode](https://github.com/grsanudeep42-cmd/explainmycode)** | `LIVE` | **48** | Python | verified |
+| **[explainmycode](https://github.com/grsanudeep42-cmd/explainmycode)** | `LIVE` | **67** | Python | verified |
+| **[medico](https://github.com/grsanudeep42-cmd/medico)** | `ACTIVE` | **67** | Python | none |
+| **[phantom](https://github.com/grsanudeep42-cmd/phantom)** | `ACTIVE` | **62** | Python | none |
+| **[railtrack-ai](https://github.com/grsanudeep42-cmd/railtrack-ai)** | `STALE` | **62** | TypeScript | verified |
+| **[skillswap](https://github.com/grsanudeep42-cmd/skillswap)** | `STALE` | **57** | Dart | none |
 
 <sub>[Open OS](https://grsanudeep42-cmd.github.io/ruro/) · [Ruro](https://github.com/grsanudeep42-cmd/ruro) · 2026-08-09</sub>
 <!-- RURO:END -->

@@ -1,0 +1,23 @@
+{
+  "fullName": "grsanudeep42-cmd/explainmycode",
+  "status": "LIVE",
+  "score": 67,
+  "demo": {
+    "status": "UP",
+    "url": "https://explainmycode-chi.vercel.app/",
+    "finalUrl": "https://explainmycode-chi.vercel.app/",
+    "httpStatus": 200,
+    "latencyMs": 1541,
+    "error": null,
+    "proofBytes": 19649,
+    "contentType": "text/html; charset=utf-8",
+    "verified": true,
+    "redirectChain": [
+      "https://explainmycode-chi.vercel.app/"
+    ],
+    "bodyHash": "10b4c4a36479dd87",
+    "spaShell": false,
+    "probedAt": "2026-08-09T18:34:03.005Z",
+    "hashStable": true
+  }
+}

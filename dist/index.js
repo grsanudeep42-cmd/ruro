@@ -235,7 +235,7 @@ var ConfigSchema = z.object({
   schema_version: z.literal(1),
   owner: z.string().min(1),
   scan: z.object({
-    include_private: z.boolean().default(true),
+    include_private: z.boolean().default(false),
     include_forks: z.boolean().default(false),
     include_archived: z.boolean().default(true),
     exclude_repos: z.array(z.string()).default([])
@@ -265,7 +265,7 @@ var ConfigSchema = z.object({
     overview_path: z.string().default("OVERVIEW.md")
   }),
   privacy: z.object({
-    mode: z.enum(["full", "public_only_render"]).default("full")
+    mode: z.enum(["full", "public_only_render"]).default("public_only_render")
   }).default({ mode: "full" }),
   profile: z.object({
     enabled: z.boolean().default(false),
@@ -2119,7 +2119,7 @@ function renderWebDashboard(report, config, cwd = process.cwd()) {
 
     <footer>
       <span>Ruro \xB7 GitHub OS \xB7 ${esc2(report.owner)}</span>
-      <span>Pages from /docs \xB7 CLI: <code>ruro view</code> \xB7 <code>ruro review</code></span>
+      <span>Pages from /docs \xB7 CLI: <code>ruro brief</code> \xB7 <code>ruro why</code></span>
     </footer>
   </div>
 </body>

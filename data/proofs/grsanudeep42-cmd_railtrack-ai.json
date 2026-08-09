@@ -1,0 +1,23 @@
+{
+  "fullName": "grsanudeep42-cmd/railtrack-ai",
+  "status": "STALE",
+  "score": 62,
+  "demo": {
+    "status": "UP",
+    "url": "https://railtrack-ai-ntlv.vercel.app/",
+    "finalUrl": "https://railtrack-ai-ntlv.vercel.app/",
+    "httpStatus": 200,
+    "latencyMs": 1940,
+    "error": null,
+    "proofBytes": 23852,
+    "contentType": "text/html; charset=utf-8",
+    "verified": true,
+    "redirectChain": [
+      "https://railtrack-ai-ntlv.vercel.app/"
+    ],
+    "bodyHash": "f0c173e3a9c92ed4",
+    "spaShell": false,
+    "probedAt": "2026-08-09T18:34:03.665Z",
+    "hashStable": true
+  }
+}

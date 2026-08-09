@@ -232,7 +232,7 @@ var ConfigSchema = z.object({
   schema_version: z.literal(1),
   owner: z.string().min(1),
   scan: z.object({
-    include_private: z.boolean().default(true),
+    include_private: z.boolean().default(false),
     include_forks: z.boolean().default(false),
     include_archived: z.boolean().default(true),
     exclude_repos: z.array(z.string()).default([])
@@ -262,7 +262,7 @@ var ConfigSchema = z.object({
     overview_path: z.string().default("OVERVIEW.md")
   }),
   privacy: z.object({
-    mode: z.enum(["full", "public_only_render"]).default("full")
+    mode: z.enum(["full", "public_only_render"]).default("public_only_render")
   }).default({ mode: "full" }),
   profile: z.object({
     enabled: z.boolean().default(false),
@@ -307,7 +307,7 @@ function defaultConfig(owner) {
     schema_version: 1,
     owner,
     scan: {
-      include_private: true,
+      include_private: false,
       include_forks: false,
       include_archived: true,
       exclude_repos: ["ruro", ".github"]
@@ -332,7 +332,7 @@ function defaultConfig(owner) {
       web_path: "docs/index.html",
       overview_path: "OVERVIEW.md"
     },
-    privacy: { mode: "full" },
+    privacy: { mode: "public_only_render" },
     profile: {
       enabled: false,
       repo: `${owner}/${owner}`,
@@ -799,24 +799,44 @@ function tool(label) {
   console.log(`  ${c("mute", "\u21B3")} ${c("sand", label)}`);
 }
 function printSlashMenu(commands, title = "commands") {
-  console.log("");
-  console.log(`  ${c("lime", "\u25CF")} ${c("bold", "ruri")} ${c("mute", `\xB7 /${title}`)}`);
-  console.log("");
-  const width = Math.max(...commands.map((x) => {
-    const label = x.args ? `/${x.cmd} ${x.args}` : `/${x.cmd}`;
-    return label.length;
-  }), 12);
+  if (!commands.length) {
+    console.log("");
+    console.log(`  ${c("mute", "no matching commands")}`);
+    console.log("");
+    return 3;
+  }
+  const lines = [];
+  lines.push("");
+  lines.push(
+    `  ${c("lime", "\u25CF")} ${c("bold", "ruri")} ${c("mute", `\xB7 /${title}`)}`
+  );
+  lines.push("");
+  const width = Math.max(
+    ...commands.map((x) => {
+      const label = x.args ? `/${x.cmd} ${x.args}` : `/${x.cmd}`;
+      return label.length;
+    }),
+    12
+  );
   for (const x of commands) {
     const label = x.args ? `/${x.cmd} ${x.args}` : `/${x.cmd}`;
-    console.log(
+    lines.push(
       `  ${c("lime", label.padEnd(width))}  ${c("mute", x.description)}`
     );
   }
-  console.log("");
-  console.log(
-    c("mute", "  type / for menu (live) \xB7 tab completes \xB7 enter runs")
+  lines.push("");
+  lines.push(
+    c("mute", "  tab completes \xB7 enter runs \xB7 esc clears")
   );
-  console.log("");
+  lines.push("");
+  for (const l of lines) console.log(l);
+  return lines.length;
+}
+function eraseSlashMenu(lineCount) {
+  if (!lineCount || !process.stdout.isTTY) return;
+  for (let i = 0; i < lineCount; i += 1) {
+    process.stdout.write("\x1B[1A\x1B[2K");
+  }
 }
 function startProgress(label) {
   const t0 = Date.now();
@@ -1116,6 +1136,82 @@ function explainScoreLine(score, pillars, weights) {
   ];
 }
 
+// src/cli/slash.ts
+var SLASH_COMMANDS = [
+  {
+    cmd: "brief",
+    description: "Operator briefing \u2014 show path, regressions, next fixes"
+  },
+  {
+    cmd: "next",
+    description: "Highest-leverage blockers with concrete playbook steps"
+  },
+  {
+    cmd: "diff",
+    description: "Fleet regressions vs previous history day"
+  },
+  {
+    cmd: "view",
+    description: "Fleet show path (ranked shortlist)"
+  },
+  {
+    cmd: "top",
+    args: "[n]",
+    description: "Top N repos by showability (default 5)"
+  },
+  {
+    cmd: "status",
+    args: "<repo>",
+    description: "Short dossier + auditable deploy proof"
+  },
+  {
+    cmd: "full",
+    args: "<repo>",
+    description: "Long dossier with explained drivers/blockers"
+  },
+  {
+    cmd: "why",
+    args: "<repo>",
+    description: "Score math, biggest movers, playbook fixes"
+  },
+  {
+    cmd: "scan",
+    description: "Refresh GitHub truth, probes, proofs (needs token)"
+  },
+  {
+    cmd: "review",
+    args: "<repo>",
+    description: "Optional Copilot judgment \u2014 never moves scores"
+  },
+  {
+    cmd: "reload",
+    description: "Reload latest.json from disk"
+  },
+  {
+    cmd: "clear",
+    description: "Clear the screen and redraw Ruri boot"
+  },
+  {
+    cmd: "help",
+    description: "Show this command menu"
+  },
+  {
+    cmd: "exit",
+    description: "Leave the live session"
+  }
+];
+function filterSlashCommands(prefix) {
+  const p = prefix.replace(/^\//, "").toLowerCase();
+  if (!p) return [...SLASH_COMMANDS];
+  return SLASH_COMMANDS.filter((c2) => c2.cmd.startsWith(p));
+}
+function resolveSlashPrefix(prefix) {
+  const hits = filterSlashCommands(prefix);
+  if (hits.length === 1) return hits[0];
+  const exact = hits.find((h) => h.cmd === prefix.replace(/^\//, "").toLowerCase());
+  return exact ?? null;
+}
+
 // src/cli/narrate.ts
 function deployLabel(repo) {
   const d = repo.signals.demo;
@@ -1187,7 +1283,7 @@ function narrateStatus(report, query) {
       `${repo.status} \xB7 score ${repo.score} \xB7 Q${repo.pillars.quality} A${repo.pillars.alive} S${repo.pillars.structure}`,
       `Tree: ${s.fitness.sourceFiles} src \xB7 ${s.fitness.testFiles} tests \xB7 fit ${s.fitness.score} \xB7 ${s.primaryLanguage ?? "\u2014"}`,
       `Cadence: push ${s.pushedAt?.slice(0, 10) ?? "\u2014"} \xB7 ${s.commitsLast30Days}/30d \xB7 owner share ${s.ownerCommitShare ?? "\u2014"}%`,
-      `CI: ${s.ciConclusions.length ? s.ciConclusions.join(",") : s.hasWorkflows ? "workflows" : "none"}`
+      `CI: ${(s.ciConclusions ?? []).length ? (s.ciConclusions ?? []).join(",") : s.hasWorkflows ? "workflows" : "none"}`
     ].join("\n")
   );
   note("deploy proof");
@@ -1362,6 +1458,27 @@ function findIn(report, query) {
   if (!repo) throw new Error(`No repo matching \u201C${query}\u201D in the latest scan.`);
   return repo;
 }
+function intentFromSlash(cmd, rest) {
+  if (cmd === "view") return { kind: "view" };
+  if (cmd === "scan") return { kind: "scan" };
+  if (cmd === "brief") return { kind: "brief" };
+  if (cmd === "next") return { kind: "next" };
+  if (cmd === "diff") return { kind: "diff" };
+  if (cmd === "help") return { kind: "help" };
+  if (cmd === "exit") return { kind: "exit" };
+  if (cmd === "clear") return { kind: "clear" };
+  if (cmd === "reload") return { kind: "reload" };
+  if (cmd === "top") {
+    const n = rest ? Number.parseInt(rest, 10) : 5;
+    return { kind: "top", n: Number.isFinite(n) ? n : 5 };
+  }
+  if (cmd === "status") return { kind: "status", arg: rest || void 0 };
+  if (cmd === "full") return { kind: "full", arg: rest || void 0 };
+  if (cmd === "why" || cmd === "explain")
+    return { kind: "why", arg: rest || void 0 };
+  if (cmd === "review") return { kind: "review", arg: rest || void 0 };
+  return { kind: "unknown" };
+}
 function parseIntent(line) {
   const raw = line.trim();
   const lower = raw.toLowerCase();
@@ -1371,51 +1488,18 @@ function parseIntent(line) {
   if (/^(clear|\/clear)$/i.test(raw)) return { kind: "clear" };
   if (/^(reload|\/reload)$/i.test(raw)) return { kind: "reload" };
   if (raw === "/") return { kind: "menu" };
-  const menuOnly = raw.match(/^\/([a-z]*)$/i);
+  const menuOnly = raw.match(/^\/([a-z]+)$/i);
   if (menuOnly) {
     const partial = menuOnly[1].toLowerCase();
-    const known = [
-      "view",
-      "top",
-      "status",
-      "full",
-      "why",
-      "review",
-      "scan",
-      "explain",
-      "brief",
-      "next",
-      "diff",
-      "help",
-      "exit",
-      "clear",
-      "reload",
-      "quit"
-    ];
-    if (!known.includes(partial)) {
-      return { kind: "menu", arg: partial };
-    }
+    const resolved = resolveSlashPrefix(partial);
+    if (!resolved) return { kind: "menu", arg: partial };
+    return intentFromSlash(resolved.cmd, "");
   }
   const slash = raw.match(
-    /^\/(view|top|status|full|why|review|scan|explain|brief|next|diff)\s*(.*)$/i
+    /^\/(view|top|status|full|why|review|scan|explain|brief|next|diff|help|exit|clear|reload)\s*(.*)$/i
   );
   if (slash) {
-    const cmd = slash[1].toLowerCase();
-    const rest = slash[2].trim();
-    if (cmd === "view") return { kind: "view" };
-    if (cmd === "scan") return { kind: "scan" };
-    if (cmd === "brief") return { kind: "brief" };
-    if (cmd === "next") return { kind: "next" };
-    if (cmd === "diff") return { kind: "diff" };
-    if (cmd === "top") {
-      const n = rest ? Number.parseInt(rest, 10) : 5;
-      return { kind: "top", n: Number.isFinite(n) ? n : 5 };
-    }
-    if (cmd === "status") return { kind: "status", arg: rest || void 0 };
-    if (cmd === "full") return { kind: "full", arg: rest || void 0 };
-    if (cmd === "why" || cmd === "explain")
-      return { kind: "why", arg: rest || void 0 };
-    if (cmd === "review") return { kind: "review", arg: rest || void 0 };
+    return intentFromSlash(slash[1].toLowerCase(), slash[2].trim());
   }
   if (/^(view|fleet|list|show(\s+fleet)?)$/i.test(lower)) return { kind: "view" };
   if (/^(brief|ops|operator)$/i.test(lower)) return { kind: "brief" };
@@ -1452,79 +1536,44 @@ function parseIntent(line) {
 // src/cli/repl.ts
 import * as readline from "node:readline";
 
-// src/cli/slash.ts
-var SLASH_COMMANDS = [
-  {
-    cmd: "brief",
-    description: "Operator briefing \u2014 show path, regressions, next fixes"
-  },
-  {
-    cmd: "next",
-    description: "Highest-leverage blockers with concrete playbook steps"
-  },
-  {
-    cmd: "diff",
-    description: "Fleet regressions vs previous history day"
-  },
-  {
-    cmd: "view",
-    description: "Fleet show path (ranked shortlist)"
-  },
-  {
-    cmd: "top",
-    args: "[n]",
-    description: "Top N repos by showability (default 5)"
-  },
-  {
-    cmd: "status",
-    args: "<repo>",
-    description: "Short dossier + auditable deploy proof"
-  },
-  {
-    cmd: "full",
-    args: "<repo>",
-    description: "Long dossier with explained drivers/blockers"
-  },
-  {
-    cmd: "why",
-    args: "<repo>",
-    description: "Score math, biggest movers, playbook fixes"
-  },
-  {
-    cmd: "scan",
-    description: "Refresh GitHub truth, probes, proofs (needs token)"
-  },
-  {
-    cmd: "review",
-    args: "<repo>",
-    description: "Optional Copilot judgment \u2014 never moves scores"
-  },
-  {
-    cmd: "reload",
-    description: "Reload latest.json from disk"
-  },
-  {
-    cmd: "clear",
-    description: "Clear the screen and redraw Ruri boot"
-  },
-  {
-    cmd: "help",
-    description: "Show this command menu"
-  },
-  {
-    cmd: "exit",
-    description: "Leave the live session"
-  }
-];
-function filterSlashCommands(prefix) {
-  const p = prefix.replace(/^\//, "").toLowerCase();
-  if (!p) return SLASH_COMMANDS;
-  return SLASH_COMMANDS.filter((c2) => c2.cmd.startsWith(p));
-}
-
 // src/cli/view.ts
 import { existsSync as existsSync4, readFileSync as readFileSync4 } from "node:fs";
 import { resolve as resolve4 } from "node:path";
+function normalizeReport(report) {
+  return {
+    ...report,
+    regressions: report.regressions ?? [],
+    repos: report.repos.map(normalizeRepo)
+  };
+}
+function normalizeRepo(repo) {
+  const s = repo.signals;
+  const fitness = s.fitness ?? {
+    score: 0,
+    sourceFiles: 0,
+    testFiles: 0,
+    otherFiles: 0,
+    maxBlobBytes: 0,
+    flags: []
+  };
+  return {
+    ...repo,
+    drivers: repo.drivers ?? [],
+    blockers: repo.blockers ?? [],
+    contributions: repo.contributions ?? [],
+    signals: {
+      ...s,
+      ciConclusions: s.ciConclusions ?? [],
+      ownerCommitShare: s.ownerCommitShare ?? null,
+      languages: s.languages ?? [],
+      topics: s.topics ?? [],
+      fitness: {
+        ...fitness,
+        flags: fitness.flags ?? []
+      }
+    }
+  };
+}
 function loadLatestReport(config, cwd = process.cwd()) {
   const path = resolve4(cwd, config.render.data_path);
   if (!existsSync4(path)) {
@@ -1534,7 +1583,7 @@ function loadLatestReport(config, cwd = process.cwd()) {
   if (parsed?.schema_version !== 1 || !Array.isArray(parsed.repos)) {
     throw new Error(`Invalid scorecard data at ${path}`);
   }
-  return parsed;
+  return normalizeReport(parsed);
 }
 function findRepo(report, query) {
   const q = query.toLowerCase();
@@ -3284,10 +3333,7 @@ function completer(reportNames) {
       const space = rest.indexOf(" ");
       if (space < 0) {
         const hits3 = filterSlashCommands(rest).map((x) => `/${x.cmd}`);
-        return [
-          hits3.length ? hits3 : SLASH_COMMANDS.map((x) => `/${x.cmd}`),
-          line
-        ];
+        return [hits3.length ? hits3 : SLASH_COMMANDS.map((x) => `/${x.cmd}`), line];
       }
       const after = rest.slice(space + 1);
       const hits2 = reportNames.filter((n) => n.startsWith(after));
@@ -3309,7 +3355,7 @@ async function startRepl(opts) {
   let abort = null;
   const repoNames = report.repos.map((r) => r.signals.name);
   printBoot({ owner: report.owner, repos: report.included_count });
-  agent(`Online. Type / \u2014 menu opens instantly. Tab completes. Enter runs.`);
+  agent(`Online. Type / for the menu. Tab completes. Enter runs.`);
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -3318,27 +3364,45 @@ async function startRepl(opts) {
     completer: completer(repoNames)
   });
   let slashMenuShownFor = "";
+  let slashMenuLines = 0;
+  let slashAlreadyVisible = false;
+  const redrawSlashMenu = (partial) => {
+    const filtered = filterSlashCommands(partial);
+    const list = filtered.length ? filtered : SLASH_COMMANDS;
+    const signature = `${partial}|${list.map((x) => x.cmd).join(",")}`;
+    if (signature === slashMenuShownFor) return;
+    slashMenuShownFor = signature;
+    if (slashMenuLines > 0) eraseSlashMenu(slashMenuLines);
+    slashMenuLines = printSlashMenu(list, partial || "menu");
+    slashAlreadyVisible = true;
+    rl.prompt(true);
+  };
+  const clearSlashUi = () => {
+    if (slashMenuLines > 0) eraseSlashMenu(slashMenuLines);
+    slashMenuLines = 0;
+    slashMenuShownFor = "";
+    slashAlreadyVisible = false;
+  };
   readline.emitKeypressEvents(process.stdin, rl);
   const onKeypress = (_str, key) => {
     if (!key || key.ctrl || key.meta) return;
+    if (key.name === "return" || key.name === "enter") return;
+    if (key.name === "escape") {
+      clearSlashUi();
+      rl.prompt(true);
+      return;
+    }
     setImmediate(() => {
       const line = rl.line ?? "";
       if (!line.startsWith("/")) {
-        slashMenuShownFor = "";
+        clearSlashUi();
         return;
       }
-      if (line.includes(" ", 1)) return;
-      const partial = line.slice(1).toLowerCase();
-      const filtered = filterSlashCommands(partial);
-      const list = filtered.length ? filtered : SLASH_COMMANDS;
-      const signature = list.map((x) => x.cmd).join(",");
-      if (signature === slashMenuShownFor) return;
-      slashMenuShownFor = signature;
-      printSlashMenu(
-        list,
-        partial || "menu"
-      );
-      rl.prompt(true);
+      if (line.includes(" ", 1)) {
+        clearSlashUi();
+        return;
+      }
+      redrawSlashMenu(line.slice(1).toLowerCase());
     });
   };
   process.stdin.on("keypress", onKeypress);
@@ -3362,7 +3426,19 @@ async function startRepl(opts) {
   };
   process.on("SIGINT", onSigInt);
   const handle = async (line) => {
-    const intent = parseIntent(line);
+    if (line.trim() === "/" && slashAlreadyVisible) {
+      clearSlashUi();
+      agent("Pick a command (e.g. /brief) or keep typing to filter.");
+      return "continue";
+    }
+    let input = line;
+    const bare = line.trim().match(/^\/([a-z]+)$/i);
+    if (bare) {
+      const hit = resolveSlashPrefix(bare[1]);
+      if (hit) input = `/${hit.cmd}`;
+    }
+    clearSlashUi();
+    const intent = parseIntent(input);
     try {
       switch (intent.kind) {
         case "empty":
@@ -3370,10 +3446,7 @@ async function startRepl(opts) {
         case "menu": {
           const filtered = filterSlashCommands(intent.arg ?? "");
           const list = filtered.length ? filtered : SLASH_COMMANDS;
-          printSlashMenu(
-            list,
-            filtered.length && intent.arg ? intent.arg : "menu"
-          );
+          printSlashMenu(list, intent.arg || "menu");
           return "continue";
         }
         case "exit":
@@ -3406,21 +3479,21 @@ async function startRepl(opts) {
           return "continue";
         case "status":
           if (!intent.arg) {
-            agent("Which repo? e.g. aryanbloodbank");
+            agent("Which repo? e.g. /status aryanbloodbank");
             return "continue";
           }
           narrateStatus(report, intent.arg);
           return "continue";
         case "full":
           if (!intent.arg) {
-            agent("Which repo? e.g. full aryanbloodbank");
+            agent("Which repo? e.g. /full aryanbloodbank");
             return "continue";
           }
           narrateFull(report, intent.arg);
           return "continue";
         case "why":
           if (!intent.arg) {
-            agent("Which repo? e.g. why phantom");
+            agent("Which repo? e.g. /why phantom");
             return "continue";
           }
           narrateWhy(report, config, intent.arg);
@@ -3432,7 +3505,7 @@ async function startRepl(opts) {
             return "continue";
           }
           if (!intent.arg) {
-            agent("Which repo? e.g. review aryanbloodbank");
+            agent("Which repo? e.g. /review aryanbloodbank");
             return "continue";
           }
           const target = findIn(report, intent.arg);
@@ -3518,13 +3591,12 @@ async function startRepl(opts) {
       rl.close();
       break;
     }
-    slashMenuShownFor = "";
     rl.prompt();
   }
 }
 
 // src/cli.ts
-function usage() {
+function usage(code = 1) {
   printBanner("help");
   console.log(`
   ruro                         live agent session (Ruri)
@@ -3533,8 +3605,10 @@ function usage() {
   ruro brief | next | diff     operator surfaces
   ruro view | top [n]          fleet / shortlist
   ruro status <repo>           dossier + deploy proof
+  ruro full <repo>             long dossier
   ruro why <repo>              contributions + playbook
   ruro review [repo]           Copilot garnish (optional)
+  ruro help                    this help
   ruro --json <cmd> \u2026          machine output
 
 Live:
@@ -3545,7 +3619,7 @@ Live:
 
 Env: GITHUB_TOKEN or GH_TOKEN for scan & review
 `);
-  process.exit(1);
+  process.exit(code);
 }
 function takeFlag(args, flag) {
   const i = args.indexOf(flag);
@@ -3695,7 +3769,9 @@ async function runReview(args, asJson) {
 }
 async function main() {
   const argv = process.argv.slice(2);
-  if (argv.includes("-h") || argv.includes("--help")) usage();
+  if (argv.includes("-h") || argv.includes("--help") || argv[0] === "help") {
+    usage(0);
+  }
   const asJson = takeFlag(argv, "--json");
   if (argv.length === 0 || argv[0] === "repl" || argv[0] === "shell" || argv[0] === "live") {
     if (asJson) {
@@ -3717,6 +3793,7 @@ async function main() {
     "view",
     "top",
     "status",
+    "full",
     "why",
     "review",
     "explain",
@@ -3726,7 +3803,7 @@ async function main() {
   ].includes(cmd);
   if (!isSub) {
     console.error(`Unknown command: ${cmd}`);
-    usage();
+    usage(1);
   }
   const subArgs = argv.slice(1);
   if (cmd === "scan") {
@@ -3802,14 +3879,18 @@ async function main() {
     narrateTop(report, n);
     return;
   }
-  if (cmd === "status") {
+  if (cmd === "status" || cmd === "full") {
     const query = rest[0];
     if (!query) {
-      console.error("status expects a repo name");
+      console.error(`${cmd} expects a repo name`);
       process.exit(1);
     }
     if (asJson) {
       emitJson(summarizeRepo(findRepo(report, query)));
+      return;
+    }
+    if (cmd === "full") {
+      narrateFull(report, query);
       return;
     }
     narrateStatus(report, query);

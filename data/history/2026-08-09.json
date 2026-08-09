@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-09T07:15:56.437Z",
+  "generated_at": "2026-08-09T18:34:03.676Z",
   "owner": "grsanudeep42-cmd",
-  "repo_count": 26,
-  "included_count": 24,
+  "repo_count": 18,
+  "included_count": 16,
   "excluded_count": 2,
   "status_counts": {
-    "LIVE": 3,
-    "ACTIVE": 13,
+    "LIVE": 2,
+    "ACTIVE": 7,
     "STALE": 7,
     "DORMANT": 0,
     "DEAD": 0,
-    "ARCHIVED": 1
+    "ARCHIVED": 0
   },
   "weights": {
     "quality": 0.4,
@@ -19,6 +19,415 @@
     "structure": 0.25
   },
   "repos": [
+    {
+      "signals": {
+        "name": "explainmycode",
+        "fullName": "grsanudeep42-cmd/explainmycode",
+        "url": "https://github.com/grsanudeep42-cmd/explainmycode",
+        "description": null,
+        "homepageUrl": "https://explainmycode-chi.vercel.app",
+        "primaryLanguage": "Python",
+        "languages": [
+          "Python",
+          "TypeScript",
+          "CSS",
+          "Dockerfile",
+          "Mako"
+        ],
+        "topics": [],
+        "isPrivate": false,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-02-28T13:57:32Z",
+        "updatedAt": "2026-06-19T09:05:15Z",
+        "pushedAt": "2026-06-19T09:05:11Z",
+        "stars": 2,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 194,
+        "readmeBytes": 7347,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": true,
+        "hasTestScript": true,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": true,
+        "hasPackageManifest": true,
+        "substantialCodebase": false,
+        "hasSrcLayout": false,
+        "hasContainerfile": true,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
+        "commitsLast30Days": 0,
+        "commitsLast90Days": 1,
+        "commitsLast365Days": 24,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "UP",
+          "url": "https://explainmycode-chi.vercel.app/",
+          "finalUrl": "https://explainmycode-chi.vercel.app/",
+          "httpStatus": 200,
+          "latencyMs": 1541,
+          "error": null,
+          "proofBytes": 19649,
+          "contentType": "text/html; charset=utf-8",
+          "verified": true,
+          "redirectChain": [
+            "https://explainmycode-chi.vercel.app/"
+          ],
+          "bodyHash": "10b4c4a36479dd87",
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:03.005Z",
+          "hashStable": true
+        },
+        "fitness": {
+          "sourceFiles": 58,
+          "testFiles": 2,
+          "otherFiles": 16,
+          "maxBlobBytes": 233923,
+          "score": 75,
+          "flags": [
+            "has_source",
+            "has_test_files",
+            "nontrivial_tree"
+          ]
+        }
+      },
+      "score": 67,
+      "pillars": {
+        "quality": 80,
+        "alive": 57,
+        "structure": 59
+      },
+      "status": "LIVE",
+      "drivers": [
+        "demo_verified",
+        "pushed_active_window",
+        "manifest",
+        "code_fitness_high",
+        "test_files_in_tree",
+        "containerized",
+        "tests_present",
+        "test_script",
+        "lockfile",
+        "readme_substance"
+      ],
+      "blockers": [
+        "no_ci",
+        "weak_description",
+        "no_license",
+        "no_topics"
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "code_fitness_high",
+          "pillar": "quality",
+          "delta": 14
+        },
+        {
+          "code": "test_files_in_tree",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "containerized",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "tests_present",
+          "pillar": "quality",
+          "delta": 20
+        },
+        {
+          "code": "test_script",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "demo_verified",
+          "pillar": "alive",
+          "delta": 35
+        },
+        {
+          "code": "pushed_active_window",
+          "pillar": "alive",
+          "delta": 22
+        },
+        {
+          "code": "weak_description",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_topics",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "homepage_verified",
+          "pillar": "structure",
+          "delta": 10
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
+      ]
+    },
+    {
+      "signals": {
+        "name": "medico",
+        "fullName": "grsanudeep42-cmd/medico",
+        "url": "https://github.com/grsanudeep42-cmd/medico",
+        "description": "🏥 AI-Driven Real-Time Health Centre Management Platform — district-level stock redistribution, predictive demand forecasting, and AI alert scheduling for field workers. WOW 2026 Hackathon Submission.",
+        "homepageUrl": null,
+        "primaryLanguage": "Python",
+        "languages": [
+          "Python",
+          "Dart",
+          "TypeScript",
+          "CMake",
+          "C++"
+        ],
+        "topics": [
+          "ai",
+          "dart",
+          "docker",
+          "fastapi",
+          "flutter",
+          "hackathon",
+          "health-management",
+          "healthcare",
+          "machine-learning",
+          "nextjs"
+        ],
+        "isPrivate": false,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-07-04T16:43:34Z",
+        "updatedAt": "2026-07-05T03:08:46Z",
+        "pushedAt": "2026-07-05T02:29:13Z",
+        "stars": 1,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 459,
+        "readmeBytes": 10648,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": true,
+        "hasTestScript": true,
+        "hasLintConfigHeuristic": true,
+        "hasLockfile": true,
+        "hasPackageManifest": true,
+        "substantialCodebase": true,
+        "hasSrcLayout": true,
+        "hasContainerfile": true,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
+        "commitsLast30Days": 0,
+        "commitsLast90Days": 14,
+        "commitsLast365Days": 14,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "NONE",
+          "url": null,
+          "finalUrl": null,
+          "httpStatus": null,
+          "latencyMs": null,
+          "error": null,
+          "proofBytes": null,
+          "contentType": null,
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.401Z",
+          "hashStable": null
+        },
+        "fitness": {
+          "sourceFiles": 123,
+          "testFiles": 1,
+          "otherFiles": 95,
+          "maxBlobBytes": 232299,
+          "score": 75,
+          "flags": [
+            "has_source",
+            "has_test_files",
+            "nontrivial_tree"
+          ]
+        }
+      },
+      "score": 67,
+      "pillars": {
+        "quality": 100,
+        "alive": 27,
+        "structure": 69
+      },
+      "status": "ACTIVE",
+      "drivers": [
+        "pushed_active_window",
+        "cadence_90d",
+        "manifest",
+        "substantial_code",
+        "code_fitness_high",
+        "test_files_in_tree",
+        "src_layout",
+        "containerized",
+        "tests_present",
+        "test_script"
+      ],
+      "blockers": [
+        "no_ci",
+        "no_license"
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "substantial_code",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "code_fitness_high",
+          "pillar": "quality",
+          "delta": 14
+        },
+        {
+          "code": "test_files_in_tree",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "src_layout",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "containerized",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "tests_present",
+          "pillar": "quality",
+          "delta": 20
+        },
+        {
+          "code": "test_script",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lint_config",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "pushed_active_window",
+          "pillar": "alive",
+          "delta": 22
+        },
+        {
+          "code": "cadence_90d",
+          "pillar": "alive",
+          "delta": 5
+        },
+        {
+          "code": "description",
+          "pillar": "structure",
+          "delta": 12
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "topics",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
+      ]
+    },
     {
       "signals": {
         "name": "phantom",
@@ -58,9 +467,11 @@
         "hasPackageManifest": true,
         "substantialCodebase": true,
         "hasSrcLayout": false,
-        "hasContainerfile": false,
+        "hasContainerfile": true,
         "recentWorkflowConclusion": null,
         "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
         "commitsLast30Days": 10,
         "commitsLast90Days": 10,
         "commitsLast365Days": 10,
@@ -75,7 +486,12 @@
           "error": null,
           "proofBytes": null,
           "contentType": null,
-          "verified": false
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.399Z",
+          "hashStable": null
         },
         "fitness": {
           "sourceFiles": 42,
@@ -91,11 +507,11 @@
           ]
         }
       },
-      "score": 59,
+      "score": 62,
       "pillars": {
-        "quality": 80,
+        "quality": 84,
         "alive": 45,
-        "structure": 43
+        "structure": 49
       },
       "status": "ACTIVE",
       "drivers": [
@@ -105,6 +521,7 @@
         "substantial_code",
         "code_fitness_high",
         "test_files_in_tree",
+        "containerized",
         "tests_present",
         "test_script",
         "readme_substance"
@@ -114,301 +531,88 @@
         "weak_description",
         "no_license",
         "no_topics"
-      ]
-    },
-    {
-      "signals": {
-        "name": "tpm-attest",
-        "fullName": "grsanudeep42-cmd/tpm-attest",
-        "url": "https://github.com/grsanudeep42-cmd/tpm-attest",
-        "description": null,
-        "homepageUrl": null,
-        "primaryLanguage": "Python",
-        "languages": [
-          "Python",
-          "TeX",
-          "C",
-          "Makefile",
-          "Shell"
-        ],
-        "topics": [],
-        "isPrivate": false,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": "MIT",
-        "createdAt": "2026-06-22T11:08:42Z",
-        "updatedAt": "2026-07-25T22:21:09Z",
-        "pushedAt": "2026-07-07T13:46:39Z",
-        "stars": 2,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 226,
-        "readmeBytes": 23570,
-        "hasLicenseFile": true,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": true,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": true,
-        "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 0,
-        "commitsLast90Days": 18,
-        "commitsLast365Days": 18,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "NONE",
-          "url": null,
-          "finalUrl": null,
-          "httpStatus": null,
-          "latencyMs": null,
-          "error": null,
-          "proofBytes": null,
-          "contentType": null,
-          "verified": false
-        },
-        "fitness": {
-          "sourceFiles": 14,
-          "testFiles": 2,
-          "otherFiles": 12,
-          "maxBlobBytes": 35541,
-          "score": 75,
-          "flags": [
-            "has_source",
-            "has_test_files",
-            "nontrivial_tree"
-          ]
-        }
-      },
-      "score": 54,
-      "pillars": {
-        "quality": 76,
-        "alive": 27,
-        "structure": 58
-      },
-      "status": "ACTIVE",
-      "drivers": [
-        "pushed_active_window",
-        "manifest",
-        "substantial_code",
-        "code_fitness_high",
-        "test_files_in_tree",
-        "tests_present",
-        "readme_substance",
-        "license"
       ],
-      "blockers": [
-        "no_ci",
-        "weak_description",
-        "no_topics"
-      ]
-    },
-    {
-      "signals": {
-        "name": "synapse",
-        "fullName": "grsanudeep42-cmd/synapse",
-        "url": "https://github.com/grsanudeep42-cmd/synapse",
-        "description": null,
-        "homepageUrl": null,
-        "primaryLanguage": "Python",
-        "languages": [
-          "Python",
-          "TypeScript",
-          "TeX",
-          "CSS",
-          "JavaScript"
-        ],
-        "topics": [],
-        "isPrivate": true,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-05-02T10:36:47Z",
-        "updatedAt": "2026-07-18T16:41:18Z",
-        "pushedAt": "2026-07-18T16:41:14Z",
-        "stars": 1,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 3686,
-        "readmeBytes": 4677,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": true,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": true,
-        "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 1,
-        "commitsLast90Days": 22,
-        "commitsLast365Days": 26,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "NONE",
-          "url": null,
-          "finalUrl": null,
-          "httpStatus": null,
-          "latencyMs": null,
-          "error": null,
-          "proofBytes": null,
-          "contentType": null,
-          "verified": false
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
         },
-        "fitness": {
-          "sourceFiles": 56,
-          "testFiles": 11,
-          "otherFiles": 36,
-          "maxBlobBytes": 1551972,
-          "score": 78,
-          "flags": [
-            "has_source",
-            "has_test_files",
-            "nontrivial_tree",
-            "healthy_test_ratio",
-            "god_file"
-          ]
-        }
-      },
-      "score": 49,
-      "pillars": {
-        "quality": 70,
-        "alive": 30,
-        "structure": 43
-      },
-      "status": "ACTIVE",
-      "drivers": [
-        "pushed_active_window",
-        "cadence_30d",
-        "manifest",
-        "substantial_code",
-        "code_fitness_high",
-        "test_files_in_tree",
-        "tests_present",
-        "readme_substance"
-      ],
-      "blockers": [
-        "god_file",
-        "no_ci",
-        "weak_description",
-        "no_license",
-        "no_topics"
-      ]
-    },
-    {
-      "signals": {
-        "name": "explainmycode",
-        "fullName": "grsanudeep42-cmd/explainmycode",
-        "url": "https://github.com/grsanudeep42-cmd/explainmycode",
-        "description": null,
-        "homepageUrl": "https://explainmycode-chi.vercel.app",
-        "primaryLanguage": "Python",
-        "languages": [
-          "Python",
-          "TypeScript",
-          "CSS",
-          "Dockerfile",
-          "Mako"
-        ],
-        "topics": [],
-        "isPrivate": false,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-02-28T13:57:32Z",
-        "updatedAt": "2026-06-19T09:05:15Z",
-        "pushedAt": "2026-06-19T09:05:11Z",
-        "stars": 2,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 194,
-        "readmeBytes": 7347,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": false,
-        "substantialCodebase": false,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 0,
-        "commitsLast90Days": 1,
-        "commitsLast365Days": 24,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "UP",
-          "url": "https://explainmycode-chi.vercel.app/",
-          "finalUrl": "https://explainmycode-chi.vercel.app/",
-          "httpStatus": 200,
-          "latencyMs": 281,
-          "error": null,
-          "proofBytes": 19649,
-          "contentType": "text/html; charset=utf-8",
-          "verified": true
+        {
+          "code": "substantial_code",
+          "pillar": "quality",
+          "delta": 10
         },
-        "fitness": {
-          "sourceFiles": 58,
-          "testFiles": 2,
-          "otherFiles": 16,
-          "maxBlobBytes": 233923,
-          "score": 75,
-          "flags": [
-            "has_source",
-            "has_test_files",
-            "nontrivial_tree"
-          ]
+        {
+          "code": "code_fitness_high",
+          "pillar": "quality",
+          "delta": 14
+        },
+        {
+          "code": "test_files_in_tree",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "containerized",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "tests_present",
+          "pillar": "quality",
+          "delta": 20
+        },
+        {
+          "code": "test_script",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "pushed_2w",
+          "pillar": "alive",
+          "delta": 30
+        },
+        {
+          "code": "high_cadence_30d",
+          "pillar": "alive",
+          "delta": 15
+        },
+        {
+          "code": "weak_description",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_topics",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
         }
-      },
-      "score": 48,
-      "pillars": {
-        "quality": 38,
-        "alive": 57,
-        "structure": 53
-      },
-      "status": "LIVE",
-      "drivers": [
-        "demo_verified",
-        "pushed_active_window",
-        "code_fitness_high",
-        "test_files_in_tree",
-        "readme_substance",
-        "homepage_verified"
-      ],
-      "blockers": [
-        "no_tests_detected",
-        "no_ci",
-        "weak_description",
-        "no_license",
-        "no_topics"
       ]
     },
     {
@@ -459,14 +663,16 @@
         "hasCodeowners": false,
         "hasTestsHeuristic": false,
         "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": false,
+        "hasLintConfigHeuristic": true,
+        "hasLockfile": true,
+        "hasPackageManifest": true,
         "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
+        "hasSrcLayout": true,
+        "hasContainerfile": true,
         "recentWorkflowConclusion": null,
         "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
         "commitsLast30Days": 0,
         "commitsLast90Days": 0,
         "commitsLast365Days": 58,
@@ -477,11 +683,18 @@
           "url": "https://railtrack-ai-ntlv.vercel.app/",
           "finalUrl": "https://railtrack-ai-ntlv.vercel.app/",
           "httpStatus": 200,
-          "latencyMs": 920,
+          "latencyMs": 1940,
           "error": null,
           "proofBytes": 23852,
           "contentType": "text/html; charset=utf-8",
-          "verified": true
+          "verified": true,
+          "redirectChain": [
+            "https://railtrack-ai-ntlv.vercel.app/"
+          ],
+          "bodyHash": "f0c173e3a9c92ed4",
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:03.665Z",
+          "hashStable": true
         },
         "fitness": {
           "sourceFiles": 44,
@@ -497,431 +710,132 @@
           ]
         }
       },
-      "score": 48,
+      "score": 62,
       "pillars": {
-        "quality": 22,
+        "quality": 54,
         "alive": 60,
-        "structure": 73
+        "structure": 79
       },
-      "status": "LIVE",
+      "status": "STALE",
       "drivers": [
         "demo_verified",
+        "pushed_stale_window",
         "has_releases",
         "recent_release",
-        "substantial_code",
-        "description",
-        "readme_substance",
-        "topics",
-        "homepage_verified"
-      ],
-      "blockers": [
-        "god_file",
-        "no_tests_detected",
-        "no_ci",
-        "no_license"
-      ]
-    },
-    {
-      "signals": {
-        "name": "aryanbloodbank",
-        "fullName": "grsanudeep42-cmd/aryanbloodbank",
-        "url": "https://github.com/grsanudeep42-cmd/aryanbloodbank",
-        "description": null,
-        "homepageUrl": "https://www.aryanbloodbank.org/",
-        "primaryLanguage": "TypeScript",
-        "languages": [
-          "TypeScript",
-          "PLpgSQL",
-          "JavaScript",
-          "CSS",
-          "Swift"
-        ],
-        "topics": [],
-        "isPrivate": true,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-08-07T14:21:57Z",
-        "updatedAt": "2026-08-08T19:52:04Z",
-        "pushedAt": "2026-08-07T14:23:22Z",
-        "stars": 0,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 13213,
-        "readmeBytes": null,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": true,
-        "hasTestScript": true,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": true,
-        "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 8,
-        "commitsLast90Days": 8,
-        "commitsLast365Days": 8,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "DOWN",
-          "url": "https://www.aryanbloodbank.org/",
-          "finalUrl": "https://www.aryanbloodbank.org/",
-          "httpStatus": 200,
-          "latencyMs": 182,
-          "error": "parking_or_soft_404",
-          "proofBytes": 2202,
-          "contentType": "text/html; charset=utf-8",
-          "verified": false
-        },
-        "fitness": {
-          "sourceFiles": 249,
-          "testFiles": 1,
-          "otherFiles": 190,
-          "maxBlobBytes": 8939122,
-          "score": 63,
-          "flags": [
-            "has_source",
-            "has_test_files",
-            "nontrivial_tree",
-            "god_file"
-          ]
-        }
-      },
-      "score": 45,
-      "pillars": {
-        "quality": 68,
-        "alive": 35,
-        "structure": 23
-      },
-      "status": "ACTIVE",
-      "drivers": [
-        "pushed_2w",
-        "high_cadence_30d",
         "manifest",
         "substantial_code",
-        "code_fitness_ok",
-        "test_files_in_tree",
-        "tests_present",
-        "test_script"
-      ],
-      "blockers": [
-        "demo_unproven",
-        "parking_or_soft_404",
-        "god_file",
-        "no_ci",
-        "weak_description",
-        "thin_readme",
-        "no_license",
-        "no_topics",
-        "homepage_unproven"
-      ]
-    },
-    {
-      "signals": {
-        "name": "medico",
-        "fullName": "grsanudeep42-cmd/medico",
-        "url": "https://github.com/grsanudeep42-cmd/medico",
-        "description": "🏥 AI-Driven Real-Time Health Centre Management Platform — district-level stock redistribution, predictive demand forecasting, and AI alert scheduling for field workers. WOW 2026 Hackathon Submission.",
-        "homepageUrl": null,
-        "primaryLanguage": "Python",
-        "languages": [
-          "Python",
-          "Dart",
-          "TypeScript",
-          "CMake",
-          "C++"
-        ],
-        "topics": [
-          "ai",
-          "dart",
-          "docker",
-          "fastapi",
-          "flutter",
-          "hackathon",
-          "health-management",
-          "healthcare",
-          "machine-learning",
-          "nextjs"
-        ],
-        "isPrivate": false,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-07-04T16:43:34Z",
-        "updatedAt": "2026-07-05T03:08:46Z",
-        "pushedAt": "2026-07-05T02:29:13Z",
-        "stars": 1,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 459,
-        "readmeBytes": 10648,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": false,
-        "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 0,
-        "commitsLast90Days": 14,
-        "commitsLast365Days": 14,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "NONE",
-          "url": null,
-          "finalUrl": null,
-          "httpStatus": null,
-          "latencyMs": null,
-          "error": null,
-          "proofBytes": null,
-          "contentType": null,
-          "verified": false
-        },
-        "fitness": {
-          "sourceFiles": 123,
-          "testFiles": 1,
-          "otherFiles": 95,
-          "maxBlobBytes": 232299,
-          "score": 75,
-          "flags": [
-            "has_source",
-            "has_test_files",
-            "nontrivial_tree"
-          ]
-        }
-      },
-      "score": 44,
-      "pillars": {
-        "quality": 48,
-        "alive": 27,
-        "structure": 63
-      },
-      "status": "ACTIVE",
-      "drivers": [
-        "pushed_active_window",
-        "substantial_code",
-        "code_fitness_high",
-        "test_files_in_tree",
-        "description",
-        "readme_substance",
-        "topics"
-      ],
-      "blockers": [
-        "no_tests_detected",
-        "no_ci",
-        "no_license"
-      ]
-    },
-    {
-      "signals": {
-        "name": "freelance",
-        "fullName": "grsanudeep42-cmd/freelance",
-        "url": "https://github.com/grsanudeep42-cmd/freelance",
-        "description": null,
-        "homepageUrl": "https://freelance-woad-rho.vercel.app",
-        "primaryLanguage": "TypeScript",
-        "languages": [
-          "TypeScript",
-          "CSS",
-          "JavaScript",
-          "HTML"
-        ],
-        "topics": [],
-        "isPrivate": true,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-03-20T09:51:23Z",
-        "updatedAt": "2026-05-03T04:51:23Z",
-        "pushedAt": "2026-05-03T04:51:19Z",
-        "stars": 1,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 529638,
-        "readmeBytes": 7214,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": false,
-        "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 0,
-        "commitsLast90Days": 0,
-        "commitsLast365Days": 27,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "UP",
-          "url": "https://freelance-woad-rho.vercel.app/",
-          "finalUrl": "https://freelance-woad-rho.vercel.app/",
-          "httpStatus": 200,
-          "latencyMs": 678,
-          "error": null,
-          "proofBytes": 35526,
-          "contentType": "text/html; charset=utf-8",
-          "verified": true
-        },
-        "fitness": {
-          "sourceFiles": 121,
-          "testFiles": 0,
-          "otherFiles": 32,
-          "maxBlobBytes": 134933,
-          "score": 40,
-          "flags": [
-            "has_source",
-            "no_test_files",
-            "nontrivial_tree"
-          ]
-        }
-      },
-      "score": 41,
-      "pillars": {
-        "quality": 28,
-        "alive": 47,
-        "structure": 53
-      },
-      "status": "LIVE",
-      "drivers": [
-        "demo_verified",
-        "substantial_code",
-        "readme_substance",
-        "homepage_verified"
-      ],
-      "blockers": [
-        "no_tests_detected",
-        "no_ci",
-        "weak_description",
-        "no_license",
-        "no_topics"
-      ]
-    },
-    {
-      "signals": {
-        "name": "lancr",
-        "fullName": "grsanudeep42-cmd/lancr",
-        "url": "https://github.com/grsanudeep42-cmd/lancr",
-        "description": null,
-        "homepageUrl": null,
-        "primaryLanguage": "TypeScript",
-        "languages": [
-          "TypeScript",
-          "JavaScript",
-          "CSS",
-          "Dockerfile"
-        ],
-        "topics": [],
-        "isPrivate": true,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-05-03T05:44:52Z",
-        "updatedAt": "2026-06-15T09:27:07Z",
-        "pushedAt": "2026-06-15T09:27:03Z",
-        "stars": 1,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 6189,
-        "readmeBytes": 17907,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": true,
-        "hasLockfile": true,
-        "hasPackageManifest": true,
-        "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 0,
-        "commitsLast90Days": 100,
-        "commitsLast365Days": 100,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "NONE",
-          "url": null,
-          "finalUrl": null,
-          "httpStatus": null,
-          "latencyMs": null,
-          "error": null,
-          "proofBytes": null,
-          "contentType": null,
-          "verified": false
-        },
-        "fitness": {
-          "sourceFiles": 284,
-          "testFiles": 0,
-          "otherFiles": 61,
-          "maxBlobBytes": 505191,
-          "score": 28,
-          "flags": [
-            "has_source",
-            "no_test_files",
-            "nontrivial_tree",
-            "god_file"
-          ]
-        }
-      },
-      "score": 39,
-      "pillars": {
-        "quality": 46,
-        "alive": 27,
-        "structure": 43
-      },
-      "status": "ACTIVE",
-      "drivers": [
-        "pushed_active_window",
-        "manifest",
-        "substantial_code",
+        "src_layout",
+        "containerized",
         "lint_config",
-        "lockfile",
-        "readme_substance"
+        "lockfile"
       ],
       "blockers": [
         "god_file",
         "no_tests_detected",
         "no_ci",
-        "weak_description",
-        "no_license",
-        "no_topics"
+        "no_license"
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "substantial_code",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "god_file",
+          "pillar": "quality",
+          "delta": -6
+        },
+        {
+          "code": "src_layout",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "containerized",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_tests_detected",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lint_config",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "demo_verified",
+          "pillar": "alive",
+          "delta": 35
+        },
+        {
+          "code": "pushed_stale_window",
+          "pillar": "alive",
+          "delta": 12
+        },
+        {
+          "code": "has_releases",
+          "pillar": "alive",
+          "delta": 8
+        },
+        {
+          "code": "recent_release",
+          "pillar": "alive",
+          "delta": 5
+        },
+        {
+          "code": "description",
+          "pillar": "structure",
+          "delta": 12
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "topics",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "homepage_verified",
+          "pillar": "structure",
+          "delta": 10
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
       ]
     },
     {
@@ -970,16 +884,18 @@
         "hasWorkflows": false,
         "hasDependabotConfig": false,
         "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
+        "hasTestsHeuristic": true,
+        "hasTestScript": true,
         "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": false,
+        "hasLockfile": true,
+        "hasPackageManifest": true,
         "substantialCodebase": true,
-        "hasSrcLayout": false,
+        "hasSrcLayout": true,
         "hasContainerfile": false,
         "recentWorkflowConclusion": null,
         "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
         "commitsLast30Days": 0,
         "commitsLast90Days": 0,
         "commitsLast365Days": 7,
@@ -994,13 +910,18 @@
           "error": null,
           "proofBytes": null,
           "contentType": null,
-          "verified": false
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.402Z",
+          "hashStable": null
         },
         "fitness": {
           "sourceFiles": 71,
           "testFiles": 1,
           "otherFiles": 109,
-          "maxBlobBytes": 102994,
+          "maxBlobBytes": 62775,
           "score": 75,
           "flags": [
             "has_source",
@@ -1009,453 +930,160 @@
           ]
         }
       },
-      "score": 39,
+      "score": 57,
       "pillars": {
-        "quality": 48,
+        "quality": 90,
         "alive": 12,
-        "structure": 63
+        "structure": 69
       },
       "status": "STALE",
       "drivers": [
+        "pushed_stale_window",
+        "manifest",
         "substantial_code",
         "code_fitness_high",
         "test_files_in_tree",
-        "description",
-        "readme_substance",
-        "topics"
+        "src_layout",
+        "tests_present",
+        "test_script",
+        "lockfile",
+        "description"
       ],
       "blockers": [
-        "no_tests_detected",
         "no_ci",
         "no_license"
-      ]
-    },
-    {
-      "signals": {
-        "name": "grsanudeep42-cmd",
-        "fullName": "grsanudeep42-cmd/grsanudeep42-cmd",
-        "url": "https://github.com/grsanudeep42-cmd/grsanudeep42-cmd",
-        "description": null,
-        "homepageUrl": null,
-        "primaryLanguage": null,
-        "languages": [],
-        "topics": [],
-        "isPrivate": false,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-05-19T05:57:40Z",
-        "updatedAt": "2026-08-08T18:58:19Z",
-        "pushedAt": "2026-08-09T02:18:37Z",
-        "stars": 1,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "master",
-        "diskUsageKb": 53156,
-        "readmeBytes": 7695,
-        "hasLicenseFile": false,
-        "hasWorkflows": true,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": false,
-        "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": "success",
-        "recentWorkflowAgeDays": 0.20596243055555555,
-        "commitsLast30Days": 2,
-        "commitsLast90Days": 24,
-        "commitsLast365Days": 24,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "NONE",
-          "url": null,
-          "finalUrl": null,
-          "httpStatus": null,
-          "latencyMs": null,
-          "error": null,
-          "proofBytes": null,
-          "contentType": null,
-          "verified": false
-        },
-        "fitness": {
-          "sourceFiles": 0,
-          "testFiles": 0,
-          "otherFiles": 7,
-          "maxBlobBytes": 21063737,
-          "score": 0,
-          "flags": [
-            "no_source_files",
-            "no_test_files",
-            "god_file"
-          ]
-        }
-      },
-      "score": 36,
-      "pillars": {
-        "quality": 28,
-        "alive": 45,
-        "structure": 35
-      },
-      "status": "ACTIVE",
-      "drivers": [
-        "pushed_2w",
-        "cadence_30d",
-        "ci_fresh",
-        "substantial_code",
-        "ci_workflows",
-        "ci_green",
-        "readme_substance"
       ],
-      "blockers": [
-        "no_source_files",
-        "god_file",
-        "no_tests_detected",
-        "weak_description",
-        "no_license",
-        "no_topics"
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "substantial_code",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "code_fitness_high",
+          "pillar": "quality",
+          "delta": 14
+        },
+        {
+          "code": "test_files_in_tree",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "src_layout",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "tests_present",
+          "pillar": "quality",
+          "delta": 20
+        },
+        {
+          "code": "test_script",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "pushed_stale_window",
+          "pillar": "alive",
+          "delta": 12
+        },
+        {
+          "code": "description",
+          "pillar": "structure",
+          "delta": 12
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "topics",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
       ]
     },
     {
       "signals": {
-        "name": "luna_v1",
-        "fullName": "grsanudeep42-cmd/luna_v1",
-        "url": "https://github.com/grsanudeep42-cmd/luna_v1",
+        "name": "tpm-attest",
+        "fullName": "grsanudeep42-cmd/tpm-attest",
+        "url": "https://github.com/grsanudeep42-cmd/tpm-attest",
         "description": null,
         "homepageUrl": null,
         "primaryLanguage": "Python",
         "languages": [
-          "Python"
-        ],
-        "topics": [],
-        "isPrivate": true,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-03-19T10:06:56Z",
-        "updatedAt": "2026-04-09T06:06:44Z",
-        "pushedAt": "2026-03-19T10:10:39Z",
-        "stars": 1,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 168,
-        "readmeBytes": null,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": true,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": true,
-        "substantialCodebase": false,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 0,
-        "commitsLast90Days": 0,
-        "commitsLast365Days": 2,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "NONE",
-          "url": null,
-          "finalUrl": null,
-          "httpStatus": null,
-          "latencyMs": null,
-          "error": null,
-          "proofBytes": null,
-          "contentType": null,
-          "verified": false
-        },
-        "fitness": {
-          "sourceFiles": 27,
-          "testFiles": 13,
-          "otherFiles": 45,
-          "maxBlobBytes": 142864,
-          "score": 90,
-          "flags": [
-            "has_source",
-            "has_test_files",
-            "nontrivial_tree",
-            "healthy_test_ratio"
-          ]
-        }
-      },
-      "score": 36,
-      "pillars": {
-        "quality": 66,
-        "alive": 12,
-        "structure": 23
-      },
-      "status": "STALE",
-      "drivers": [
-        "manifest",
-        "code_fitness_high",
-        "test_files_in_tree",
-        "tests_present"
-      ],
-      "blockers": [
-        "no_ci",
-        "weak_description",
-        "thin_readme",
-        "no_license",
-        "no_topics"
-      ]
-    },
-    {
-      "signals": {
-        "name": "omnitrix-portfolio",
-        "fullName": "grsanudeep42-cmd/omnitrix-portfolio",
-        "url": "https://github.com/grsanudeep42-cmd/omnitrix-portfolio",
-        "description": null,
-        "homepageUrl": null,
-        "primaryLanguage": "TypeScript",
-        "languages": [
-          "TypeScript",
-          "CSS",
-          "HTML",
-          "JavaScript"
+          "Python",
+          "TeX",
+          "C",
+          "Makefile",
+          "Shell"
         ],
         "topics": [],
         "isPrivate": false,
         "isFork": false,
         "isArchived": false,
         "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-04-11T18:02:21Z",
-        "updatedAt": "2026-06-04T16:10:42Z",
-        "pushedAt": "2026-04-11T18:06:52Z",
+        "licenseSpdx": "MIT",
+        "createdAt": "2026-06-22T11:08:42Z",
+        "updatedAt": "2026-07-25T22:21:09Z",
+        "pushedAt": "2026-07-07T13:46:39Z",
         "stars": 2,
         "forks": 0,
         "openIssues": 0,
         "hasIssuesEnabled": true,
         "defaultBranch": "main",
-        "diskUsageKb": 49407,
-        "readmeBytes": 2425,
-        "hasLicenseFile": false,
+        "diskUsageKb": 226,
+        "readmeBytes": 23570,
+        "hasLicenseFile": true,
         "hasWorkflows": false,
         "hasDependabotConfig": false,
         "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": true,
-        "hasLockfile": true,
+        "hasTestsHeuristic": true,
+        "hasTestScript": true,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": false,
         "hasPackageManifest": true,
         "substantialCodebase": true,
-        "hasSrcLayout": true,
+        "hasSrcLayout": false,
         "hasContainerfile": false,
         "recentWorkflowConclusion": null,
         "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
         "commitsLast30Days": 0,
-        "commitsLast90Days": 0,
-        "commitsLast365Days": 1,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "NONE",
-          "url": null,
-          "finalUrl": null,
-          "httpStatus": null,
-          "latencyMs": null,
-          "error": null,
-          "proofBytes": null,
-          "contentType": null,
-          "verified": false
-        },
-        "fitness": {
-          "sourceFiles": 14,
-          "testFiles": 0,
-          "otherFiles": 20,
-          "maxBlobBytes": 35099576,
-          "score": 28,
-          "flags": [
-            "has_source",
-            "no_test_files",
-            "nontrivial_tree",
-            "god_file"
-          ]
-        }
-      },
-      "score": 35,
-      "pillars": {
-        "quality": 50,
-        "alive": 12,
-        "structure": 43
-      },
-      "status": "STALE",
-      "drivers": [
-        "manifest",
-        "substantial_code",
-        "src_layout",
-        "lint_config",
-        "lockfile",
-        "readme_substance"
-      ],
-      "blockers": [
-        "god_file",
-        "no_tests_detected",
-        "no_ci",
-        "weak_description",
-        "no_license",
-        "no_topics"
-      ]
-    },
-    {
-      "signals": {
-        "name": "part-time-seekers",
-        "fullName": "grsanudeep42-cmd/part-time-seekers",
-        "url": "https://github.com/grsanudeep42-cmd/part-time-seekers",
-        "description": null,
-        "homepageUrl": null,
-        "primaryLanguage": "Python",
-        "languages": [
-          "Python",
-          "TypeScript",
-          "CSS",
-          "Dockerfile",
-          "JavaScript"
-        ],
-        "topics": [],
-        "isPrivate": true,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-08-05T17:53:08Z",
-        "updatedAt": "2026-08-05T19:38:40Z",
-        "pushedAt": "2026-08-05T19:37:43Z",
-        "stars": 0,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 1123,
-        "readmeBytes": 1496,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": false,
-        "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 10,
-        "commitsLast90Days": 10,
-        "commitsLast365Days": 10,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "NONE",
-          "url": null,
-          "finalUrl": null,
-          "httpStatus": null,
-          "latencyMs": null,
-          "error": null,
-          "proofBytes": null,
-          "contentType": null,
-          "verified": false
-        },
-        "fitness": {
-          "sourceFiles": 100,
-          "testFiles": 0,
-          "otherFiles": 24,
-          "maxBlobBytes": 985838,
-          "score": 28,
-          "flags": [
-            "has_source",
-            "no_test_files",
-            "nontrivial_tree",
-            "god_file"
-          ]
-        }
-      },
-      "score": 35,
-      "pillars": {
-        "quality": 22,
-        "alive": 45,
-        "structure": 43
-      },
-      "status": "ACTIVE",
-      "drivers": [
-        "pushed_2w",
-        "high_cadence_30d",
-        "substantial_code",
-        "readme_substance"
-      ],
-      "blockers": [
-        "god_file",
-        "no_tests_detected",
-        "no_ci",
-        "weak_description",
-        "no_license",
-        "no_topics"
-      ]
-    },
-    {
-      "signals": {
-        "name": "styxos",
-        "fullName": "grsanudeep42-cmd/styxos",
-        "url": "https://github.com/grsanudeep42-cmd/styxos",
-        "description": null,
-        "homepageUrl": null,
-        "primaryLanguage": "C",
-        "languages": [
-          "C",
-          "Python",
-          "Assembly",
-          "Shell",
-          "Makefile"
-        ],
-        "topics": [],
-        "isPrivate": true,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-06-20T18:01:43Z",
-        "updatedAt": "2026-07-25T13:03:14Z",
-        "pushedAt": "2026-07-25T13:02:03Z",
-        "stars": 1,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 2047,
-        "readmeBytes": 6115,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": false,
-        "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 14,
         "commitsLast90Days": 18,
         "commitsLast365Days": 18,
         "releasesCount": 0,
@@ -1469,13 +1097,201 @@
           "error": null,
           "proofBytes": null,
           "contentType": null,
-          "verified": false
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.401Z",
+          "hashStable": null
         },
         "fitness": {
-          "sourceFiles": 128,
+          "sourceFiles": 14,
+          "testFiles": 2,
+          "otherFiles": 12,
+          "maxBlobBytes": 35541,
+          "score": 75,
+          "flags": [
+            "has_source",
+            "has_test_files",
+            "nontrivial_tree"
+          ]
+        }
+      },
+      "score": 57,
+      "pillars": {
+        "quality": 80,
+        "alive": 27,
+        "structure": 64
+      },
+      "status": "ACTIVE",
+      "drivers": [
+        "pushed_active_window",
+        "cadence_90d",
+        "manifest",
+        "substantial_code",
+        "code_fitness_high",
+        "test_files_in_tree",
+        "tests_present",
+        "test_script",
+        "readme_substance",
+        "license"
+      ],
+      "blockers": [
+        "no_ci",
+        "weak_description",
+        "no_topics"
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "substantial_code",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "code_fitness_high",
+          "pillar": "quality",
+          "delta": 14
+        },
+        {
+          "code": "test_files_in_tree",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "tests_present",
+          "pillar": "quality",
+          "delta": 20
+        },
+        {
+          "code": "test_script",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "pushed_active_window",
+          "pillar": "alive",
+          "delta": 22
+        },
+        {
+          "code": "cadence_90d",
+          "pillar": "alive",
+          "delta": 5
+        },
+        {
+          "code": "weak_description",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "license",
+          "pillar": "structure",
+          "delta": 15
+        },
+        {
+          "code": "no_topics",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
+      ]
+    },
+    {
+      "signals": {
+        "name": "portfolio_v2",
+        "fullName": "grsanudeep42-cmd/portfolio_v2",
+        "url": "https://github.com/grsanudeep42-cmd/portfolio_v2",
+        "description": null,
+        "homepageUrl": "https://portfolio-v2-pi-liard.vercel.app",
+        "primaryLanguage": "JavaScript",
+        "languages": [
+          "JavaScript",
+          "CSS",
+          "HTML"
+        ],
+        "topics": [],
+        "isPrivate": false,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-07-11T13:19:21Z",
+        "updatedAt": "2026-07-11T13:22:52Z",
+        "pushedAt": "2026-07-11T13:21:44Z",
+        "stars": 0,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 7526,
+        "readmeBytes": 1009,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": false,
+        "hasTestScript": false,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": true,
+        "hasPackageManifest": true,
+        "substantialCodebase": true,
+        "hasSrcLayout": true,
+        "hasContainerfile": false,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
+        "commitsLast30Days": 1,
+        "commitsLast90Days": 1,
+        "commitsLast365Days": 1,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "UP",
+          "url": "https://portfolio-v2-pi-liard.vercel.app/",
+          "finalUrl": "https://portfolio-v2-pi-liard.vercel.app/",
+          "httpStatus": 200,
+          "latencyMs": 816,
+          "error": null,
+          "proofBytes": 1449,
+          "contentType": "text/html; charset=utf-8",
+          "verified": true,
+          "redirectChain": [
+            "https://portfolio-v2-pi-liard.vercel.app/"
+          ],
+          "bodyHash": "9ce807fec30d2a2f",
+          "spaShell": true,
+          "probedAt": "2026-08-09T18:34:02.493Z",
+          "hashStable": true
+        },
+        "fitness": {
+          "sourceFiles": 18,
           "testFiles": 0,
-          "otherFiles": 22,
-          "maxBlobBytes": 177224,
+          "otherFiles": 18,
+          "maxBlobBytes": 71877,
           "score": 40,
           "flags": [
             "has_source",
@@ -1484,18 +1300,24 @@
           ]
         }
       },
-      "score": 35,
+      "score": 56,
       "pillars": {
-        "quality": 28,
-        "alive": 37,
-        "structure": 43
+        "quality": 46,
+        "alive": 65,
+        "structure": 59
       },
-      "status": "ACTIVE",
+      "status": "LIVE",
       "drivers": [
+        "demo_verified",
         "pushed_active_window",
-        "high_cadence_30d",
+        "cadence_30d",
+        "manifest",
         "substantial_code",
-        "readme_substance"
+        "src_layout",
+        "lockfile",
+        "readme_substance",
+        "homepage_verified",
+        "has_language"
       ],
       "blockers": [
         "no_tests_detected",
@@ -1503,6 +1325,88 @@
         "weak_description",
         "no_license",
         "no_topics"
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "substantial_code",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "src_layout",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_tests_detected",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "demo_verified",
+          "pillar": "alive",
+          "delta": 35
+        },
+        {
+          "code": "pushed_active_window",
+          "pillar": "alive",
+          "delta": 22
+        },
+        {
+          "code": "cadence_30d",
+          "pillar": "alive",
+          "delta": 8
+        },
+        {
+          "code": "weak_description",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_topics",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "homepage_verified",
+          "pillar": "structure",
+          "delta": 10
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
       ]
     },
     {
@@ -1549,14 +1453,16 @@
         "hasCodeowners": false,
         "hasTestsHeuristic": false,
         "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": false,
+        "hasLintConfigHeuristic": true,
+        "hasLockfile": true,
+        "hasPackageManifest": true,
         "substantialCodebase": true,
         "hasSrcLayout": false,
-        "hasContainerfile": false,
+        "hasContainerfile": true,
         "recentWorkflowConclusion": null,
         "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 46,
         "commitsLast30Days": 0,
         "commitsLast90Days": 28,
         "commitsLast365Days": 28,
@@ -1571,13 +1477,18 @@
           "error": null,
           "proofBytes": null,
           "contentType": null,
-          "verified": false
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.402Z",
+          "hashStable": null
         },
         "fitness": {
           "sourceFiles": 77,
           "testFiles": 0,
           "otherFiles": 121,
-          "maxBlobBytes": 1886318,
+          "maxBlobBytes": 291129,
           "score": 28,
           "flags": [
             "has_source",
@@ -1587,16 +1498,21 @@
           ]
         }
       },
-      "score": 34,
+      "score": 45,
       "pillars": {
-        "quality": 22,
+        "quality": 50,
         "alive": 27,
         "structure": 63
       },
       "status": "ACTIVE",
       "drivers": [
         "pushed_active_window",
+        "cadence_90d",
+        "manifest",
         "substantial_code",
+        "containerized",
+        "lint_config",
+        "lockfile",
         "description",
         "readme_substance",
         "topics"
@@ -1606,18 +1522,96 @@
         "no_tests_detected",
         "no_ci",
         "no_license"
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "substantial_code",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "god_file",
+          "pillar": "quality",
+          "delta": -6
+        },
+        {
+          "code": "containerized",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_tests_detected",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lint_config",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "pushed_active_window",
+          "pillar": "alive",
+          "delta": 22
+        },
+        {
+          "code": "cadence_90d",
+          "pillar": "alive",
+          "delta": 5
+        },
+        {
+          "code": "description",
+          "pillar": "structure",
+          "delta": 12
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "topics",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        }
       ]
     },
     {
       "signals": {
-        "name": "phantom-mcp",
-        "fullName": "grsanudeep42-cmd/phantom-mcp",
-        "url": "https://github.com/grsanudeep42-cmd/phantom-mcp",
+        "name": "polaris-core",
+        "fullName": "grsanudeep42-cmd/polaris-core",
+        "url": "https://github.com/grsanudeep42-cmd/polaris-core",
         "description": null,
         "homepageUrl": null,
         "primaryLanguage": "Python",
         "languages": [
-          "Python"
+          "Python",
+          "Mako"
         ],
         "topics": [],
         "isPrivate": false,
@@ -1625,32 +1619,34 @@
         "isArchived": false,
         "isTemplate": false,
         "licenseSpdx": null,
-        "createdAt": "2026-07-29T17:48:05Z",
-        "updatedAt": "2026-07-30T04:55:06Z",
-        "pushedAt": "2026-07-30T04:54:19Z",
-        "stars": 1,
+        "createdAt": "2026-02-12T08:32:28Z",
+        "updatedAt": "2026-06-04T16:10:48Z",
+        "pushedAt": "2026-05-07T18:22:32Z",
+        "stars": 2,
         "forks": 0,
         "openIssues": 0,
         "hasIssuesEnabled": true,
         "defaultBranch": "main",
-        "diskUsageKb": 51,
-        "readmeBytes": 2981,
+        "diskUsageKb": 174,
+        "readmeBytes": null,
         "hasLicenseFile": false,
         "hasWorkflows": false,
         "hasDependabotConfig": false,
         "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
+        "hasTestsHeuristic": true,
+        "hasTestScript": true,
         "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
+        "hasLockfile": true,
         "hasPackageManifest": true,
         "substantialCodebase": false,
         "hasSrcLayout": false,
         "hasContainerfile": false,
         "recentWorkflowConclusion": null,
         "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 3,
-        "commitsLast90Days": 3,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
+        "commitsLast30Days": 0,
+        "commitsLast90Days": 0,
         "commitsLast365Days": 3,
         "releasesCount": 0,
         "latestReleaseAt": null,
@@ -1663,54 +1659,316 @@
           "error": null,
           "proofBytes": null,
           "contentType": null,
-          "verified": false
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.402Z",
+          "hashStable": null
         },
         "fitness": {
-          "sourceFiles": 26,
-          "testFiles": 0,
-          "otherFiles": 4,
-          "maxBlobBytes": 26332,
-          "score": 40,
+          "sourceFiles": 47,
+          "testFiles": 2,
+          "otherFiles": 8,
+          "maxBlobBytes": 169801,
+          "score": 75,
           "flags": [
             "has_source",
-            "no_test_files",
+            "has_test_files",
             "nontrivial_tree"
           ]
         }
       },
-      "score": 34,
+      "score": 42,
       "pillars": {
-        "quality": 26,
-        "alive": 38,
-        "structure": 43
+        "quality": 76,
+        "alive": 12,
+        "structure": 29
+      },
+      "status": "STALE",
+      "drivers": [
+        "pushed_stale_window",
+        "manifest",
+        "code_fitness_high",
+        "test_files_in_tree",
+        "tests_present",
+        "test_script",
+        "lockfile",
+        "has_language",
+        "owner_authored"
+      ],
+      "blockers": [
+        "no_ci",
+        "weak_description",
+        "thin_readme",
+        "no_license",
+        "no_topics"
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "code_fitness_high",
+          "pillar": "quality",
+          "delta": 14
+        },
+        {
+          "code": "test_files_in_tree",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "tests_present",
+          "pillar": "quality",
+          "delta": 20
+        },
+        {
+          "code": "test_script",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "pushed_stale_window",
+          "pillar": "alive",
+          "delta": 12
+        },
+        {
+          "code": "weak_description",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "thin_readme",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_topics",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
+      ]
+    },
+    {
+      "signals": {
+        "name": "grsanudeep42-cmd",
+        "fullName": "grsanudeep42-cmd/grsanudeep42-cmd",
+        "url": "https://github.com/grsanudeep42-cmd/grsanudeep42-cmd",
+        "description": null,
+        "homepageUrl": null,
+        "primaryLanguage": null,
+        "languages": [],
+        "topics": [],
+        "isPrivate": false,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-05-19T05:57:40Z",
+        "updatedAt": "2026-08-09T15:26:04Z",
+        "pushedAt": "2026-08-09T15:25:37Z",
+        "stars": 1,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "master",
+        "diskUsageKb": 53160,
+        "readmeBytes": 7655,
+        "hasLicenseFile": false,
+        "hasWorkflows": true,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": false,
+        "hasTestScript": false,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": false,
+        "hasPackageManifest": false,
+        "substantialCodebase": true,
+        "hasSrcLayout": false,
+        "hasContainerfile": false,
+        "recentWorkflowConclusion": "success",
+        "recentWorkflowAgeDays": 0.22754969907407407,
+        "ciConclusions": [
+          "success",
+          "success",
+          "success",
+          "success",
+          "success"
+        ],
+        "ownerCommitShare": 100,
+        "commitsLast30Days": 4,
+        "commitsLast90Days": 26,
+        "commitsLast365Days": 26,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "NONE",
+          "url": null,
+          "finalUrl": null,
+          "httpStatus": null,
+          "latencyMs": null,
+          "error": null,
+          "proofBytes": null,
+          "contentType": null,
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.399Z",
+          "hashStable": null
+        },
+        "fitness": {
+          "sourceFiles": 0,
+          "testFiles": 0,
+          "otherFiles": 7,
+          "maxBlobBytes": 38611,
+          "score": 0,
+          "flags": [
+            "no_source_files",
+            "no_test_files"
+          ]
+        }
+      },
+      "score": 41,
+      "pillars": {
+        "quality": 34,
+        "alive": 50,
+        "structure": 41
       },
       "status": "ACTIVE",
       "drivers": [
         "pushed_2w",
         "cadence_30d",
-        "manifest",
-        "readme_substance"
+        "ci_fresh",
+        "ci_matrix_green",
+        "substantial_code",
+        "ci_workflows",
+        "ci_green",
+        "readme_substance",
+        "owner_authored"
       ],
       "blockers": [
+        "no_source_files",
         "no_tests_detected",
-        "no_ci",
         "weak_description",
         "no_license",
         "no_topics"
+      ],
+      "contributions": [
+        {
+          "code": "substantial_code",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "no_source_files",
+          "pillar": "quality",
+          "delta": -18
+        },
+        {
+          "code": "no_tests_detected",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "ci_workflows",
+          "pillar": "quality",
+          "delta": 12
+        },
+        {
+          "code": "ci_green",
+          "pillar": "quality",
+          "delta": 12
+        },
+        {
+          "code": "pushed_2w",
+          "pillar": "alive",
+          "delta": 30
+        },
+        {
+          "code": "cadence_30d",
+          "pillar": "alive",
+          "delta": 8
+        },
+        {
+          "code": "ci_fresh",
+          "pillar": "alive",
+          "delta": 7
+        },
+        {
+          "code": "ci_matrix_green",
+          "pillar": "alive",
+          "delta": 5
+        },
+        {
+          "code": "weak_description",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_topics",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
       ]
     },
     {
       "signals": {
-        "name": "portfolio_v2",
-        "fullName": "grsanudeep42-cmd/portfolio_v2",
-        "url": "https://github.com/grsanudeep42-cmd/portfolio_v2",
-        "description": null,
-        "homepageUrl": "https://portfolio-v2-pi-liard.vercel.app",
-        "primaryLanguage": "JavaScript",
+        "name": "nexus",
+        "fullName": "grsanudeep42-cmd/nexus",
+        "url": "https://github.com/grsanudeep42-cmd/nexus",
+        "description": " premium, full-stack team collaboration web application. Nexus works as an intelligent team operating system with multi-workspace environments, real-time collaboration, task management, activity feed, and an optional AI assistant.",
+        "homepageUrl": null,
+        "primaryLanguage": "TypeScript",
         "languages": [
-          "JavaScript",
+          "TypeScript",
+          "Python",
           "CSS",
-          "HTML"
+          "HTML",
+          "JavaScript"
         ],
         "topics": [],
         "isPrivate": false,
@@ -1718,16 +1976,16 @@
         "isArchived": false,
         "isTemplate": false,
         "licenseSpdx": null,
-        "createdAt": "2026-07-11T13:19:21Z",
-        "updatedAt": "2026-07-11T13:22:52Z",
-        "pushedAt": "2026-07-11T13:21:44Z",
-        "stars": 0,
+        "createdAt": "2026-02-26T15:38:01Z",
+        "updatedAt": "2026-06-04T16:10:32Z",
+        "pushedAt": "2026-02-26T15:50:08Z",
+        "stars": 2,
         "forks": 0,
         "openIssues": 0,
         "hasIssuesEnabled": true,
         "defaultBranch": "main",
-        "diskUsageKb": 7526,
-        "readmeBytes": 1009,
+        "diskUsageKb": 1995,
+        "readmeBytes": 8161,
         "hasLicenseFile": false,
         "hasWorkflows": false,
         "hasDependabotConfig": false,
@@ -1742,62 +2000,132 @@
         "hasContainerfile": false,
         "recentWorkflowConclusion": null,
         "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 1,
-        "commitsLast90Days": 1,
-        "commitsLast365Days": 1,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
+        "commitsLast30Days": 0,
+        "commitsLast90Days": 0,
+        "commitsLast365Days": 2,
         "releasesCount": 0,
         "latestReleaseAt": null,
         "demo": {
-          "status": "DOWN",
-          "url": "https://portfolio-v2-pi-liard.vercel.app/",
-          "finalUrl": "https://portfolio-v2-pi-liard.vercel.app/",
-          "httpStatus": 200,
-          "latencyMs": 315,
-          "error": "parking_or_soft_404",
-          "proofBytes": 1449,
-          "contentType": "text/html; charset=utf-8",
-          "verified": false
+          "status": "NONE",
+          "url": null,
+          "finalUrl": null,
+          "httpStatus": null,
+          "latencyMs": null,
+          "error": null,
+          "proofBytes": null,
+          "contentType": null,
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.403Z",
+          "hashStable": null
         },
         "fitness": {
-          "sourceFiles": 18,
+          "sourceFiles": 65,
           "testFiles": 0,
-          "otherFiles": 18,
-          "maxBlobBytes": 7659646,
-          "score": 28,
+          "otherFiles": 19,
+          "maxBlobBytes": 79102,
+          "score": 40,
           "flags": [
             "has_source",
             "no_test_files",
-            "nontrivial_tree",
-            "god_file"
+            "nontrivial_tree"
           ]
         }
       },
-      "score": 34,
+      "score": 38,
       "pillars": {
-        "quality": 40,
-        "alive": 20,
-        "structure": 43
+        "quality": 46,
+        "alive": 12,
+        "structure": 61
       },
-      "status": "ACTIVE",
+      "status": "STALE",
       "drivers": [
-        "pushed_active_window",
-        "cadence_30d",
+        "pushed_stale_window",
         "manifest",
         "substantial_code",
         "src_layout",
         "lockfile",
-        "readme_substance"
+        "description",
+        "readme_substance",
+        "has_language",
+        "owner_authored"
       ],
       "blockers": [
-        "demo_unproven",
-        "parking_or_soft_404",
-        "god_file",
         "no_tests_detected",
         "no_ci",
-        "weak_description",
         "no_license",
-        "no_topics",
-        "homepage_unproven"
+        "no_topics"
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "substantial_code",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "src_layout",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_tests_detected",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "pushed_stale_window",
+          "pillar": "alive",
+          "delta": 12
+        },
+        {
+          "code": "description",
+          "pillar": "structure",
+          "delta": 12
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_topics",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
       ]
     },
     {
@@ -1842,7 +2170,7 @@
         "hasCodeowners": false,
         "hasTestsHeuristic": false,
         "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
+        "hasLintConfigHeuristic": true,
         "hasLockfile": true,
         "hasPackageManifest": true,
         "substantialCodebase": false,
@@ -1850,6 +2178,8 @@
         "hasContainerfile": false,
         "recentWorkflowConclusion": null,
         "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
         "commitsLast30Days": 0,
         "commitsLast90Days": 0,
         "commitsLast365Days": 9,
@@ -1864,7 +2194,12 @@
           "error": null,
           "proofBytes": null,
           "contentType": null,
-          "verified": false
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.403Z",
+          "hashStable": null
         },
         "fitness": {
           "sourceFiles": 15,
@@ -1880,39 +2215,117 @@
           ]
         }
       },
-      "score": 32,
+      "score": 37,
       "pillars": {
-        "quality": 30,
+        "quality": 40,
         "alive": 12,
-        "structure": 63
+        "structure": 69
       },
       "status": "STALE",
       "drivers": [
+        "pushed_stale_window",
         "manifest",
         "src_layout",
+        "lint_config",
         "lockfile",
         "description",
         "readme_substance",
-        "topics"
+        "topics",
+        "has_language",
+        "owner_authored"
       ],
       "blockers": [
         "god_file",
         "no_tests_detected",
         "no_ci",
         "no_license"
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "god_file",
+          "pillar": "quality",
+          "delta": -6
+        },
+        {
+          "code": "src_layout",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_tests_detected",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lint_config",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "pushed_stale_window",
+          "pillar": "alive",
+          "delta": 12
+        },
+        {
+          "code": "description",
+          "pillar": "structure",
+          "delta": 12
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "topics",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
       ]
     },
     {
       "signals": {
-        "name": "polaris-core",
-        "fullName": "grsanudeep42-cmd/polaris-core",
-        "url": "https://github.com/grsanudeep42-cmd/polaris-core",
+        "name": "omnitrix-portfolio",
+        "fullName": "grsanudeep42-cmd/omnitrix-portfolio",
+        "url": "https://github.com/grsanudeep42-cmd/omnitrix-portfolio",
         "description": null,
         "homepageUrl": null,
-        "primaryLanguage": "Python",
+        "primaryLanguage": "TypeScript",
         "languages": [
-          "Python",
-          "Mako"
+          "TypeScript",
+          "CSS",
+          "HTML",
+          "JavaScript"
         ],
         "topics": [],
         "isPrivate": false,
@@ -1920,16 +2333,198 @@
         "isArchived": false,
         "isTemplate": false,
         "licenseSpdx": null,
-        "createdAt": "2026-02-12T08:32:28Z",
-        "updatedAt": "2026-06-04T16:10:48Z",
-        "pushedAt": "2026-05-07T18:22:32Z",
+        "createdAt": "2026-04-11T18:02:21Z",
+        "updatedAt": "2026-06-04T16:10:42Z",
+        "pushedAt": "2026-04-11T18:06:52Z",
         "stars": 2,
         "forks": 0,
         "openIssues": 0,
         "hasIssuesEnabled": true,
         "defaultBranch": "main",
-        "diskUsageKb": 174,
-        "readmeBytes": null,
+        "diskUsageKb": 49407,
+        "readmeBytes": 2425,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": false,
+        "hasTestScript": false,
+        "hasLintConfigHeuristic": true,
+        "hasLockfile": true,
+        "hasPackageManifest": true,
+        "substantialCodebase": true,
+        "hasSrcLayout": true,
+        "hasContainerfile": false,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
+        "commitsLast30Days": 0,
+        "commitsLast90Days": 0,
+        "commitsLast365Days": 1,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "NONE",
+          "url": null,
+          "finalUrl": null,
+          "httpStatus": null,
+          "latencyMs": null,
+          "error": null,
+          "proofBytes": null,
+          "contentType": null,
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.402Z",
+          "hashStable": null
+        },
+        "fitness": {
+          "sourceFiles": 14,
+          "testFiles": 0,
+          "otherFiles": 20,
+          "maxBlobBytes": 35099576,
+          "score": 28,
+          "flags": [
+            "has_source",
+            "no_test_files",
+            "nontrivial_tree",
+            "god_file"
+          ]
+        }
+      },
+      "score": 36,
+      "pillars": {
+        "quality": 50,
+        "alive": 12,
+        "structure": 49
+      },
+      "status": "STALE",
+      "drivers": [
+        "pushed_stale_window",
+        "manifest",
+        "substantial_code",
+        "src_layout",
+        "lint_config",
+        "lockfile",
+        "readme_substance",
+        "has_language",
+        "owner_authored"
+      ],
+      "blockers": [
+        "god_file",
+        "no_tests_detected",
+        "no_ci",
+        "weak_description",
+        "no_license",
+        "no_topics"
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "substantial_code",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "god_file",
+          "pillar": "quality",
+          "delta": -6
+        },
+        {
+          "code": "src_layout",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_tests_detected",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lint_config",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "pushed_stale_window",
+          "pillar": "alive",
+          "delta": 12
+        },
+        {
+          "code": "weak_description",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_topics",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
+      ]
+    },
+    {
+      "signals": {
+        "name": "phantom-mcp",
+        "fullName": "grsanudeep42-cmd/phantom-mcp",
+        "url": "https://github.com/grsanudeep42-cmd/phantom-mcp",
+        "description": null,
+        "homepageUrl": null,
+        "primaryLanguage": "Python",
+        "languages": [
+          "Python"
+        ],
+        "topics": [],
+        "isPrivate": false,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-07-29T17:48:05Z",
+        "updatedAt": "2026-07-30T04:55:06Z",
+        "pushedAt": "2026-07-30T04:54:19Z",
+        "stars": 1,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 51,
+        "readmeBytes": 2981,
         "hasLicenseFile": false,
         "hasWorkflows": false,
         "hasDependabotConfig": false,
@@ -1937,15 +2532,17 @@
         "hasTestsHeuristic": false,
         "hasTestScript": false,
         "hasLintConfigHeuristic": false,
-        "hasLockfile": true,
+        "hasLockfile": false,
         "hasPackageManifest": true,
         "substantialCodebase": false,
         "hasSrcLayout": false,
         "hasContainerfile": false,
         "recentWorkflowConclusion": null,
         "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 0,
-        "commitsLast90Days": 0,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
+        "commitsLast30Days": 3,
+        "commitsLast90Days": 3,
         "commitsLast365Days": 3,
         "releasesCount": 0,
         "latestReleaseAt": null,
@@ -1958,41 +2555,104 @@
           "error": null,
           "proofBytes": null,
           "contentType": null,
-          "verified": false
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.399Z",
+          "hashStable": null
         },
         "fitness": {
-          "sourceFiles": 47,
-          "testFiles": 2,
-          "otherFiles": 8,
-          "maxBlobBytes": 169801,
-          "score": 75,
+          "sourceFiles": 26,
+          "testFiles": 0,
+          "otherFiles": 4,
+          "maxBlobBytes": 26332,
+          "score": 40,
           "flags": [
             "has_source",
-            "has_test_files",
+            "no_test_files",
             "nontrivial_tree"
           ]
         }
       },
-      "score": 31,
+      "score": 36,
       "pillars": {
-        "quality": 52,
-        "alive": 12,
-        "structure": 23
+        "quality": 26,
+        "alive": 38,
+        "structure": 49
       },
-      "status": "STALE",
+      "status": "ACTIVE",
       "drivers": [
+        "pushed_2w",
+        "cadence_30d",
         "manifest",
-        "code_fitness_high",
-        "test_files_in_tree",
-        "lockfile"
+        "readme_substance",
+        "has_language",
+        "owner_authored"
       ],
       "blockers": [
         "no_tests_detected",
         "no_ci",
         "weak_description",
-        "thin_readme",
         "no_license",
         "no_topics"
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "no_tests_detected",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "pushed_2w",
+          "pillar": "alive",
+          "delta": 30
+        },
+        {
+          "code": "cadence_30d",
+          "pillar": "alive",
+          "delta": 8
+        },
+        {
+          "code": "weak_description",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_topics",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
       ]
     },
     {
@@ -2030,7 +2690,7 @@
         "hasCodeowners": false,
         "hasTestsHeuristic": false,
         "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
+        "hasLintConfigHeuristic": true,
         "hasLockfile": true,
         "hasPackageManifest": true,
         "substantialCodebase": true,
@@ -2038,6 +2698,8 @@
         "hasContainerfile": false,
         "recentWorkflowConclusion": null,
         "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
         "commitsLast30Days": 0,
         "commitsLast90Days": 0,
         "commitsLast365Days": 6,
@@ -2052,7 +2714,12 @@
           "error": null,
           "proofBytes": null,
           "contentType": null,
-          "verified": false
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.402Z",
+          "hashStable": null
         },
         "fitness": {
           "sourceFiles": 31,
@@ -2068,19 +2735,23 @@
           ]
         }
       },
-      "score": 31,
+      "score": 36,
       "pillars": {
-        "quality": 40,
+        "quality": 50,
         "alive": 12,
-        "structure": 43
+        "structure": 49
       },
       "status": "STALE",
       "drivers": [
+        "pushed_stale_window",
         "manifest",
         "substantial_code",
         "src_layout",
+        "lint_config",
         "lockfile",
-        "readme_substance"
+        "readme_substance",
+        "has_language",
+        "owner_authored"
       ],
       "blockers": [
         "god_file",
@@ -2089,102 +2760,83 @@
         "weak_description",
         "no_license",
         "no_topics"
-      ]
-    },
-    {
-      "signals": {
-        "name": "nexus",
-        "fullName": "grsanudeep42-cmd/nexus",
-        "url": "https://github.com/grsanudeep42-cmd/nexus",
-        "description": " premium, full-stack team collaboration web application. Nexus works as an intelligent team operating system with multi-workspace environments, real-time collaboration, task management, activity feed, and an optional AI assistant.",
-        "homepageUrl": null,
-        "primaryLanguage": "TypeScript",
-        "languages": [
-          "TypeScript",
-          "Python",
-          "CSS",
-          "HTML",
-          "JavaScript"
-        ],
-        "topics": [],
-        "isPrivate": false,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-02-26T15:38:01Z",
-        "updatedAt": "2026-06-04T16:10:32Z",
-        "pushedAt": "2026-02-26T15:50:08Z",
-        "stars": 2,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 1995,
-        "readmeBytes": 8161,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": true,
-        "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 0,
-        "commitsLast90Days": 0,
-        "commitsLast365Days": 2,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "NONE",
-          "url": null,
-          "finalUrl": null,
-          "httpStatus": null,
-          "latencyMs": null,
-          "error": null,
-          "proofBytes": null,
-          "contentType": null,
-          "verified": false
-        },
-        "fitness": {
-          "sourceFiles": 65,
-          "testFiles": 0,
-          "otherFiles": 19,
-          "maxBlobBytes": 2598940,
-          "score": 28,
-          "flags": [
-            "has_source",
-            "no_test_files",
-            "nontrivial_tree",
-            "god_file"
-          ]
-        }
-      },
-      "score": 30,
-      "pillars": {
-        "quality": 30,
-        "alive": 12,
-        "structure": 55
-      },
-      "status": "STALE",
-      "drivers": [
-        "manifest",
-        "substantial_code",
-        "description",
-        "readme_substance"
       ],
-      "blockers": [
-        "god_file",
-        "no_tests_detected",
-        "no_ci",
-        "no_license",
-        "no_topics"
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
+        },
+        {
+          "code": "substantial_code",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "god_file",
+          "pillar": "quality",
+          "delta": -6
+        },
+        {
+          "code": "src_layout",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_tests_detected",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lint_config",
+          "pillar": "quality",
+          "delta": 10
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "pushed_stale_window",
+          "pillar": "alive",
+          "delta": 12
+        },
+        {
+          "code": "weak_description",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "readme_substance",
+          "pillar": "structure",
+          "delta": 20
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_topics",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
+        }
       ]
     },
     {
@@ -2224,13 +2876,15 @@
         "hasTestsHeuristic": false,
         "hasTestScript": false,
         "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": false,
+        "hasLockfile": true,
+        "hasPackageManifest": true,
         "substantialCodebase": false,
-        "hasSrcLayout": false,
+        "hasSrcLayout": true,
         "hasContainerfile": false,
         "recentWorkflowConclusion": null,
         "recentWorkflowAgeDays": null,
+        "ciConclusions": [],
+        "ownerCommitShare": 100,
         "commitsLast30Days": 0,
         "commitsLast90Days": 1,
         "commitsLast365Days": 1,
@@ -2245,7 +2899,12 @@
           "error": null,
           "proofBytes": null,
           "contentType": null,
-          "verified": false
+          "verified": false,
+          "redirectChain": [],
+          "bodyHash": null,
+          "spaShell": false,
+          "probedAt": "2026-08-09T18:34:01.402Z",
+          "hashStable": null
         },
         "fitness": {
           "sourceFiles": 22,
@@ -2260,15 +2919,20 @@
           ]
         }
       },
-      "score": 21,
+      "score": 29,
       "pillars": {
-        "quality": 18,
+        "quality": 36,
         "alive": 22,
-        "structure": 23
+        "structure": 29
       },
       "status": "ACTIVE",
       "drivers": [
-        "pushed_active_window"
+        "pushed_active_window",
+        "manifest",
+        "src_layout",
+        "lockfile",
+        "has_language",
+        "owner_authored"
       ],
       "blockers": [
         "no_tests_detected",
@@ -2277,102 +2941,103 @@
         "thin_readme",
         "no_license",
         "no_topics"
-      ]
-    },
-    {
-      "signals": {
-        "name": "railpulse",
-        "fullName": "grsanudeep42-cmd/railpulse",
-        "url": "https://github.com/grsanudeep42-cmd/railpulse",
-        "description": null,
-        "homepageUrl": "https://railpulse-pearl.vercel.app",
-        "primaryLanguage": "JavaScript",
-        "languages": [
-          "JavaScript",
-          "CSS",
-          "Python",
-          "HTML"
-        ],
-        "topics": [],
-        "isPrivate": true,
-        "isFork": false,
-        "isArchived": true,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2025-09-19T19:49:19Z",
-        "updatedAt": "2026-06-19T08:54:04Z",
-        "pushedAt": "2025-09-19T19:58:14Z",
-        "stars": 1,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "master",
-        "diskUsageKb": 59,
-        "readmeBytes": null,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": false,
-        "hasTestScript": false,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": false,
-        "substantialCodebase": false,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 0,
-        "commitsLast90Days": 0,
-        "commitsLast365Days": 2,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "DOWN",
-          "url": "https://railpulse-pearl.vercel.app/",
-          "finalUrl": "https://railpulse-pearl.vercel.app/",
-          "httpStatus": 200,
-          "latencyMs": 495,
-          "error": "parking_or_soft_404",
-          "proofBytes": 459,
-          "contentType": "text/html; charset=utf-8",
-          "verified": false
+      ],
+      "contributions": [
+        {
+          "code": "manifest",
+          "pillar": "quality",
+          "delta": 8
         },
-        "fitness": {
-          "sourceFiles": 13,
-          "testFiles": 0,
-          "otherFiles": 13,
-          "maxBlobBytes": 132223,
-          "score": 40,
-          "flags": [
-            "has_source",
-            "no_test_files",
-            "nontrivial_tree"
-          ]
+        {
+          "code": "src_layout",
+          "pillar": "quality",
+          "delta": 4
+        },
+        {
+          "code": "no_tests_detected",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "no_ci",
+          "pillar": "quality",
+          "delta": 0
+        },
+        {
+          "code": "lockfile",
+          "pillar": "quality",
+          "delta": 6
+        },
+        {
+          "code": "pushed_active_window",
+          "pillar": "alive",
+          "delta": 22
+        },
+        {
+          "code": "weak_description",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "thin_readme",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_license",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "no_topics",
+          "pillar": "structure",
+          "delta": 0
+        },
+        {
+          "code": "has_language",
+          "pillar": "structure",
+          "delta": 8
+        },
+        {
+          "code": "owner_authored",
+          "pillar": "structure",
+          "delta": 6
         }
-      },
-      "score": 13,
-      "pillars": {
-        "quality": 18,
-        "alive": 0,
-        "structure": 23
-      },
-      "status": "ARCHIVED",
-      "drivers": [],
-      "blockers": [
-        "demo_unproven",
-        "parking_or_soft_404",
-        "quiet_long",
-        "no_tests_detected",
-        "no_ci",
-        "weak_description",
-        "thin_readme",
-        "no_license",
-        "no_topics",
-        "homepage_unproven"
       ]
     }
   ],
-  "transitions": []
+  "transitions": [
+    {
+      "fullName": "grsanudeep42-cmd/portfolio_v2",
+      "name": "portfolio_v2",
+      "url": "https://github.com/grsanudeep42-cmd/portfolio_v2",
+      "from": "ACTIVE",
+      "to": "LIVE",
+      "scoreFrom": 34,
+      "scoreTo": 56
+    },
+    {
+      "fullName": "grsanudeep42-cmd/railtrack-ai",
+      "name": "railtrack-ai",
+      "url": "https://github.com/grsanudeep42-cmd/railtrack-ai",
+      "from": "LIVE",
+      "to": "STALE",
+      "scoreFrom": 48,
+      "scoreTo": 62
+    }
+  ],
+  "regressions": [
+    {
+      "kind": "status_flip",
+      "fullName": "grsanudeep42-cmd/portfolio_v2",
+      "name": "portfolio_v2",
+      "detail": "ACTIVE → LIVE"
+    },
+    {
+      "kind": "status_flip",
+      "fullName": "grsanudeep42-cmd/railtrack-ai",
+      "name": "railtrack-ai",
+      "detail": "LIVE → STALE"
+    }
+  ]
 }

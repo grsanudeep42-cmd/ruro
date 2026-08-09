@@ -18,7 +18,7 @@ const ConfigSchema = z.object({
   schema_version: z.literal(1),
   owner: z.string().min(1),
   scan: z.object({
-    include_private: z.boolean().default(true),
+    include_private: z.boolean().default(false),
     include_forks: z.boolean().default(false),
     include_archived: z.boolean().default(true),
     exclude_repos: z.array(z.string()).default([]),
@@ -49,7 +49,7 @@ const ConfigSchema = z.object({
   }),
   privacy: z
     .object({
-      mode: z.enum(["full", "public_only_render"]).default("full"),
+      mode: z.enum(["full", "public_only_render"]).default("public_only_render"),
     })
     .default({ mode: "full" }),
   profile: z
@@ -105,7 +105,7 @@ export function defaultConfig(owner: string): RuroConfig {
     schema_version: 1,
     owner,
     scan: {
-      include_private: true,
+      include_private: false,
       include_forks: false,
       include_archived: true,
       exclude_repos: ["ruro", ".github"],
@@ -130,7 +130,7 @@ export function defaultConfig(owner: string): RuroConfig {
       web_path: "docs/index.html",
       overview_path: "OVERVIEW.md",
     },
-    privacy: { mode: "full" },
+    privacy: { mode: "public_only_render" },
     profile: {
       enabled: false,
       repo: `${owner}/${owner}`,
