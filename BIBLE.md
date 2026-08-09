@@ -43,7 +43,7 @@ Not a vanity table. A place you operate from (web + CLI), refreshed by Actions.
 | **Kernel** | Collect → probe → fitness → score → optional Copilot review |
 | **Memory** | `data/latest.json`, history, `data/ai/` |
 | **Desktop** | `docs/index.html` (OS home on Pages) |
-| **Terminal** | `ruro scan` / `view` / `top` / `status` / `review` |
+| **Terminal** | `npm run ruro` agent session · `--json` for scripts |
 | **Install** | Action + `ruro.yml` owner switch |
 
 ---
@@ -58,7 +58,7 @@ Showability = 0.40 * Quality + 0.35 * Alive + 0.25 * Structure
 - **Alive** — push cadence, **verified demo**, releases, fresh CI  
 - **Structure** — README, license, description, topics, **verified homepage only**
 
-`LIVE` requires a **verified** deployment probe.
+`LIVE` requires a **verified** deployment probe **and** a push within `active_days` (default 90). Verified but quiet sites stay ACTIVE/STALE by age — no LIVE zombies.
 
 ---
 

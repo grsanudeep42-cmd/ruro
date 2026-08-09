@@ -32,8 +32,10 @@ export const SIGNAL_EXPLAIN: Record<string, string> = {
   empty_or_tiny_response: "HTTP ok but body too small to count as a real page.",
   pushed_2w: "Pushed within the last 14 days.",
   pushed_active_window: "Pushed within the active window (config active_days).",
+  pushed_stale_window: "Pushed in the stale window — still some alive signal.",
   high_cadence_30d: "≥5 commits in last 30 days.",
   cadence_30d: "≥1 commit in last 30 days.",
+  cadence_90d: "≥3 commits in last 90 days (no 30d activity).",
   quiet_long: "Quiet past stale threshold.",
   very_quiet: "Quiet past dormant threshold.",
   never_pushed: "No push timestamp.",
@@ -50,6 +52,7 @@ export const SIGNAL_EXPLAIN: Record<string, string> = {
   topics: "≥3 topics set.",
   no_topics: "No topics.",
   homepage_verified: "Homepage URL verified by probe.",
+  has_language: "Primary language detected by GitHub.",
   fork: "Repository is a fork — structure penalty.",
 };
 
@@ -60,6 +63,15 @@ export function explainCode(code: string): string {
     return SIGNAL_EXPLAIN[code];
   }
   return `Signal code \`${code}\` (see BIBLE / score module).`;
+}
+
+export function explainContribution(c: {
+  code: string;
+  pillar: string;
+  delta: number;
+}): string {
+  const sign = c.delta > 0 ? `+${c.delta}` : String(c.delta);
+  return `${c.code} (${c.pillar} ${sign}): ${explainCode(c.code)}`;
 }
 
 export function explainScoreLine(

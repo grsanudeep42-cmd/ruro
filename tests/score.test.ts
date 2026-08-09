@@ -3,20 +3,30 @@ import { defaultConfig } from "../src/config.js";
 import { deriveStatus, scoreRepo } from "../src/score/score.js";
 import { baseSignals, emptyDemo, emptyFitness } from "./helpers.js";
 
-describe("scoreRepo", () => {
+const NOW = new Date("2026-08-09T12:00:00.000Z");
+
+describe("scoreRepo contributions", () => {
   const config = defaultConfig("acme");
 
   it("scores a healthy live repo highly and deterministically", () => {
-    const a = scoreRepo(baseSignals({ name: "demo", fullName: "acme/demo" }), config);
-    const b = scoreRepo(baseSignals({ name: "demo", fullName: "acme/demo" }), config);
+    const a = scoreRepo(
+      baseSignals({ name: "demo", fullName: "acme/demo" }),
+      config,
+      NOW,
+    );
+    const b = scoreRepo(
+      baseSignals({ name: "demo", fullName: "acme/demo" }),
+      config,
+      NOW,
+    );
     expect(a.score).toBe(b.score);
     expect(a.score).toBeGreaterThanOrEqual(75);
     expect(a.status).toBe("LIVE");
     expect(a.drivers).toContain("demo_verified");
-    expect(
-      a.drivers.some((d) => d.includes("test") || d.includes("fitness")),
-    ).toBe(true);
-    expect(a.drivers).toContain("code_fitness_high");
+    expect(a.contributions.some((c) => c.code === "demo_verified" && c.delta === 35)).toBe(
+      true,
+    );
+    expect(a.contributions.length).toBeGreaterThan(5);
   });
 
   it("penalizes abandoned repos without demos or tests", () => {
@@ -24,7 +34,7 @@ describe("scoreRepo", () => {
       baseSignals({
         name: "demo",
         fullName: "acme/demo",
-        pushedAt: new Date(Date.now() - 864e5 * 500).toISOString(),
+        pushedAt: new Date(NOW.getTime() - 864e5 * 500).toISOString(),
         commitsLast30Days: 0,
         commitsLast90Days: 0,
         commitsLast365Days: 0,
@@ -55,18 +65,19 @@ describe("scoreRepo", () => {
         diskUsageKb: 20,
       }),
       config,
+      NOW,
     );
     expect(abandoned.score).toBeLessThan(45);
     expect(abandoned.status).toBe("DEAD");
   });
 });
 
-describe("deriveStatus", () => {
+describe("deriveStatus LIVE honesty", () => {
   const thresholds = defaultConfig("acme").thresholds;
 
   it("marks archived regardless of activity", () => {
     expect(
-      deriveStatus(baseSignals({ isArchived: true }), thresholds),
+      deriveStatus(baseSignals({ isArchived: true }), thresholds, NOW),
     ).toBe("ARCHIVED");
   });
 
@@ -81,7 +92,35 @@ describe("deriveStatus", () => {
           }),
         }),
         thresholds,
+        NOW,
       ),
     ).not.toBe("LIVE");
+  });
+
+  it("rejects LIVE zombies — verified but push older than active_days", () => {
+    const old = baseSignals({
+      pushedAt: new Date(NOW.getTime() - 864e5 * 120).toISOString(),
+      demo: emptyDemo({
+        status: "UP",
+        url: "https://x.com",
+        verified: true,
+        httpStatus: 200,
+        proofBytes: 2000,
+      }),
+    });
+    expect(deriveStatus(old, thresholds, NOW)).toBe("STALE");
+    expect(old.demo.verified).toBe(true);
+  });
+
+  it("LIVE when verified and pushed within active_days", () => {
+    expect(
+      deriveStatus(
+        baseSignals({
+          pushedAt: new Date(NOW.getTime() - 864e5 * 10).toISOString(),
+        }),
+        thresholds,
+        NOW,
+      ),
+    ).toBe("LIVE");
   });
 });

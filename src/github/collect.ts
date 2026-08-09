@@ -10,11 +10,11 @@ export interface GithubClients {
 }
 
 export function createClients(token: string): GithubClients {
-  const octokit = new Octokit({ auth: token, userAgent: "ruro/0.1" });
+  const octokit = new Octokit({ auth: token, userAgent: "ruro/0.2" });
   const gqlClient = graphql.defaults({
     headers: {
       authorization: `token ${token}`,
-      "user-agent": "ruro/0.1",
+      "user-agent": "ruro/0.2",
     },
   });
   return {
@@ -24,6 +24,7 @@ export function createClients(token: string): GithubClients {
   };
 }
 
+/** Metadata + cadence + readme — structure flags come from the git tree. */
 interface GraphqlRepo {
   name: string;
   nameWithOwner: string;
@@ -56,34 +57,6 @@ interface GraphqlRepo {
   } | null;
   object: { text?: string } | null;
   licenseFile: { id: string } | null;
-  workflows: { entries: Array<{ name: string; type: string }> | null } | null;
-  dependabotYml: { id: string } | null;
-  dependabotYaml: { id: string } | null;
-  codeowners: { id: string } | null;
-  packageJson: { text?: string; id?: string } | null;
-  cargoToml: { id: string } | null;
-  goMod: { id: string } | null;
-  pyproject: { text?: string; id?: string } | null;
-  requirements: { id: string } | null;
-  eslintJs: { id: string } | null;
-  eslintCjs: { id: string } | null;
-  eslintrcJson: { id: string } | null;
-  ruffToml: { id: string } | null;
-  prettierrc: { id: string } | null;
-  vitestConfig: { id: string } | null;
-  jestConfig: { id: string } | null;
-  packageLock: { id: string } | null;
-  yarnLock: { id: string } | null;
-  pnpmLock: { id: string } | null;
-  poetryLock: { id: string } | null;
-  testDir: { id: string } | null;
-  testsDir: { id: string } | null;
-  srcTestDir: { id: string } | null;
-  underscoreTests: { id: string } | null;
-  specDir: { id: string } | null;
-  srcDir: { id: string } | null;
-  dockerfile: { id: string } | null;
-  containerfile: { id: string } | null;
   releases: {
     totalCount: number;
     nodes: Array<{ publishedAt: string | null; createdAt: string }>;
@@ -143,36 +116,6 @@ const REPO_FIELDS = `
           ... on Blob { text }
         }
         licenseFile: object(expression: "HEAD:LICENSE") { ... on Blob { id } }
-        workflows: object(expression: "HEAD:.github/workflows") {
-          ... on Tree { entries { name type } }
-        }
-        dependabotYml: object(expression: "HEAD:.github/dependabot.yml") { ... on Blob { id } }
-        dependabotYaml: object(expression: "HEAD:.github/dependabot.yaml") { ... on Blob { id } }
-        codeowners: object(expression: "HEAD:.github/CODEOWNERS") { ... on Blob { id } }
-        packageJson: object(expression: "HEAD:package.json") { ... on Blob { text id } }
-        cargoToml: object(expression: "HEAD:Cargo.toml") { ... on Blob { id } }
-        goMod: object(expression: "HEAD:go.mod") { ... on Blob { id } }
-        pyproject: object(expression: "HEAD:pyproject.toml") { ... on Blob { text id } }
-        requirements: object(expression: "HEAD:requirements.txt") { ... on Blob { id } }
-        eslintJs: object(expression: "HEAD:eslint.config.js") { ... on Blob { id } }
-        eslintCjs: object(expression: "HEAD:eslint.config.cjs") { ... on Blob { id } }
-        eslintrcJson: object(expression: "HEAD:.eslintrc.json") { ... on Blob { id } }
-        ruffToml: object(expression: "HEAD:ruff.toml") { ... on Blob { id } }
-        prettierrc: object(expression: "HEAD:.prettierrc") { ... on Blob { id } }
-        vitestConfig: object(expression: "HEAD:vitest.config.ts") { ... on Blob { id } }
-        jestConfig: object(expression: "HEAD:jest.config.js") { ... on Blob { id } }
-        packageLock: object(expression: "HEAD:package-lock.json") { ... on Blob { id } }
-        yarnLock: object(expression: "HEAD:yarn.lock") { ... on Blob { id } }
-        pnpmLock: object(expression: "HEAD:pnpm-lock.yaml") { ... on Blob { id } }
-        poetryLock: object(expression: "HEAD:poetry.lock") { ... on Blob { id } }
-        testDir: object(expression: "HEAD:test") { ... on Tree { id } }
-        testsDir: object(expression: "HEAD:tests") { ... on Tree { id } }
-        srcTestDir: object(expression: "HEAD:src/__tests__") { ... on Tree { id } }
-        underscoreTests: object(expression: "HEAD:__tests__") { ... on Tree { id } }
-        specDir: object(expression: "HEAD:spec") { ... on Tree { id } }
-        srcDir: object(expression: "HEAD:src") { ... on Tree { id } }
-        dockerfile: object(expression: "HEAD:Dockerfile") { ... on Blob { id } }
-        containerfile: object(expression: "HEAD:Containerfile") { ... on Blob { id } }
         releases(first: 1, orderBy: { field: CREATED_AT, direction: DESC }) {
           totalCount
           nodes { publishedAt createdAt }
@@ -225,85 +168,16 @@ function countCommitsSince(
   return dates.filter((d) => daysBetween(d, now) <= withinDays).length;
 }
 
-function detectTestScript(
-  packageJsonText: string | undefined,
-  pyprojectText: string | undefined,
-): boolean {
-  if (packageJsonText) {
-    try {
-      const pkg = JSON.parse(packageJsonText) as {
-        scripts?: Record<string, string>;
-        devDependencies?: Record<string, string>;
-        dependencies?: Record<string, string>;
-      };
-      const scripts = Object.values(pkg.scripts ?? {}).join(" ").toLowerCase();
-      if (/\b(test|vitest|jest|mocha|pytest|playwright|cypress)\b/.test(scripts)) {
-        return true;
-      }
-      const deps = {
-        ...(pkg.dependencies ?? {}),
-        ...(pkg.devDependencies ?? {}),
-      };
-      if (
-        ["vitest", "jest", "mocha", "@playwright/test", "cypress"].some(
-          (d) => d in deps,
-        )
-      ) {
-        return true;
-      }
-    } catch {
-      // ignore malformed package.json
-    }
-  }
-  if (pyprojectText) {
-    const lower = pyprojectText.toLowerCase();
-    if (
-      lower.includes("pytest") ||
-      lower.includes("unittest") ||
-      /\[tool\.pytest/.test(lower)
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function mapRepo(node: GraphqlRepo, now: Date): RepoSignals {
   const commitDates =
     node.defaultBranchRef?.target?.history?.nodes.map((n) => n.committedDate) ??
     [];
   const readmeText = node.object?.text ?? null;
-  const workflowEntries = node.workflows?.entries ?? [];
-  const hasWorkflows = workflowEntries.some(
-    (e) => e.type === "blob" && /\.ya?ml$/i.test(e.name),
-  );
 
   const latestReleaseAt =
     node.releases.nodes[0]?.publishedAt ??
     node.releases.nodes[0]?.createdAt ??
     null;
-
-  const hasTestScript = detectTestScript(
-    node.packageJson?.text,
-    node.pyproject?.text,
-  );
-  const hasTestsHeuristic = Boolean(
-    node.testDir ||
-      node.testsDir ||
-      node.srcTestDir ||
-      node.underscoreTests ||
-      node.specDir ||
-      node.vitestConfig ||
-      node.jestConfig ||
-      hasTestScript,
-  );
-  const hasPackageManifest = Boolean(
-    node.packageJson ||
-      node.pyproject ||
-      node.requirements ||
-      node.goMod ||
-      node.cargoToml,
-  );
 
   return {
     name: node.name,
@@ -330,25 +204,18 @@ function mapRepo(node: GraphqlRepo, now: Date): RepoSignals {
     diskUsageKb: node.diskUsage ?? 0,
     readmeBytes: readmeText ? Buffer.byteLength(readmeText, "utf8") : null,
     hasLicenseFile: Boolean(node.licenseFile) || Boolean(node.licenseInfo),
-    hasWorkflows,
-    hasDependabotConfig: Boolean(node.dependabotYml || node.dependabotYaml),
-    hasCodeowners: Boolean(node.codeowners),
-    hasTestsHeuristic,
-    hasTestScript,
-    hasLintConfigHeuristic: Boolean(
-      node.eslintJs ||
-        node.eslintCjs ||
-        node.eslintrcJson ||
-        node.ruffToml ||
-        node.prettierrc,
-    ),
-    hasLockfile: Boolean(
-      node.packageLock || node.yarnLock || node.pnpmLock || node.poetryLock,
-    ),
-    hasPackageManifest,
+    // Defaults — overwritten by tree classifiers when tree fetch succeeds
+    hasWorkflows: false,
+    hasDependabotConfig: false,
+    hasCodeowners: false,
+    hasTestsHeuristic: false,
+    hasTestScript: false,
+    hasLintConfigHeuristic: false,
+    hasLockfile: false,
+    hasPackageManifest: false,
     substantialCodebase: (node.diskUsage ?? 0) >= 200,
-    hasSrcLayout: Boolean(node.srcDir),
-    hasContainerfile: Boolean(node.dockerfile || node.containerfile),
+    hasSrcLayout: false,
+    hasContainerfile: false,
     recentWorkflowConclusion: null,
     recentWorkflowAgeDays: null,
     commitsLast30Days: countCommitsSince(commitDates, now, 30),
@@ -426,9 +293,9 @@ export async function collectRepoSignals(
     cursor = conn.pageInfo.endCursor;
   }
 
-  await enrichWorkflowSignals(clients, collected, now);
   const { enrichCodeFitness } = await import("../fitness/code.js");
   await enrichCodeFitness(clients, collected);
+  await enrichWorkflowSignals(clients, collected, now);
   return { included: collected, excludedCount };
 }
 

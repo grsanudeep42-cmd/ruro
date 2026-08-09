@@ -64,7 +64,7 @@ export function printBoot(meta?: { owner?: string; repos?: number }): void {
   console.log(L("    \\___)=(___/   "));
   console.log("");
   console.log(
-    `  ${c("bold", c("ink", "RURO"))} ${c("mute", "v0.1.0")}  ${c("lime", "▸")} ${c("sand", "live")}`,
+    `  ${c("bold", c("ink", "RURO"))} ${c("mute", "v0.2.0")}  ${c("lime", "▸")} ${c("sand", "live")}`,
   );
   if (meta?.owner) {
     console.log(

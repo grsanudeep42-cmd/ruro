@@ -1,5 +1,9 @@
 import type { RuroConfig } from "../config.js";
-import { explainCode, explainScoreLine } from "../score/explain.js";
+import {
+  explainCode,
+  explainContribution,
+  explainScoreLine,
+} from "../score/explain.js";
 import type { RuroReport, ScoredRepo } from "../types.js";
 import { agent, c, item, note, say } from "./tui.js";
 
@@ -125,7 +129,17 @@ export function narrateWhy(
     say(line);
   }
   console.log("");
-  note("LIVE needs verified deploy. Scores are signals — not taste.");
+  note(
+    "LIVE = verified deploy AND push within active_days. Scores are signals — not taste.",
+  );
+  console.log("");
+  note("contributions");
+  const contribs = [...(repo.contributions ?? [])].sort(
+    (a, b) => Math.abs(b.delta) - Math.abs(a.delta),
+  );
+  for (const row of contribs.filter((x) => x.delta !== 0).slice(0, 16)) {
+    item(explainContribution(row));
+  }
   console.log("");
   note("raised");
   for (const d of repo.drivers) item(`${d}: ${explainCode(d)}`);
@@ -168,7 +182,16 @@ export function narrateReview(
     return;
   }
   for (const r of items) {
-    agent(`Audit · ${r.fullName} · ${r.status}`);
+    if (r.status !== "ok") {
+      agent(
+        `Audit · ${r.fullName} · ${r.status} (judgment failed — scores unchanged)`,
+      );
+      if (r.error) say(c("red", r.error));
+      note("This is not a successful review. Retry review <repo>.");
+      console.log("");
+      continue;
+    }
+    agent(`Audit · ${r.fullName} · judgment (not score)`);
     if (r.why_showable) say(r.why_showable);
     console.log("");
     if (r.strengths.length) {
@@ -182,7 +205,6 @@ export function narrateReview(
     console.log("");
     note("review");
     say(r.review || "—");
-    if (r.error) say(c("red", `error: ${r.error}`));
     console.log("");
   }
 }

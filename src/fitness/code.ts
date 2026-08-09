@@ -11,6 +11,21 @@ const SKIP =
 const BINARYish =
   /\.(png|jpe?g|gif|webp|ico|mp4|mov|wav|mp3|pdf|zip|gz|tgz|wasm|woff2?|ttf|eot|psd|ai)$/i;
 
+const MANIFEST =
+  /(^|\/)(package\.json|pyproject\.toml|Cargo\.toml|go\.mod|requirements\.txt|composer\.json|Gemfile|pom\.xml|build\.gradle)$/i;
+const LOCKFILE =
+  /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Cargo\.lock|go\.sum|composer\.lock|Gemfile\.lock)$/i;
+const LINT =
+  /(^|\/)(\.eslintrc|\.eslintrc\.(js|cjs|json|yml|yaml)|eslint\.config\.(js|cjs|mjs|ts)|ruff\.toml|\.prettierrc(\..+)?|prettier\.config\.(js|cjs|mjs)|biome\.json)$/i;
+const TEST_TOOL =
+  /(^|\/)(vitest\.config\.[cm]?[jt]s|jest\.config\.[cm]?[jt]s|pytest\.ini|conftest\.py|playwright\.config\.[cm]?[jt]s|cypress\.config\.[cm]?[jt]s)$/i;
+const WORKFLOW = /(^|\/)\.github\/workflows\/[^/]+\.ya?ml$/i;
+const DEPENDABOT = /(^|\/)\.github\/dependabot\.ya?ml$/i;
+const CODEOWNERS = /(^|\/)(\.github\/)?CODEOWNERS$/i;
+const DOCKER = /(^|\/)(Dockerfile|Containerfile)(\.|$)/i;
+const SRC_LAYOUT = /(^|\/)src\//;
+const LICENSE = /(^|\/)LICENSE(\.|$)/i;
+
 function emptyFitness(): CodeFitness {
   return {
     sourceFiles: 0,
@@ -20,6 +35,74 @@ function emptyFitness(): CodeFitness {
     score: 0,
     flags: ["tree_unavailable"],
   };
+}
+
+/** Path classifiers — tree is the source of truth for structure flags. */
+export interface TreeSignalPatch {
+  hasPackageManifest: boolean;
+  hasLockfile: boolean;
+  hasLintConfigHeuristic: boolean;
+  hasWorkflows: boolean;
+  hasDependabotConfig: boolean;
+  hasCodeowners: boolean;
+  hasContainerfile: boolean;
+  hasSrcLayout: boolean;
+  hasLicenseFile: boolean;
+  hasTestsHeuristic: boolean;
+  hasTestScript: boolean;
+}
+
+export function classifyTreePaths(
+  entries: Array<{ path?: string; type?: string; size?: number }>,
+): TreeSignalPatch {
+  const paths = entries
+    .filter((e) => e.type === "blob" && e.path && !SKIP.test(e.path))
+    .map((e) => e.path!);
+
+  const hasPackageManifest = paths.some((p) => MANIFEST.test(p));
+  const hasLockfile = paths.some((p) => LOCKFILE.test(p));
+  const hasLintConfigHeuristic = paths.some((p) => LINT.test(p));
+  const hasWorkflows = paths.some((p) => WORKFLOW.test(p));
+  const hasDependabotConfig = paths.some((p) => DEPENDABOT.test(p));
+  const hasCodeowners = paths.some((p) => CODEOWNERS.test(p));
+  const hasContainerfile = paths.some((p) => DOCKER.test(p));
+  const hasSrcLayout = paths.some((p) => SRC_LAYOUT.test(p));
+  const hasLicenseFile = paths.some((p) => LICENSE.test(p));
+  const testFiles = paths.filter((p) => TEST_HINT.test(p)).length;
+  const hasTestTool = paths.some((p) => TEST_TOOL.test(p));
+  const hasTestsHeuristic = testFiles > 0 || hasTestTool;
+  const hasTestScript = hasTestTool || testFiles > 0;
+
+  return {
+    hasPackageManifest,
+    hasLockfile,
+    hasLintConfigHeuristic,
+    hasWorkflows,
+    hasDependabotConfig,
+    hasCodeowners,
+    hasContainerfile,
+    hasSrcLayout,
+    hasLicenseFile,
+    hasTestsHeuristic,
+    hasTestScript,
+  };
+}
+
+export function applyTreeSignals(
+  repo: RepoSignals,
+  patch: TreeSignalPatch,
+): void {
+  repo.hasPackageManifest = patch.hasPackageManifest;
+  repo.hasLockfile = patch.hasLockfile;
+  repo.hasLintConfigHeuristic = patch.hasLintConfigHeuristic;
+  repo.hasWorkflows = patch.hasWorkflows;
+  repo.hasDependabotConfig = patch.hasDependabotConfig;
+  repo.hasCodeowners = patch.hasCodeowners;
+  repo.hasContainerfile = patch.hasContainerfile;
+  repo.hasSrcLayout = patch.hasSrcLayout;
+  if (patch.hasLicenseFile) repo.hasLicenseFile = true;
+  repo.hasTestsHeuristic = patch.hasTestsHeuristic;
+  repo.hasTestScript = patch.hasTestScript;
 }
 
 export function analyzeTreeEntries(
@@ -96,6 +179,7 @@ export function analyzeTreeEntries(
   };
 }
 
+/** Fetch recursive tree → fitness + structure flags. Soft-fail leaves tree_unavailable. */
 export async function enrichCodeFitness(
   clients: GithubClients,
   repos: RepoSignals[],
@@ -129,9 +213,11 @@ export async function enrichCodeFitness(
           }),
         { attempts: 2, baseDelayMs: 200 },
       );
-      repo.fitness = analyzeTreeEntries(tree.data.tree);
+      const entries = tree.data.tree;
+      repo.fitness = analyzeTreeEntries(entries);
+      applyTreeSignals(repo, classifyTreePaths(entries));
     } catch {
-      // private/token limits — leave tree_unavailable
+      // private/token limits — leave tree_unavailable; keep GraphQL defaults
     }
   }
 }

@@ -86,6 +86,15 @@ export interface PillarBreakdown {
   structure: number;
 }
 
+export type ScorePillar = "quality" | "alive" | "structure";
+
+/** Named feature delta — scores must be explainable contribution-by-contribution. */
+export interface ScoreContribution {
+  code: string;
+  pillar: ScorePillar;
+  delta: number;
+}
+
 export interface ScoredRepo {
   signals: RepoSignals;
   score: number;
@@ -93,6 +102,7 @@ export interface ScoredRepo {
   status: RepoStatus;
   drivers: string[];
   blockers: string[];
+  contributions: ScoreContribution[];
 }
 
 export interface RuroReport {

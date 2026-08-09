@@ -20,5 +20,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: JSON CLI smoke (no token)
+        run: npm run ruro -- --json view | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const j=JSON.parse(s); if(!j.owner||!Array.isArray(j.repos)) process.exit(1);})"
       - name: Verify authorship
         run: bash scripts/verify-authorship.sh

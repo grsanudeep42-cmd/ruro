@@ -2,74 +2,77 @@
 
 # Ruro
 
-**GitHub OS CLI** — deterministic fleet truth + optional Copilot code audit.
+**GitHub OS** — prove which projects are real, alive, and verified-deployed.
+
+Deterministic core. Optional Copilot judgment. Agent CLI + Pages desktop.
 
 <a href="./OVERVIEW.md"><img src="./assets/ruro-card.svg" width="600" alt="Ruro CLI terminal" /></a>
 
-[OVERVIEW.md](./OVERVIEW.md) · [LICENSE](./LICENSE) · [Pages](https://grsanudeep42-cmd.github.io/ruro/) · [BIBLE.md](./BIBLE.md)
+[OVERVIEW.md](./OVERVIEW.md) · [BIBLE.md](./BIBLE.md) · [Pages](https://grsanudeep42-cmd.github.io/ruro/) · [LICENSE](./LICENSE)
 
 </div>
 
 ---
 
-## Correct way to use it
-
-**Live session (this is the product):**
+## 30-second start
 
 ```bash
-cd ruro && npm ci && npm run build
+git clone https://github.com/grsanudeep42-cmd/ruro.git
+cd ruro && npm ci
+# edit owner in ruro.yml if needed
 npm run ruro
 ```
 
 ```text
+────────────────────────────────────────────────────────
+        .--.
+       |o_o |       RURI
+       |:_/ |       ruro fleet operator
+…
+  RURO v0.2.0  ▸ live
+────────────────────────────────────────────────────────
+● ruri ·
 › view
 › aryanbloodbank
 › why phantom
-› review aryanbloodbank
-› scan
 › /exit
 ```
 
-Agent-style session: Ruri answers in prose (not box tables). Stays open until `/exit`.
+**One-shot / scripts:**
 
-**One-shot** (scripts/CI) still works: `npm run ruro -- view`, `npm run ruro -- why <repo>`, etc.
+```bash
+npm run ruro -- view
+npm run ruro -- --json why phantom
+npm run ruro -- status aryanbloodbank
+```
 
 | Command | What |
 | --- | --- |
-| *(no args)* / `repl` | Live session |
-| `scan` | Refresh truth (needs token) |
+| *(no args)* | Live agent session |
+| `scan` | Refresh truth (needs `GITHUB_TOKEN`) |
 | `view` / `top` / `status` / `why` | Inspect fleet |
-| `review` | Copilot audit (embedded dossier; never moves scores) |
+| `review` | Copilot audit (never moves scores) |
+| `--json` | Machine output |
 
 Point `owner` in [`ruro.yml`](./ruro.yml) at any GitHub login to boot **their** fleet.
 
-## What is true vs vibes
+Profile README sync is **off by default** (`profile.enabled: false`).
 
-- **Scores are signal-based** (quality / alive / structure). Same inputs ⇒ same scores.
-- **LIVE** only if deploy probe is **verified** (SPA shells count; `github.com/owner/repo` does not).
-- **Fitness** is without-AI tree analysis (source/test file counts) — not “code beauty.”
-- **Copilot** is optional judgment. If it cannot cite real paths, the audit is rejected.
-- Some old cards lied (empty SPA marked parked). That is fixed — re-`scan` after upgrades.
+## Truth vs vibes
 
-## Setup (Actions)
+- Scores = quality / alive / structure from **named contributions** (same inputs ⇒ same scores).
+- **LIVE** = verified deploy **and** push within `active_days` (default 90). No LIVE zombies.
+- Fitness = tree signals (source/test paths) — not “code beauty.”
+- Copilot is optional judgment; rejected without real path citations.
+
+## Actions setup
 
 1. `owner` in `ruro.yml`
 2. Repo secret `RURO_TOKEN` (classic PAT, `repo`)
 3. Actions → Ruro Scorecard
 4. Pages → branch `main` → `/docs`
 
-Authorship: commits as you via `RURO_TOKEN`, not `github-actions[bot]`.
-
-## Repo surfaces
-
-| File | Role |
-| --- | --- |
-| `README.md` | This page |
-| `OVERVIEW.md` | Living fleet snapshot (auto) |
-| `LICENSE` | MIT |
-| `docs/` | Pages OS |
-| `data/latest.json` | Memory |
-| `data/ai/` | Copilot audits |
+Commits as you via `RURO_TOKEN`, not `github-actions[bot]`.
 
 ## License
 

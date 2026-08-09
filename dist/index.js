@@ -40,6 +40,8 @@ var init_retry = __esm({
 var code_exports = {};
 __export(code_exports, {
   analyzeTreeEntries: () => analyzeTreeEntries,
+  applyTreeSignals: () => applyTreeSignals,
+  classifyTreePaths: () => classifyTreePaths,
   enrichCodeFitness: () => enrichCodeFitness
 });
 function emptyFitness() {
@@ -51,6 +53,48 @@ function emptyFitness() {
     score: 0,
     flags: ["tree_unavailable"]
   };
+}
+function classifyTreePaths(entries) {
+  const paths = entries.filter((e) => e.type === "blob" && e.path && !SKIP.test(e.path)).map((e) => e.path);
+  const hasPackageManifest = paths.some((p) => MANIFEST.test(p));
+  const hasLockfile = paths.some((p) => LOCKFILE.test(p));
+  const hasLintConfigHeuristic = paths.some((p) => LINT.test(p));
+  const hasWorkflows = paths.some((p) => WORKFLOW.test(p));
+  const hasDependabotConfig = paths.some((p) => DEPENDABOT.test(p));
+  const hasCodeowners = paths.some((p) => CODEOWNERS.test(p));
+  const hasContainerfile = paths.some((p) => DOCKER.test(p));
+  const hasSrcLayout = paths.some((p) => SRC_LAYOUT.test(p));
+  const hasLicenseFile = paths.some((p) => LICENSE.test(p));
+  const testFiles = paths.filter((p) => TEST_HINT.test(p)).length;
+  const hasTestTool = paths.some((p) => TEST_TOOL.test(p));
+  const hasTestsHeuristic = testFiles > 0 || hasTestTool;
+  const hasTestScript = hasTestTool || testFiles > 0;
+  return {
+    hasPackageManifest,
+    hasLockfile,
+    hasLintConfigHeuristic,
+    hasWorkflows,
+    hasDependabotConfig,
+    hasCodeowners,
+    hasContainerfile,
+    hasSrcLayout,
+    hasLicenseFile,
+    hasTestsHeuristic,
+    hasTestScript
+  };
+}
+function applyTreeSignals(repo, patch) {
+  repo.hasPackageManifest = patch.hasPackageManifest;
+  repo.hasLockfile = patch.hasLockfile;
+  repo.hasLintConfigHeuristic = patch.hasLintConfigHeuristic;
+  repo.hasWorkflows = patch.hasWorkflows;
+  repo.hasDependabotConfig = patch.hasDependabotConfig;
+  repo.hasCodeowners = patch.hasCodeowners;
+  repo.hasContainerfile = patch.hasContainerfile;
+  repo.hasSrcLayout = patch.hasSrcLayout;
+  if (patch.hasLicenseFile) repo.hasLicenseFile = true;
+  repo.hasTestsHeuristic = patch.hasTestsHeuristic;
+  repo.hasTestScript = patch.hasTestScript;
 }
 function analyzeTreeEntries(entries) {
   let sourceFiles = 0;
@@ -141,12 +185,14 @@ async function enrichCodeFitness(clients, repos) {
         }),
         { attempts: 2, baseDelayMs: 200 }
       );
-      repo.fitness = analyzeTreeEntries(tree.data.tree);
+      const entries = tree.data.tree;
+      repo.fitness = analyzeTreeEntries(entries);
+      applyTreeSignals(repo, classifyTreePaths(entries));
     } catch {
     }
   }
 }
-var SOURCE_EXT, TEST_HINT, SKIP, BINARYish;
+var SOURCE_EXT, TEST_HINT, SKIP, BINARYish, MANIFEST, LOCKFILE, LINT, TEST_TOOL, WORKFLOW, DEPENDABOT, CODEOWNERS, DOCKER, SRC_LAYOUT, LICENSE;
 var init_code = __esm({
   "src/fitness/code.ts"() {
     "use strict";
@@ -155,6 +201,16 @@ var init_code = __esm({
     TEST_HINT = /(^|\/)(tests?|__tests__|spec)(\/|$)|[._-](test|spec)\.[^.]+$/i;
     SKIP = /(^|\/)(node_modules|dist|build|\.git|vendor|coverage|\.next|target)(\/|$)/i;
     BINARYish = /\.(png|jpe?g|gif|webp|ico|mp4|mov|wav|mp3|pdf|zip|gz|tgz|wasm|woff2?|ttf|eot|psd|ai)$/i;
+    MANIFEST = /(^|\/)(package\.json|pyproject\.toml|Cargo\.toml|go\.mod|requirements\.txt|composer\.json|Gemfile|pom\.xml|build\.gradle)$/i;
+    LOCKFILE = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Cargo\.lock|go\.sum|composer\.lock|Gemfile\.lock)$/i;
+    LINT = /(^|\/)(\.eslintrc|\.eslintrc\.(js|cjs|json|yml|yaml)|eslint\.config\.(js|cjs|mjs|ts)|ruff\.toml|\.prettierrc(\..+)?|prettier\.config\.(js|cjs|mjs)|biome\.json)$/i;
+    TEST_TOOL = /(^|\/)(vitest\.config\.[cm]?[jt]s|jest\.config\.[cm]?[jt]s|pytest\.ini|conftest\.py|playwright\.config\.[cm]?[jt]s|cypress\.config\.[cm]?[jt]s)$/i;
+    WORKFLOW = /(^|\/)\.github\/workflows\/[^/]+\.ya?ml$/i;
+    DEPENDABOT = /(^|\/)\.github\/dependabot\.ya?ml$/i;
+    CODEOWNERS = /(^|\/)(\.github\/)?CODEOWNERS$/i;
+    DOCKER = /(^|\/)(Dockerfile|Containerfile)(\.|$)/i;
+    SRC_LAYOUT = /(^|\/)src\//;
+    LICENSE = /(^|\/)LICENSE(\.|$)/i;
   }
 });
 
@@ -268,6 +324,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, relative, resolve as resolve2 } from "node:path";
 import { spawnSync } from "node:child_process";
+var AI_CACHE_SCHEMA = 1;
 async function annotateWithCopilot(opts) {
   const { report, config, cwd, token } = opts;
   if (!config.ai.enabled || config.ai.provider !== "copilot") {
@@ -301,10 +358,11 @@ async function annotateWithCopilot(opts) {
   }
   const ok = reviews.filter((r) => r.status === "ok");
   const payload = {
+    schema_version: AI_CACHE_SCHEMA,
     generated_at: (/* @__PURE__ */ new Date()).toISOString(),
     provider: "copilot",
     status: ok.length ? "reviewed" : "partial",
-    note: "Scores stay signal-based. Audit uses an embedded source dossier (no sandbox file dependency).",
+    note: "Judgment only \u2014 never moves scores. Embedded dossier; cite real paths.",
     repos: reviews
   };
   writeJson(join(cacheDir, "latest.json"), payload);
@@ -408,11 +466,7 @@ async function reviewOneRepo(opts) {
         "copilot still refused to use the embedded dossier \u2014 check Copilot auth/credits"
       );
     }
-    const cited = extractCitedPaths(text);
-    const known = listKnownPaths(dossier);
-    const hits = cited.filter(
-      (p) => known.some((k) => k.endsWith(p) || k.includes(`/${p}`) || k === p)
-    );
+    const hits = citationHits(text, dossier);
     if (hits.length < 2) {
       throw new Error(
         `audit rejected: need \u22652 dossier path citations (got ${hits.length}: ${hits.join(", ") || "none"}). Head: ${text.slice(0, 280)}`
@@ -550,7 +604,7 @@ function buildRepoDossier(repoDir, repo) {
 }
 function extractCitedPaths(text) {
   const found = /* @__PURE__ */ new Set();
-  const re = /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"'),]|$)/gim;
+  const re = /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"'),.:;!?]|$)/gim;
   let m;
   while ((m = re.exec(text)) !== null) {
     found.add(m[1].replace(/^\.\//, ""));
@@ -569,6 +623,13 @@ function listKnownPaths(dossier) {
     if (t.startsWith("### ")) paths.push(t.slice(4).trim());
   }
   return paths;
+}
+function citationHits(text, dossier) {
+  const cited = extractCitedPaths(text);
+  const known = listKnownPaths(dossier);
+  return cited.filter(
+    (p) => known.some((k) => k.endsWith(p) || k.includes(`/${p}`) || k === p)
+  );
 }
 function parseReviewMarkdown(text, repo) {
   const why = section(text, "Why showable") || section(text, "Why Showable") || signalWhy(repo);
@@ -624,6 +685,7 @@ _Error:_ ${r.error}` : "",
 }
 function emptyPayload(status, note) {
   return {
+    schema_version: AI_CACHE_SCHEMA,
     generated_at: (/* @__PURE__ */ new Date()).toISOString(),
     provider: "copilot",
     status,
@@ -652,11 +714,11 @@ init_retry();
 import { graphql } from "@octokit/graphql";
 import { Octokit } from "@octokit/rest";
 function createClients(token) {
-  const octokit = new Octokit({ auth: token, userAgent: "ruro/0.1" });
+  const octokit = new Octokit({ auth: token, userAgent: "ruro/0.2" });
   const gqlClient = graphql.defaults({
     headers: {
       authorization: `token ${token}`,
-      "user-agent": "ruro/0.1"
+      "user-agent": "ruro/0.2"
     }
   });
   return {
@@ -704,36 +766,6 @@ var REPO_FIELDS = `
           ... on Blob { text }
         }
         licenseFile: object(expression: "HEAD:LICENSE") { ... on Blob { id } }
-        workflows: object(expression: "HEAD:.github/workflows") {
-          ... on Tree { entries { name type } }
-        }
-        dependabotYml: object(expression: "HEAD:.github/dependabot.yml") { ... on Blob { id } }
-        dependabotYaml: object(expression: "HEAD:.github/dependabot.yaml") { ... on Blob { id } }
-        codeowners: object(expression: "HEAD:.github/CODEOWNERS") { ... on Blob { id } }
-        packageJson: object(expression: "HEAD:package.json") { ... on Blob { text id } }
-        cargoToml: object(expression: "HEAD:Cargo.toml") { ... on Blob { id } }
-        goMod: object(expression: "HEAD:go.mod") { ... on Blob { id } }
-        pyproject: object(expression: "HEAD:pyproject.toml") { ... on Blob { text id } }
-        requirements: object(expression: "HEAD:requirements.txt") { ... on Blob { id } }
-        eslintJs: object(expression: "HEAD:eslint.config.js") { ... on Blob { id } }
-        eslintCjs: object(expression: "HEAD:eslint.config.cjs") { ... on Blob { id } }
-        eslintrcJson: object(expression: "HEAD:.eslintrc.json") { ... on Blob { id } }
-        ruffToml: object(expression: "HEAD:ruff.toml") { ... on Blob { id } }
-        prettierrc: object(expression: "HEAD:.prettierrc") { ... on Blob { id } }
-        vitestConfig: object(expression: "HEAD:vitest.config.ts") { ... on Blob { id } }
-        jestConfig: object(expression: "HEAD:jest.config.js") { ... on Blob { id } }
-        packageLock: object(expression: "HEAD:package-lock.json") { ... on Blob { id } }
-        yarnLock: object(expression: "HEAD:yarn.lock") { ... on Blob { id } }
-        pnpmLock: object(expression: "HEAD:pnpm-lock.yaml") { ... on Blob { id } }
-        poetryLock: object(expression: "HEAD:poetry.lock") { ... on Blob { id } }
-        testDir: object(expression: "HEAD:test") { ... on Tree { id } }
-        testsDir: object(expression: "HEAD:tests") { ... on Tree { id } }
-        srcTestDir: object(expression: "HEAD:src/__tests__") { ... on Tree { id } }
-        underscoreTests: object(expression: "HEAD:__tests__") { ... on Tree { id } }
-        specDir: object(expression: "HEAD:spec") { ... on Tree { id } }
-        srcDir: object(expression: "HEAD:src") { ... on Tree { id } }
-        dockerfile: object(expression: "HEAD:Dockerfile") { ... on Blob { id } }
-        containerfile: object(expression: "HEAD:Containerfile") { ... on Blob { id } }
         releases(first: 1, orderBy: { field: CREATED_AT, direction: DESC }) {
           totalCount
           nodes { publishedAt createdAt }
@@ -777,52 +809,10 @@ function daysBetween(iso, now) {
 function countCommitsSince(dates, now, withinDays) {
   return dates.filter((d) => daysBetween(d, now) <= withinDays).length;
 }
-function detectTestScript(packageJsonText, pyprojectText) {
-  if (packageJsonText) {
-    try {
-      const pkg = JSON.parse(packageJsonText);
-      const scripts = Object.values(pkg.scripts ?? {}).join(" ").toLowerCase();
-      if (/\b(test|vitest|jest|mocha|pytest|playwright|cypress)\b/.test(scripts)) {
-        return true;
-      }
-      const deps = {
-        ...pkg.dependencies ?? {},
-        ...pkg.devDependencies ?? {}
-      };
-      if (["vitest", "jest", "mocha", "@playwright/test", "cypress"].some(
-        (d) => d in deps
-      )) {
-        return true;
-      }
-    } catch {
-    }
-  }
-  if (pyprojectText) {
-    const lower = pyprojectText.toLowerCase();
-    if (lower.includes("pytest") || lower.includes("unittest") || /\[tool\.pytest/.test(lower)) {
-      return true;
-    }
-  }
-  return false;
-}
 function mapRepo(node, now) {
   const commitDates = node.defaultBranchRef?.target?.history?.nodes.map((n) => n.committedDate) ?? [];
   const readmeText = node.object?.text ?? null;
-  const workflowEntries = node.workflows?.entries ?? [];
-  const hasWorkflows = workflowEntries.some(
-    (e) => e.type === "blob" && /\.ya?ml$/i.test(e.name)
-  );
   const latestReleaseAt = node.releases.nodes[0]?.publishedAt ?? node.releases.nodes[0]?.createdAt ?? null;
-  const hasTestScript = detectTestScript(
-    node.packageJson?.text,
-    node.pyproject?.text
-  );
-  const hasTestsHeuristic = Boolean(
-    node.testDir || node.testsDir || node.srcTestDir || node.underscoreTests || node.specDir || node.vitestConfig || node.jestConfig || hasTestScript
-  );
-  const hasPackageManifest = Boolean(
-    node.packageJson || node.pyproject || node.requirements || node.goMod || node.cargoToml
-  );
   return {
     name: node.name,
     fullName: node.nameWithOwner,
@@ -848,21 +838,18 @@ function mapRepo(node, now) {
     diskUsageKb: node.diskUsage ?? 0,
     readmeBytes: readmeText ? Buffer.byteLength(readmeText, "utf8") : null,
     hasLicenseFile: Boolean(node.licenseFile) || Boolean(node.licenseInfo),
-    hasWorkflows,
-    hasDependabotConfig: Boolean(node.dependabotYml || node.dependabotYaml),
-    hasCodeowners: Boolean(node.codeowners),
-    hasTestsHeuristic,
-    hasTestScript,
-    hasLintConfigHeuristic: Boolean(
-      node.eslintJs || node.eslintCjs || node.eslintrcJson || node.ruffToml || node.prettierrc
-    ),
-    hasLockfile: Boolean(
-      node.packageLock || node.yarnLock || node.pnpmLock || node.poetryLock
-    ),
-    hasPackageManifest,
+    // Defaults — overwritten by tree classifiers when tree fetch succeeds
+    hasWorkflows: false,
+    hasDependabotConfig: false,
+    hasCodeowners: false,
+    hasTestsHeuristic: false,
+    hasTestScript: false,
+    hasLintConfigHeuristic: false,
+    hasLockfile: false,
+    hasPackageManifest: false,
     substantialCodebase: (node.diskUsage ?? 0) >= 200,
-    hasSrcLayout: Boolean(node.srcDir),
-    hasContainerfile: Boolean(node.dockerfile || node.containerfile),
+    hasSrcLayout: false,
+    hasContainerfile: false,
     recentWorkflowConclusion: null,
     recentWorkflowAgeDays: null,
     commitsLast30Days: countCommitsSince(commitDates, now, 30),
@@ -932,9 +919,9 @@ async function collectRepoSignals(clients, config) {
     hasNext = conn.pageInfo.hasNextPage;
     cursor = conn.pageInfo.endCursor;
   }
-  await enrichWorkflowSignals(clients, collected, now);
   const { enrichCodeFitness: enrichCodeFitness2 } = await Promise.resolve().then(() => (init_code(), code_exports));
   await enrichCodeFitness2(clients, collected);
+  await enrichWorkflowSignals(clients, collected, now);
   return { included: collected, excludedCount };
 }
 async function enrichWorkflowSignals(clients, repos, now) {
@@ -1402,12 +1389,12 @@ function renderDashboard(report, config) {
     "## Legend",
     "",
     "- **Score** = `0.40*Quality + 0.35*Alive + 0.25*Structure` (configurable)",
-    "- **Status**: `LIVE` demo up \xB7 `ACTIVE` recent pushes \xB7 `STALE`/`DORMANT` quiet \xB7 `DEAD` abandoned \xB7 `ARCHIVED`",
-    "- **Demo**: `UP`/`DOWN`/`NONE`/`ERROR` from homepage probe",
+    "- **Status**: `LIVE` = verified deploy **and** push within `active_days` \xB7 `ACTIVE` recent without LIVE \xB7 `STALE`/`DORMANT` quiet \xB7 `DEAD` abandoned \xB7 `ARCHIVED`",
+    "- **Demo**: `UP`/`DOWN`/`NONE`/`ERROR` from homepage probe (`verified` is separate from status)",
     "- Notes prefixed with `!` are blockers",
     "",
     "---",
-    "_Ruro does not use AI. Same inputs \u21D2 same scores._",
+    "_Ruro core is zero-AI. Same inputs \u21D2 same scores. Copilot audit is optional judgment._",
     ""
   );
   return lines.join("\n");
@@ -1984,7 +1971,7 @@ function renderWebDashboard(report, config, cwd = process.cwd()) {
     <section aria-label="Showables">
       <p class="sec-kicker">Show path</p>
       <h2 class="sec-title">What to open in an interview</h2>
-      <p class="sec-copy">Ranked by showability. Fitness is without-AI tree truth. Deploy is only \u201Cverified\u201D when the probe passed.</p>
+      <p class="sec-copy">Ranked by showability. Fitness is without-AI tree truth. LIVE = verified deploy and recent push (active_days). Deploy \u201Cverified\u201D is separate from status.</p>
       <div>${showHtml}</div>
     </section>
 
@@ -2030,241 +2017,188 @@ function daysSince(iso, now) {
   if (!iso) return null;
   return Math.max(0, (now.getTime() - new Date(iso).getTime()) / 864e5);
 }
-function scoreQuality(s) {
-  let score = 18;
-  const drivers = [];
-  const blockers = [];
-  if (s.hasPackageManifest) {
-    score += 8;
-    drivers.push("manifest");
-  }
-  if (s.substantialCodebase) {
-    score += 10;
-    drivers.push("substantial_code");
-  }
-  if (s.fitness.score >= 70) {
-    score += 14;
-    drivers.push("code_fitness_high");
-  } else if (s.fitness.score >= 45) {
-    score += 8;
-    drivers.push("code_fitness_ok");
-  } else if (s.fitness.flags.includes("no_source_files")) {
-    score -= 18;
-    blockers.push("no_source_files");
-  } else if (s.fitness.flags.includes("tiny_tree")) {
-    score -= 10;
-    blockers.push("tiny_tree");
-  }
-  if (s.fitness.flags.includes("has_test_files")) {
-    score += 6;
-    drivers.push("test_files_in_tree");
-  }
-  if (s.fitness.flags.includes("god_file")) {
-    score -= 6;
-    blockers.push("god_file");
-  }
-  if (s.hasSrcLayout) {
-    score += 4;
-    drivers.push("src_layout");
-  }
-  if (s.hasContainerfile) {
-    score += 4;
-    drivers.push("containerized");
-  }
+var BASE = {
+  quality: 18,
+  alive: 0,
+  structure: 15
+};
+function qualityFeatures(s) {
+  const out = [];
+  const q = (code, delta) => {
+    out.push({ code, pillar: "quality", delta });
+  };
+  if (s.hasPackageManifest) q("manifest", 8);
+  if (s.substantialCodebase) q("substantial_code", 10);
+  if (s.fitness.score >= 70) q("code_fitness_high", 14);
+  else if (s.fitness.score >= 45) q("code_fitness_ok", 8);
+  else if (s.fitness.flags.includes("no_source_files")) q("no_source_files", -18);
+  else if (s.fitness.flags.includes("tiny_tree")) q("tiny_tree", -10);
+  if (s.fitness.flags.includes("has_test_files")) q("test_files_in_tree", 6);
+  if (s.fitness.flags.includes("god_file")) q("god_file", -6);
+  if (s.hasSrcLayout) q("src_layout", 4);
+  if (s.hasContainerfile) q("containerized", 4);
   if (s.hasTestsHeuristic) {
-    score += 20;
-    drivers.push("tests_present");
-    if (s.hasTestScript) {
-      score += 4;
-      drivers.push("test_script");
-    }
+    q("tests_present", 20);
+    if (s.hasTestScript) q("test_script", 4);
   } else {
-    blockers.push("no_tests_detected");
+    q("no_tests_detected", 0);
   }
-  if (s.hasWorkflows) {
-    score += 12;
-    drivers.push("ci_workflows");
-  } else {
-    blockers.push("no_ci");
-  }
-  if (s.recentWorkflowConclusion === "success") {
-    score += 12;
-    drivers.push("ci_green");
-  } else if (s.recentWorkflowConclusion === "failure") {
-    score -= 8;
-    blockers.push("ci_failing");
-  }
-  if (s.hasLintConfigHeuristic) {
-    score += 10;
-    drivers.push("lint_config");
-  }
-  if (s.hasDependabotConfig) {
-    score += 8;
-    drivers.push("dependabot");
-  }
-  if (s.hasLockfile) {
-    score += 6;
-    drivers.push("lockfile");
-  }
-  if (s.hasCodeowners) {
-    score += 4;
-    drivers.push("codeowners");
-  }
+  if (s.hasWorkflows) q("ci_workflows", 12);
+  else q("no_ci", 0);
+  if (s.recentWorkflowConclusion === "success") q("ci_green", 12);
+  else if (s.recentWorkflowConclusion === "failure") q("ci_failing", -8);
+  if (s.hasLintConfigHeuristic) q("lint_config", 10);
+  if (s.hasDependabotConfig) q("dependabot", 8);
+  if (s.hasLockfile) q("lockfile", 6);
+  if (s.hasCodeowners) q("codeowners", 4);
   if (s.diskUsageKb > 0 && s.diskUsageKb < 40 && !s.hasTestsHeuristic) {
-    score -= 15;
-    blockers.push("stub_sized");
+    q("stub_sized", -15);
   }
-  if (!s.primaryLanguage && s.diskUsageKb < 80) {
-    score -= 10;
-    blockers.push("no_language");
-  }
-  return { score: clamp(score), drivers, blockers };
+  if (!s.primaryLanguage && s.diskUsageKb < 80) q("no_language", -10);
+  return out;
 }
-function scoreAlive(s, thresholds) {
-  let score = 0;
-  const drivers = [];
-  const blockers = [];
-  const now = /* @__PURE__ */ new Date();
+function aliveFeatures(s, thresholds, now) {
+  const out = [];
+  const a = (code, delta) => {
+    out.push({ code, pillar: "alive", delta });
+  };
   const pushAge = daysSince(s.pushedAt, now);
-  if (s.demo.status === "UP" && s.demo.verified) {
-    score += 35;
-    drivers.push("demo_verified");
-  } else if (s.demo.status === "DOWN" || s.demo.status === "ERROR") {
-    score -= 10;
-    blockers.push("demo_unproven");
-    if (s.demo.error) blockers.push(s.demo.error.replace(/\s+/g, "_").slice(0, 40));
-  } else if (s.homepageUrl) {
-    blockers.push("homepage_unproven");
-  }
-  if (pushAge === null) {
-    blockers.push("never_pushed");
-  } else if (pushAge <= 14) {
-    score += 30;
-    drivers.push("pushed_2w");
-  } else if (pushAge <= thresholds.active_days) {
-    score += 22;
-    drivers.push("pushed_active_window");
-  } else if (pushAge <= thresholds.stale_days) {
-    score += 12;
-  } else if (pushAge <= thresholds.dormant_days) {
-    score += 5;
-    blockers.push("quiet_long");
-  } else {
-    blockers.push("very_quiet");
-  }
-  if (s.commitsLast30Days >= 5) {
-    score += 15;
-    drivers.push("high_cadence_30d");
-  } else if (s.commitsLast30Days >= 1) {
-    score += 8;
-    drivers.push("cadence_30d");
-  } else if (s.commitsLast90Days >= 3) {
-    score += 5;
-  }
-  if (s.releasesCount > 0) {
-    score += 8;
-    drivers.push("has_releases");
-    const releaseAge = daysSince(s.latestReleaseAt, now);
-    if (releaseAge !== null && releaseAge <= 180) {
-      score += 5;
-      drivers.push("recent_release");
+  if (s.demo.status === "UP" && s.demo.verified) a("demo_verified", 35);
+  else if (s.demo.status === "DOWN" || s.demo.status === "ERROR") {
+    a("demo_unproven", -10);
+    if (s.demo.error) {
+      a(s.demo.error.replace(/\s+/g, "_").slice(0, 40), 0);
     }
+  } else if (s.homepageUrl) {
+    a("homepage_unproven", 0);
+  }
+  if (pushAge === null) a("never_pushed", 0);
+  else if (pushAge <= 14) a("pushed_2w", 30);
+  else if (pushAge <= thresholds.active_days) a("pushed_active_window", 22);
+  else if (pushAge <= thresholds.stale_days) a("pushed_stale_window", 12);
+  else if (pushAge <= thresholds.dormant_days) a("quiet_long", 5);
+  else a("very_quiet", 0);
+  if (s.commitsLast30Days >= 5) a("high_cadence_30d", 15);
+  else if (s.commitsLast30Days >= 1) a("cadence_30d", 8);
+  else if (s.commitsLast90Days >= 3) a("cadence_90d", 5);
+  if (s.releasesCount > 0) {
+    a("has_releases", 8);
+    const releaseAge = daysSince(s.latestReleaseAt, now);
+    if (releaseAge !== null && releaseAge <= 180) a("recent_release", 5);
   }
   if (s.recentWorkflowConclusion === "success" && s.recentWorkflowAgeDays !== null && s.recentWorkflowAgeDays <= 30) {
-    score += 7;
-    drivers.push("ci_fresh");
+    a("ci_fresh", 7);
   }
-  return { score: clamp(score), drivers, blockers };
+  return out;
 }
-function scoreStructure(s) {
-  let score = 15;
-  const drivers = [];
-  const blockers = [];
-  if (s.description && s.description.trim().length >= 20) {
-    score += 12;
-    drivers.push("description");
-  } else {
-    blockers.push("weak_description");
-  }
-  if (s.readmeBytes !== null && s.readmeBytes >= 800) {
-    score += 20;
-    drivers.push("readme_substance");
-  } else if (s.readmeBytes !== null && s.readmeBytes >= 200) {
-    score += 10;
-    drivers.push("readme_basic");
-  } else {
-    blockers.push("thin_readme");
-  }
-  if (s.hasLicenseFile || s.licenseSpdx) {
-    score += 15;
-    drivers.push("license");
-  } else {
-    blockers.push("no_license");
-  }
-  if (s.topics.length >= 3) {
-    score += 8;
-    drivers.push("topics");
-  } else if (s.topics.length === 0) {
-    blockers.push("no_topics");
-  }
-  if (s.homepageUrl && s.demo.verified) {
-    score += 10;
-    drivers.push("homepage_verified");
-  } else if (s.homepageUrl) {
-    blockers.push("homepage_unproven");
-  }
-  if (s.primaryLanguage) {
-    score += 8;
-  }
-  if (s.isFork) {
-    score -= 20;
-    blockers.push("fork");
-  }
-  return { score: clamp(score), drivers, blockers };
+function structureFeatures(s) {
+  const out = [];
+  const st = (code, delta) => {
+    out.push({ code, pillar: "structure", delta });
+  };
+  if (s.description && s.description.trim().length >= 20) st("description", 12);
+  else st("weak_description", 0);
+  if (s.readmeBytes !== null && s.readmeBytes >= 800) st("readme_substance", 20);
+  else if (s.readmeBytes !== null && s.readmeBytes >= 200) st("readme_basic", 10);
+  else st("thin_readme", 0);
+  if (s.hasLicenseFile || s.licenseSpdx) st("license", 15);
+  else st("no_license", 0);
+  if (s.topics.length >= 3) st("topics", 8);
+  else if (s.topics.length === 0) st("no_topics", 0);
+  if (s.homepageUrl && s.demo.verified) st("homepage_verified", 10);
+  else if (s.homepageUrl) st("homepage_unproven", 0);
+  if (s.primaryLanguage) st("has_language", 8);
+  if (s.isFork) st("fork", -20);
+  return out;
 }
-function deriveStatus(s, thresholds) {
+function pillarFrom(pillar, features) {
+  const sum = features.filter((f) => f.pillar === pillar).reduce((acc, f) => acc + f.delta, 0);
+  return clamp(BASE[pillar] + sum);
+}
+var HURT_CODES = /* @__PURE__ */ new Set([
+  "no_tests_detected",
+  "no_ci",
+  "no_source_files",
+  "tiny_tree",
+  "god_file",
+  "stub_sized",
+  "no_language",
+  "ci_failing",
+  "demo_unproven",
+  "homepage_unproven",
+  "never_pushed",
+  "quiet_long",
+  "very_quiet",
+  "weak_description",
+  "thin_readme",
+  "no_license",
+  "no_topics",
+  "fork",
+  "parking_or_soft_404",
+  "homepage_is_github_repo_not_deploy",
+  "redirected_to_github_repo",
+  "empty_or_tiny_response"
+]);
+function driversFrom(features) {
+  return [
+    ...new Set(
+      features.filter((f) => f.delta > 0 && !HURT_CODES.has(f.code)).map((f) => f.code)
+    )
+  ].slice(0, 10);
+}
+function blockersFrom(features) {
+  return [
+    ...new Set(
+      features.filter((f) => f.delta < 0 || HURT_CODES.has(f.code)).map((f) => f.code)
+    )
+  ].slice(0, 10);
+}
+function deriveStatus(s, thresholds, now = /* @__PURE__ */ new Date()) {
   if (s.isArchived) return "ARCHIVED";
-  const pushAge = daysSince(s.pushedAt, /* @__PURE__ */ new Date());
+  const pushAge = daysSince(s.pushedAt, now);
   const demoUp = s.demo.status === "UP" && s.demo.verified;
-  if (demoUp && (pushAge === null || pushAge <= thresholds.dormant_days)) {
+  if (demoUp && pushAge !== null && pushAge <= thresholds.active_days) {
     return "LIVE";
   }
   if (pushAge !== null && pushAge <= thresholds.active_days) {
-    return demoUp ? "LIVE" : "ACTIVE";
+    return "ACTIVE";
   }
   if (pushAge !== null && pushAge <= thresholds.stale_days) return "STALE";
   if (pushAge !== null && pushAge <= thresholds.dormant_days) return "DORMANT";
   return "DEAD";
 }
-function scoreRepo(s, config) {
-  const q = scoreQuality(s);
-  const a = scoreAlive(s, config.thresholds);
-  const st = scoreStructure(s);
+function scoreRepo(s, config, now = /* @__PURE__ */ new Date()) {
+  const contributions = [
+    ...qualityFeatures(s),
+    ...aliveFeatures(s, config.thresholds, now),
+    ...structureFeatures(s)
+  ];
   const pillars = {
-    quality: q.score,
-    alive: a.score,
-    structure: st.score
+    quality: pillarFrom("quality", contributions),
+    alive: pillarFrom("alive", contributions),
+    structure: pillarFrom("structure", contributions)
   };
   const score = clamp(
     config.weights.quality * pillars.quality + config.weights.alive * pillars.alive + config.weights.structure * pillars.structure
   );
-  const drivers = [
-    .../* @__PURE__ */ new Set([...a.drivers, ...q.drivers, ...st.drivers])
-  ].slice(0, 10);
-  const blockers = [
-    .../* @__PURE__ */ new Set([...a.blockers, ...q.blockers, ...st.blockers])
-  ].slice(0, 10);
+  const aliveFirst = [
+    ...driversFrom(contributions.filter((c) => c.pillar === "alive")),
+    ...driversFrom(contributions.filter((c) => c.pillar !== "alive"))
+  ];
+  const drivers = [...new Set(aliveFirst)].slice(0, 10);
+  const blockers = blockersFrom(contributions);
   return {
     signals: s,
     score,
     pillars,
-    status: deriveStatus(s, config.thresholds),
+    status: deriveStatus(s, config.thresholds, now),
     drivers,
-    blockers
+    blockers,
+    contributions
   };
 }
-function scoreAll(signals, config) {
-  return signals.map((s) => scoreRepo(s, config)).sort((a, b) => {
+function scoreAll(signals, config, now = /* @__PURE__ */ new Date()) {
+  return signals.map((s) => scoreRepo(s, config, now)).sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     return a.signals.fullName.localeCompare(b.signals.fullName);
   });

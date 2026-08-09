@@ -14,6 +14,7 @@ function stubRepo(name: string, score: number, status: ScoredRepo["status"]): Sc
     pillars: { quality: score, alive: score, structure: score },
     drivers: ["demo_verified"],
     blockers: [],
+    contributions: [],
     signals: baseSignals({
       name,
       fullName: `acme/${name}`,

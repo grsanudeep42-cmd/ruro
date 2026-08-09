@@ -518,7 +518,7 @@ export function renderWebDashboard(
     <section aria-label="Showables">
       <p class="sec-kicker">Show path</p>
       <h2 class="sec-title">What to open in an interview</h2>
-      <p class="sec-copy">Ranked by showability. Fitness is without-AI tree truth. Deploy is only “verified” when the probe passed.</p>
+      <p class="sec-copy">Ranked by showability. Fitness is without-AI tree truth. LIVE = verified deploy and recent push (active_days). Deploy “verified” is separate from status.</p>
       <div>${showHtml}</div>
     </section>
 

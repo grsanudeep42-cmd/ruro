@@ -41,6 +41,8 @@ var init_retry = __esm({
 var code_exports = {};
 __export(code_exports, {
   analyzeTreeEntries: () => analyzeTreeEntries,
+  applyTreeSignals: () => applyTreeSignals,
+  classifyTreePaths: () => classifyTreePaths,
   enrichCodeFitness: () => enrichCodeFitness
 });
 function emptyFitness() {
@@ -52,6 +54,48 @@ function emptyFitness() {
     score: 0,
     flags: ["tree_unavailable"]
   };
+}
+function classifyTreePaths(entries) {
+  const paths = entries.filter((e) => e.type === "blob" && e.path && !SKIP.test(e.path)).map((e) => e.path);
+  const hasPackageManifest = paths.some((p) => MANIFEST.test(p));
+  const hasLockfile = paths.some((p) => LOCKFILE.test(p));
+  const hasLintConfigHeuristic = paths.some((p) => LINT.test(p));
+  const hasWorkflows = paths.some((p) => WORKFLOW.test(p));
+  const hasDependabotConfig = paths.some((p) => DEPENDABOT.test(p));
+  const hasCodeowners = paths.some((p) => CODEOWNERS.test(p));
+  const hasContainerfile = paths.some((p) => DOCKER.test(p));
+  const hasSrcLayout = paths.some((p) => SRC_LAYOUT.test(p));
+  const hasLicenseFile = paths.some((p) => LICENSE.test(p));
+  const testFiles = paths.filter((p) => TEST_HINT.test(p)).length;
+  const hasTestTool = paths.some((p) => TEST_TOOL.test(p));
+  const hasTestsHeuristic = testFiles > 0 || hasTestTool;
+  const hasTestScript = hasTestTool || testFiles > 0;
+  return {
+    hasPackageManifest,
+    hasLockfile,
+    hasLintConfigHeuristic,
+    hasWorkflows,
+    hasDependabotConfig,
+    hasCodeowners,
+    hasContainerfile,
+    hasSrcLayout,
+    hasLicenseFile,
+    hasTestsHeuristic,
+    hasTestScript
+  };
+}
+function applyTreeSignals(repo, patch) {
+  repo.hasPackageManifest = patch.hasPackageManifest;
+  repo.hasLockfile = patch.hasLockfile;
+  repo.hasLintConfigHeuristic = patch.hasLintConfigHeuristic;
+  repo.hasWorkflows = patch.hasWorkflows;
+  repo.hasDependabotConfig = patch.hasDependabotConfig;
+  repo.hasCodeowners = patch.hasCodeowners;
+  repo.hasContainerfile = patch.hasContainerfile;
+  repo.hasSrcLayout = patch.hasSrcLayout;
+  if (patch.hasLicenseFile) repo.hasLicenseFile = true;
+  repo.hasTestsHeuristic = patch.hasTestsHeuristic;
+  repo.hasTestScript = patch.hasTestScript;
 }
 function analyzeTreeEntries(entries) {
   let sourceFiles = 0;
@@ -142,12 +186,14 @@ async function enrichCodeFitness(clients, repos) {
         }),
         { attempts: 2, baseDelayMs: 200 }
       );
-      repo.fitness = analyzeTreeEntries(tree.data.tree);
+      const entries = tree.data.tree;
+      repo.fitness = analyzeTreeEntries(entries);
+      applyTreeSignals(repo, classifyTreePaths(entries));
     } catch {
     }
   }
 }
-var SOURCE_EXT, TEST_HINT, SKIP, BINARYish;
+var SOURCE_EXT, TEST_HINT, SKIP, BINARYish, MANIFEST, LOCKFILE, LINT, TEST_TOOL, WORKFLOW, DEPENDABOT, CODEOWNERS, DOCKER, SRC_LAYOUT, LICENSE;
 var init_code = __esm({
   "src/fitness/code.ts"() {
     "use strict";
@@ -156,6 +202,16 @@ var init_code = __esm({
     TEST_HINT = /(^|\/)(tests?|__tests__|spec)(\/|$)|[._-](test|spec)\.[^.]+$/i;
     SKIP = /(^|\/)(node_modules|dist|build|\.git|vendor|coverage|\.next|target)(\/|$)/i;
     BINARYish = /\.(png|jpe?g|gif|webp|ico|mp4|mov|wav|mp3|pdf|zip|gz|tgz|wasm|woff2?|ttf|eot|psd|ai)$/i;
+    MANIFEST = /(^|\/)(package\.json|pyproject\.toml|Cargo\.toml|go\.mod|requirements\.txt|composer\.json|Gemfile|pom\.xml|build\.gradle)$/i;
+    LOCKFILE = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Cargo\.lock|go\.sum|composer\.lock|Gemfile\.lock)$/i;
+    LINT = /(^|\/)(\.eslintrc|\.eslintrc\.(js|cjs|json|yml|yaml)|eslint\.config\.(js|cjs|mjs|ts)|ruff\.toml|\.prettierrc(\..+)?|prettier\.config\.(js|cjs|mjs)|biome\.json)$/i;
+    TEST_TOOL = /(^|\/)(vitest\.config\.[cm]?[jt]s|jest\.config\.[cm]?[jt]s|pytest\.ini|conftest\.py|playwright\.config\.[cm]?[jt]s|cypress\.config\.[cm]?[jt]s)$/i;
+    WORKFLOW = /(^|\/)\.github\/workflows\/[^/]+\.ya?ml$/i;
+    DEPENDABOT = /(^|\/)\.github\/dependabot\.ya?ml$/i;
+    CODEOWNERS = /(^|\/)(\.github\/)?CODEOWNERS$/i;
+    DOCKER = /(^|\/)(Dockerfile|Containerfile)(\.|$)/i;
+    SRC_LAYOUT = /(^|\/)src\//;
+    LICENSE = /(^|\/)LICENSE(\.|$)/i;
   }
 });
 
@@ -307,6 +363,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, relative, resolve as resolve2 } from "node:path";
 import { spawnSync } from "node:child_process";
+var AI_CACHE_SCHEMA = 1;
 async function annotateWithCopilot(opts) {
   const { report, config, cwd, token } = opts;
   if (!config.ai.enabled || config.ai.provider !== "copilot") {
@@ -340,10 +397,11 @@ async function annotateWithCopilot(opts) {
   }
   const ok = reviews.filter((r) => r.status === "ok");
   const payload = {
+    schema_version: AI_CACHE_SCHEMA,
     generated_at: (/* @__PURE__ */ new Date()).toISOString(),
     provider: "copilot",
     status: ok.length ? "reviewed" : "partial",
-    note: "Scores stay signal-based. Audit uses an embedded source dossier (no sandbox file dependency).",
+    note: "Judgment only \u2014 never moves scores. Embedded dossier; cite real paths.",
     repos: reviews
   };
   writeJson(join(cacheDir, "latest.json"), payload);
@@ -447,11 +505,7 @@ async function reviewOneRepo(opts) {
         "copilot still refused to use the embedded dossier \u2014 check Copilot auth/credits"
       );
     }
-    const cited = extractCitedPaths(text);
-    const known = listKnownPaths(dossier);
-    const hits = cited.filter(
-      (p) => known.some((k) => k.endsWith(p) || k.includes(`/${p}`) || k === p)
-    );
+    const hits = citationHits(text, dossier);
     if (hits.length < 2) {
       throw new Error(
         `audit rejected: need \u22652 dossier path citations (got ${hits.length}: ${hits.join(", ") || "none"}). Head: ${text.slice(0, 280)}`
@@ -589,7 +643,7 @@ function buildRepoDossier(repoDir, repo) {
 }
 function extractCitedPaths(text) {
   const found = /* @__PURE__ */ new Set();
-  const re = /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"'),]|$)/gim;
+  const re = /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"'),.:;!?]|$)/gim;
   let m;
   while ((m = re.exec(text)) !== null) {
     found.add(m[1].replace(/^\.\//, ""));
@@ -600,14 +654,21 @@ function extractCitedPaths(text) {
 }
 function listKnownPaths(dossier) {
   const paths = [];
-  for (const line2 of dossier.split("\n")) {
-    const t = line2.trim();
+  for (const line of dossier.split("\n")) {
+    const t = line.trim();
     if (t.startsWith("./") || /^[\w./-]+\.(ts|tsx|js|jsx|py|go|rs|md|json|toml)$/.test(t)) {
       paths.push(t.replace(/^\.\//, ""));
     }
     if (t.startsWith("### ")) paths.push(t.slice(4).trim());
   }
   return paths;
+}
+function citationHits(text, dossier) {
+  const cited = extractCitedPaths(text);
+  const known = listKnownPaths(dossier);
+  return cited.filter(
+    (p) => known.some((k) => k.endsWith(p) || k.includes(`/${p}`) || k === p)
+  );
 }
 function parseReviewMarkdown(text, repo) {
   const why = section(text, "Why showable") || section(text, "Why Showable") || signalWhy(repo);
@@ -661,12 +722,13 @@ _Error:_ ${r.error}` : "",
     ""
   ].join("\n");
 }
-function emptyPayload(status, note) {
+function emptyPayload(status, note2) {
   return {
+    schema_version: AI_CACHE_SCHEMA,
     generated_at: (/* @__PURE__ */ new Date()).toISOString(),
     provider: "copilot",
     status,
-    note,
+    note: note2,
     repos: []
   };
 }
@@ -689,34 +751,99 @@ function readAiCache(cwd, cacheDir) {
   const path = resolve2(cwd, cacheDir, "latest.json");
   if (!existsSync2(path)) return null;
   try {
-    return JSON.parse(readFileSync2(path, "utf8"));
+    const parsed = JSON.parse(readFileSync2(path, "utf8"));
+    if (!Array.isArray(parsed.repos)) return null;
+    return parsed;
   } catch {
     return null;
   }
 }
 
-// src/cli/banner.ts
-var C = {
+// src/cli/tui.ts
+var ansi = {
   reset: "\x1B[0m",
   dim: "\x1B[2m",
   bold: "\x1B[1m",
+  italic: "\x1B[3m",
   lime: "\x1B[38;2;214;255;60m",
   sand: "\x1B[38;2;196;184;160m",
-  mute: "\x1B[38;2;138;134;124m",
+  mute: "\x1B[38;2;120;116;108m",
+  ink: "\x1B[38;2;244;241;234m",
   red: "\x1B[38;2;255;92;77m",
-  ink: "\x1B[38;2;244;241;234m"
+  sky: "\x1B[38;2;125;211;252m"
 };
-function color(kind, text) {
+function c(kind, text) {
   if (!process.stdout.isTTY) return text;
-  return `${C[kind]}${text}${C.reset}`;
+  return `${ansi[kind]}${text}${ansi.reset}`;
 }
+function say(text) {
+  for (const line of text.split("\n")) {
+    console.log(`  ${line}`);
+  }
+}
+function agent(text) {
+  console.log("");
+  console.log(`${c("lime", "\u25CF")} ${c("bold", "ruri")} ${c("mute", "\xB7")}`);
+  for (const line of text.split("\n")) {
+    console.log(`  ${c("ink", line)}`);
+  }
+  console.log("");
+}
+function note(text) {
+  console.log(`  ${c("mute", text)}`);
+}
+function item(text) {
+  console.log(`  ${c("lime", "\xB7")} ${text}`);
+}
+function tool(label) {
+  console.log(`  ${c("mute", "\u21B3")} ${c("sand", label)}`);
+}
+function printBoot(meta) {
+  const bar = c("mute", "\u2500".repeat(56));
+  const L = (s) => c("lime", s);
+  const M = (s) => c("mute", s);
+  const S = (s) => c("sand", s);
+  const B = (s) => c("bold", c("ink", s));
+  console.log("");
+  console.log(bar);
+  console.log(L("        .--.      "));
+  console.log(L("       |o_o |     ") + B("  RURI"));
+  console.log(L("       |:_/ |     ") + S("  ruro fleet operator"));
+  console.log(L("      //   \\ \\    ") + M("  github os \xB7 no vibes"));
+  console.log(L("     (|     | )   "));
+  console.log(L("    /'\\_   _/`\\   "));
+  console.log(L("    \\___)=(___/   "));
+  console.log("");
+  console.log(
+    `  ${c("bold", c("ink", "RURO"))} ${c("mute", "v0.2.0")}  ${c("lime", "\u25B8")} ${c("sand", "live")}`
+  );
+  if (meta?.owner) {
+    console.log(
+      c(
+        "mute",
+        `  owner=${meta.owner}${meta.repos != null ? `  repos=${meta.repos}` : ""}`
+      )
+    );
+  }
+  console.log(
+    c(
+      "mute",
+      "  talk naturally \xB7 /view /status /why /review /scan \xB7 /exit"
+    )
+  );
+  console.log(bar);
+  console.log("");
+}
+
+// src/cli/banner.ts
 function ruriArt() {
-  const L = (s) => color("lime", s);
-  const M = (s) => color("mute", s);
-  const S = (s) => color("sand", s);
+  const L = (s) => c("lime", s);
+  const M = (s) => c("mute", s);
+  const S = (s) => c("sand", s);
+  const B = (s) => c("bold", c("ink", s));
   return [
     L("        .--.      "),
-    L("       |o_o |     ") + M("  RURI"),
+    L("       |o_o |     ") + B("  RURI"),
     L("       |:_/ |     ") + S("  ruro fleet operator"),
     L("      //   \\ \\    ") + M("  github os \xB7 no vibes"),
     L("     (|     | )   "),
@@ -725,27 +852,19 @@ function ruriArt() {
   ].join("\n");
 }
 function printBanner(cmd) {
-  const bar = color("mute", "\u2550".repeat(64));
+  const bar = c("mute", "\u2500".repeat(56));
+  console.log("");
   console.log(bar);
   console.log(ruriArt());
   console.log(
-    `${color("bold", color("ink", "  RURO"))} ${color("mute", "v0.1.0")}  ${color("lime", "\u25B8")} ${color("sand", cmd)}`
+    `  ${c("bold", c("ink", "RURO"))} ${c("mute", "v0.2.0")}  ${c("lime", "\u25B8")} ${c("sand", cmd)}`
   );
   console.log(
-    color(
-      "mute",
-      "  scan \xB7 view \xB7 top \xB7 status \xB7 why \xB7 review    truth stays on github"
-    )
+    c("mute", "  scan \xB7 view \xB7 top \xB7 status \xB7 why \xB7 review")
   );
   console.log(bar);
+  console.log("");
 }
-
-// src/cli/repl.ts
-import * as readline from "node:readline";
-
-// src/cli/view.ts
-import { existsSync as existsSync3, readFileSync as readFileSync3 } from "node:fs";
-import { resolve as resolve3 } from "node:path";
 
 // src/score/explain.ts
 var SIGNAL_EXPLAIN = {
@@ -781,8 +900,10 @@ var SIGNAL_EXPLAIN = {
   empty_or_tiny_response: "HTTP ok but body too small to count as a real page.",
   pushed_2w: "Pushed within the last 14 days.",
   pushed_active_window: "Pushed within the active window (config active_days).",
+  pushed_stale_window: "Pushed in the stale window \u2014 still some alive signal.",
   high_cadence_30d: "\u22655 commits in last 30 days.",
   cadence_30d: "\u22651 commit in last 30 days.",
+  cadence_90d: "\u22653 commits in last 90 days (no 30d activity).",
   quiet_long: "Quiet past stale threshold.",
   very_quiet: "Quiet past dormant threshold.",
   never_pushed: "No push timestamp.",
@@ -799,6 +920,7 @@ var SIGNAL_EXPLAIN = {
   topics: "\u22653 topics set.",
   no_topics: "No topics.",
   homepage_verified: "Homepage URL verified by probe.",
+  has_language: "Primary language detected by GitHub.",
   fork: "Repository is a fork \u2014 structure penalty."
 };
 function explainCode(code) {
@@ -807,6 +929,10 @@ function explainCode(code) {
     return SIGNAL_EXPLAIN[code];
   }
   return `Signal code \`${code}\` (see BIBLE / score module).`;
+}
+function explainContribution(c2) {
+  const sign = c2.delta > 0 ? `+${c2.delta}` : String(c2.delta);
+  return `${c2.code} (${c2.pillar} ${sign}): ${explainCode(c2.code)}`;
 }
 function explainScoreLine(score, pillars, weights) {
   const q = weights.quality * pillars.quality;
@@ -819,44 +945,229 @@ function explainScoreLine(score, pillars, weights) {
   ];
 }
 
-// src/cli/view.ts
-var W = 72;
-function line(ch = "\u2500") {
-  return ch.repeat(W);
+// src/cli/narrate.ts
+function deployLabel(repo) {
+  const d = repo.signals.demo;
+  if (d.verified) return `verified live (${d.latencyMs ?? "\u2014"}ms)`;
+  if (d.status === "NONE") return "no deploy url";
+  return `unproven (${d.status}${d.error ? `: ${d.error}` : ""})`;
 }
-function boxTitle(title) {
-  console.log(`\u250C${line("\u2500")}\u2510`);
-  const pad = Math.max(0, W - title.length - 2);
-  console.log(`\u2502 ${title}${" ".repeat(pad)}\u2502`);
-  console.log(`\u251C${line("\u2500")}\u2524`);
+function oneLiner(r, i) {
+  return `${c("mute", String(i + 1).padStart(2))}  ${c("bold", r.signals.name)}  ${r.status}  ${c("lime", String(r.score))}  ${c("mute", deployLabel(r))}`;
 }
-function boxEnd() {
-  console.log(`\u2514${line("\u2500")}\u2518`);
-}
-function row(label, value) {
-  const l = label.padEnd(14, " ");
-  const max = W - 18;
-  const v = value.length > max ? `${value.slice(0, max - 1)}\u2026` : value;
-  console.log(`\u2502 ${l} ${v.padEnd(max, " ")} \u2502`);
-}
-function section2(title) {
-  console.log(`\u2502 ${title.padEnd(W - 2, " ")}\u2502`);
-  console.log(`\u251C${line("\u2500")}\u2524`);
-}
-function wrapBlock(text, prefix = "\u2502   ") {
-  const width = W - prefix.length - 1;
-  const words = text.split(/\s+/);
-  let cur = "";
-  for (const w of words) {
-    if (!cur) cur = w;
-    else if ((cur + " " + w).length <= width) cur += ` ${w}`;
-    else {
-      console.log(`${prefix}${cur.padEnd(width, " ")}\u2502`);
-      cur = w;
-    }
+function narrateView(report) {
+  const live = report.repos.filter((r) => r.signals.demo.verified);
+  const lead = report.repos[0];
+  agent(
+    [
+      `${report.owner} fleet \u2014 ${report.included_count} in scope, ${live.length} verified live.`,
+      lead ? `Lead: ${lead.signals.name} \xB7 ${lead.status} \xB7 ${lead.score}.` : "Nothing scored yet \u2014 run scan."
+    ].join("\n")
+  );
+  for (const [i, r] of report.repos.slice(0, 10).entries()) {
+    say(oneLiner(r, i));
   }
-  if (cur) console.log(`${prefix}${cur.padEnd(width, " ")}\u2502`);
+  if (report.repos.length > 10) {
+    note(`+${report.repos.length - 10} more \u2014 try \u201Ctop 15\u201D`);
+  }
+  note("name a repo for a dossier \xB7 why <repo> for score math");
+  console.log("");
 }
+function narrateTop(report, n) {
+  const top = report.repos.slice(0, Math.max(1, n));
+  agent(`Top ${top.length} by showability.`);
+  for (const [i, r] of top.entries()) {
+    const up = r.drivers.slice(0, 3).join(", ") || "\u2014";
+    const down = r.blockers.slice(0, 3).join(", ") || "\u2014";
+    say(`${c("lime", `${i + 1}.`)} ${c("bold", r.signals.name)}  ${r.status} ${r.score}`);
+    note(
+      `Q${r.pillars.quality} A${r.pillars.alive} S${r.pillars.structure} \xB7 ${deployLabel(r)} \xB7 fit ${r.signals.fitness.score}`
+    );
+    note(`\u2191 ${up}`);
+    note(`\u2193 ${down}`);
+    console.log("");
+  }
+}
+function narrateStatus(report, query) {
+  const repo = findIn(report, query);
+  const s = repo.signals;
+  const demo = s.demo.verified ? `Deploy verified at ${s.demo.url} (${s.demo.latencyMs ?? "\u2014"}ms).` : s.demo.status === "NONE" ? "No deploy URL on file." : `Deploy unproven (${s.demo.status}${s.demo.error ? `: ${s.demo.error}` : ""}).`;
+  agent(
+    [
+      `${repo.signals.fullName}`,
+      `${repo.status} \xB7 score ${repo.score} \xB7 Q${repo.pillars.quality} A${repo.pillars.alive} S${repo.pillars.structure}`,
+      demo,
+      `Code tree: ${s.fitness.sourceFiles} source \xB7 ${s.fitness.testFiles} tests \xB7 fitness ${s.fitness.score}. Stack: ${s.primaryLanguage ?? "\u2014"}.`,
+      `Cadence: last push ${s.pushedAt?.slice(0, 10) ?? "\u2014"} \xB7 ${s.commitsLast30Days} commits/30d \xB7 ${s.hasWorkflows ? "CI present" : "no CI"}.`
+    ].join("\n")
+  );
+  if (repo.drivers.length) {
+    note("raised");
+    for (const d of repo.drivers.slice(0, 5)) item(`${d}`);
+  }
+  if (repo.blockers.length) {
+    note("hurt");
+    for (const b of repo.blockers.slice(0, 5)) item(`${b}`);
+  }
+  note(`why ${s.name} \xB7 review ${s.name} \xB7 full ${s.name}`);
+  console.log("");
+}
+function narrateFull(report, query) {
+  const repo = findIn(report, query);
+  const s = repo.signals;
+  narrateStatus(report, query);
+  agent(`Detail \u2014 ${s.name}`);
+  say(`${c("mute", "url")}     ${s.url}`);
+  say(
+    `${c("mute", "probe")}   ${s.demo.status}${s.demo.verified ? " VERIFIED" : ""} \xB7 ${s.demo.httpStatus ?? "\u2014"} \xB7 ${s.demo.latencyMs ?? "\u2014"}ms \xB7 ${s.demo.proofBytes ?? "\u2014"}B`
+  );
+  say(`${c("mute", "demo")}    ${s.demo.url ?? "\u2014"}`);
+  say(
+    `${c("mute", "flags")}   ${s.fitness.flags.join(", ") || "\u2014"}`
+  );
+  say(
+    `${c("mute", "langs")}   ${(s.languages || []).join(", ") || "\u2014"}`
+  );
+  say(
+    `${c("mute", "readme")}  ${s.readmeBytes ?? 0}B \xB7 license ${s.licenseSpdx ?? (s.hasLicenseFile ? "file" : "none")}`
+  );
+  console.log("");
+  note("raised (explained)");
+  for (const d of repo.drivers) item(`${d} \u2014 ${explainCode(d)}`);
+  note("hurt (explained)");
+  if (!repo.blockers.length) item("(nothing major)");
+  for (const b of repo.blockers) item(`${b} \u2014 ${explainCode(b)}`);
+  console.log("");
+}
+function narrateWhy(report, config, query) {
+  const repo = findIn(report, query);
+  agent(`Why ${repo.signals.name} is ${repo.score}`);
+  for (const line of explainScoreLine(repo.score, repo.pillars, config.weights)) {
+    say(line);
+  }
+  console.log("");
+  note(
+    "LIVE = verified deploy AND push within active_days. Scores are signals \u2014 not taste."
+  );
+  console.log("");
+  note("contributions");
+  const contribs = [...repo.contributions ?? []].sort(
+    (a, b) => Math.abs(b.delta) - Math.abs(a.delta)
+  );
+  for (const row of contribs.filter((x) => x.delta !== 0).slice(0, 16)) {
+    item(explainContribution(row));
+  }
+  console.log("");
+  note("raised");
+  for (const d of repo.drivers) item(`${d}: ${explainCode(d)}`);
+  note("hurt");
+  if (!repo.blockers.length) item("(none)");
+  for (const b of repo.blockers) item(`${b}: ${explainCode(b)}`);
+  console.log("");
+}
+function narrateReview(cache, filter) {
+  if (!cache?.repos.length) {
+    agent("No Copilot audit yet. Say \u201Creview <repo>\u201D (needs GITHUB_TOKEN).");
+    return;
+  }
+  const q = filter?.toLowerCase();
+  const items = q ? cache.repos.filter(
+    (r) => r.fullName.toLowerCase().includes(q) || r.fullName.toLowerCase().endsWith(`/${q}`)
+  ) : cache.repos;
+  if (!items.length) {
+    agent(`No audit found for ${filter}.`);
+    return;
+  }
+  for (const r of items) {
+    if (r.status !== "ok") {
+      agent(
+        `Audit \xB7 ${r.fullName} \xB7 ${r.status} (judgment failed \u2014 scores unchanged)`
+      );
+      if (r.error) say(c("red", r.error));
+      note("This is not a successful review. Retry review <repo>.");
+      console.log("");
+      continue;
+    }
+    agent(`Audit \xB7 ${r.fullName} \xB7 judgment (not score)`);
+    if (r.why_showable) say(r.why_showable);
+    console.log("");
+    if (r.strengths.length) {
+      note("strengths");
+      for (const s of r.strengths) item(s);
+    }
+    if (r.weaknesses.length) {
+      note("weaknesses");
+      for (const w of r.weaknesses) item(w);
+    }
+    console.log("");
+    note("review");
+    say(r.review || "\u2014");
+    console.log("");
+  }
+}
+function findIn(report, query) {
+  const q = query.toLowerCase();
+  const repo = report.repos.find(
+    (r) => r.signals.name.toLowerCase() === q || r.signals.fullName.toLowerCase() === q || r.signals.fullName.toLowerCase().endsWith(`/${q}`)
+  );
+  if (!repo) throw new Error(`No repo matching \u201C${query}\u201D in the latest scan.`);
+  return repo;
+}
+function parseIntent(line) {
+  const raw = line.trim();
+  const lower = raw.toLowerCase();
+  if (!raw) return { kind: "unknown" };
+  if (/^(exit|quit|q|\/exit|\/quit)$/i.test(raw)) return { kind: "exit" };
+  if (/^(help|\?|\/help)$/i.test(raw)) return { kind: "help" };
+  if (/^(clear|\/clear)$/i.test(raw)) return { kind: "clear" };
+  if (/^(reload|\/reload)$/i.test(raw)) return { kind: "reload" };
+  const slash = raw.match(
+    /^\/(view|top|status|full|why|review|scan|explain)\s*(.*)$/i
+  );
+  if (slash) {
+    const cmd = slash[1].toLowerCase();
+    const rest = slash[2].trim();
+    if (cmd === "view") return { kind: "view" };
+    if (cmd === "scan") return { kind: "scan" };
+    if (cmd === "top") {
+      const n = rest ? Number.parseInt(rest, 10) : 5;
+      return { kind: "top", n: Number.isFinite(n) ? n : 5 };
+    }
+    if (cmd === "status") return { kind: "status", arg: rest || void 0 };
+    if (cmd === "full") return { kind: "full", arg: rest || void 0 };
+    if (cmd === "why" || cmd === "explain")
+      return { kind: "why", arg: rest || void 0 };
+    if (cmd === "review") return { kind: "review", arg: rest || void 0 };
+  }
+  if (/^(view|fleet|list|show(\s+fleet)?)$/i.test(lower)) return { kind: "view" };
+  if (/^scan$/i.test(lower) || /refresh|rescan/.test(lower))
+    return { kind: "scan" };
+  const topM = lower.match(/^top\s*(\d+)?$/);
+  if (topM) {
+    return { kind: "top", n: topM[1] ? Number.parseInt(topM[1], 10) : 5 };
+  }
+  const fullM = raw.match(/^(?:full|detail|dossier)\s+(.+)$/i);
+  if (fullM) return { kind: "full", arg: fullM[1].trim() };
+  const statusM = raw.match(
+    /^(?:status|inspect|show|tell me about|what about)\s+(.+)$/i
+  );
+  if (statusM) return { kind: "status", arg: statusM[1].trim() };
+  const whyM = raw.match(/^(?:why|explain)\s+(.+)$/i);
+  if (whyM) return { kind: "why", arg: whyM[1].trim() };
+  const reviewM = raw.match(/^(?:review|audit)\s+(.+)$/i);
+  if (reviewM) return { kind: "review", arg: reviewM[1].trim() };
+  if (/^[\w.-]+$/.test(raw) && raw.length > 1) {
+    return { kind: "status", arg: raw };
+  }
+  return { kind: "unknown" };
+}
+
+// src/cli/repl.ts
+import * as readline from "node:readline";
+
+// src/cli/view.ts
+import { existsSync as existsSync3, readFileSync as readFileSync3 } from "node:fs";
+import { resolve as resolve3 } from "node:path";
 function loadLatestReport(config, cwd = process.cwd()) {
   const path = resolve3(cwd, config.render.data_path);
   if (!existsSync3(path)) {
@@ -878,173 +1189,6 @@ function findRepo(report, query) {
   }
   return repo;
 }
-function deployLabel(repo) {
-  const d = repo.signals.demo;
-  if (d.verified) return `VERIFIED ${d.latencyMs ?? "\u2014"}ms`;
-  if (d.status === "NONE") return "NONE";
-  return `${d.status}${d.error ? ` (${d.error})` : ""}`;
-}
-function printView(report) {
-  boxTitle(`RURO FLEET  \xB7  ${report.owner}  \xB7  ${report.generated_at.slice(0, 19)}`);
-  row(
-    "inventory",
-    `${report.included_count}/${report.repo_count} included \xB7 ${report.excluded_count} excluded`
-  );
-  row(
-    "mix",
-    Object.entries(report.status_counts).filter(([, n]) => n > 0).map(([k, n]) => `${k}:${n}`).join(" ") || "\u2014"
-  );
-  row(
-    "verified",
-    String(report.repos.filter((r) => r.signals.demo.verified).length)
-  );
-  section2("RANK  REPO                      ST       SC  FIT  DEPLOY       STACK");
-  report.repos.forEach((repo, i) => {
-    const rank = String(i + 1).padStart(2, " ");
-    const name = repo.signals.name.padEnd(24, " ").slice(0, 24);
-    const stCell = repo.status.padEnd(8, " ").slice(0, 8);
-    const sc = String(repo.score).padStart(3, " ");
-    const fit = String(repo.signals.fitness?.score ?? 0).padStart(3, " ");
-    const dep = (repo.signals.demo.verified ? "VERIFIED" : repo.signals.demo.status).padEnd(12, " ").slice(0, 12);
-    const stack = (repo.signals.primaryLanguage ?? "\u2014").padEnd(8, " ").slice(0, 8);
-    console.log(
-      `\u2502 ${rank}   ${name} ${stCell} ${sc}  ${fit}  ${dep} ${stack} \u2502`
-    );
-  });
-  section2("HINT");
-  wrapBlock(
-    "ruro status <repo>  \u2014 full dossier   \xB7  ruro why <repo> \u2014 score math   \xB7  ruro review <repo> \u2014 Copilot code audit"
-  );
-  boxEnd();
-}
-function printTop(report, n) {
-  const top = report.repos.slice(0, Math.max(1, n));
-  boxTitle(`RURO TOP ${top.length}  \xB7  ${report.owner}`);
-  top.forEach((repo, i) => {
-    section2(`${i + 1}. ${repo.signals.fullName}`);
-    row("status", `${repo.status} \xB7 score ${repo.score}`);
-    row("pillars", `Q${repo.pillars.quality} A${repo.pillars.alive} S${repo.pillars.structure}`);
-    row("deploy", deployLabel(repo));
-    row(
-      "fitness",
-      `${repo.signals.fitness.score} \xB7 ${repo.signals.fitness.sourceFiles} src \xB7 ${repo.signals.fitness.testFiles} test \xB7 flags ${repo.signals.fitness.flags.join(",") || "\u2014"}`
-    );
-    row("drivers", repo.drivers.join(", ") || "\u2014");
-    row("blockers", repo.blockers.join(", ") || "\u2014");
-  });
-  boxEnd();
-}
-function printStatus(report, query) {
-  const repo = findRepo(report, query);
-  const s = repo.signals;
-  boxTitle(`RURO STATUS  \xB7  ${repo.signals.fullName}`);
-  row("url", s.url);
-  row("private", String(s.isPrivate));
-  row("status", repo.status);
-  row("score", String(repo.score));
-  row(
-    "pillars",
-    `quality=${repo.pillars.quality}  alive=${repo.pillars.alive}  structure=${repo.pillars.structure}`
-  );
-  section2("DEPLOY PROBE");
-  row("status", s.demo.status);
-  row("verified", String(s.demo.verified));
-  row("url", s.demo.url ?? "\u2014");
-  row("final", s.demo.finalUrl ?? "\u2014");
-  row("http", String(s.demo.httpStatus ?? "\u2014"));
-  row("latency", s.demo.latencyMs != null ? `${s.demo.latencyMs}ms` : "\u2014");
-  row("bytes", String(s.demo.proofBytes ?? "\u2014"));
-  row("type", s.demo.contentType ?? "\u2014");
-  row("error", s.demo.error ?? "\u2014");
-  section2("CODE FITNESS (no AI)");
-  row("score", String(s.fitness.score));
-  row("source", String(s.fitness.sourceFiles));
-  row("tests", String(s.fitness.testFiles));
-  row("other", String(s.fitness.otherFiles));
-  row("max_blob", String(s.fitness.maxBlobBytes));
-  row("flags", s.fitness.flags.join(", ") || "\u2014");
-  section2("PLATFORM SIGNALS");
-  row("language", s.primaryLanguage ?? "\u2014");
-  row("languages", s.languages.join(", ") || "\u2014");
-  row("topics", s.topics.join(", ") || "\u2014");
-  row("license", s.licenseSpdx ?? (s.hasLicenseFile ? "file" : "\u2014"));
-  row("readme_b", String(s.readmeBytes ?? "\u2014"));
-  row("disk_kb", String(s.diskUsageKb));
-  row("pushed", s.pushedAt ?? "\u2014");
-  row("commits30", String(s.commitsLast30Days));
-  row("commits90", String(s.commitsLast90Days));
-  row("tests?", `${s.hasTestsHeuristic}/${s.hasTestScript}`);
-  row("ci", `${s.hasWorkflows} \xB7 last=${s.recentWorkflowConclusion ?? "\u2014"} age=${s.recentWorkflowAgeDays ?? "\u2014"}d`);
-  row("manifest", String(s.hasPackageManifest));
-  row("lockfile", String(s.hasLockfile));
-  row("lint", String(s.hasLintConfigHeuristic));
-  row("src/", String(s.hasSrcLayout));
-  row("container", String(s.hasContainerfile));
-  row("releases", String(s.releasesCount));
-  section2("DRIVERS");
-  for (const d of repo.drivers) {
-    wrapBlock(`+ ${d} \u2014 ${explainCode(d)}`);
-  }
-  section2("BLOCKERS");
-  if (!repo.blockers.length) wrapBlock("(none)");
-  for (const b of repo.blockers) {
-    wrapBlock(`- ${b} \u2014 ${explainCode(b)}`);
-  }
-  boxEnd();
-}
-function printWhy(report, config, query) {
-  const repo = findRepo(report, query);
-  boxTitle(`RURO WHY  \xB7  ${repo.signals.fullName}`);
-  section2("FORMULA");
-  for (const l of explainScoreLine(repo.score, repo.pillars, config.weights)) {
-    wrapBlock(l);
-  }
-  section2("STATUS RULE");
-  wrapBlock(
-    "LIVE requires a verified deploy probe (SPA shells count; github.com/repo does not). ACTIVE = recent push without verified deploy. STALE/DORMANT/DEAD by push age. ARCHIVED if archived."
-  );
-  wrapBlock(`derived_status=${repo.status}`);
-  section2("WHAT RAISED THE SCORE");
-  for (const d of repo.drivers) wrapBlock(`+ ${d}: ${explainCode(d)}`);
-  section2("WHAT HURT THE SCORE");
-  if (!repo.blockers.length) wrapBlock("(none)");
-  for (const b of repo.blockers) wrapBlock(`- ${b}: ${explainCode(b)}`);
-  section2("HONEST LIMIT");
-  wrapBlock(
-    "Scores are deterministic signals \u2014 not a human judgment of product quality. Use `ruro review` for Copilot code audit (optional, never moves the score)."
-  );
-  boxEnd();
-}
-function printReviews(cache, filter) {
-  if (!cache || !cache.repos.length) {
-    boxTitle("RURO REVIEW");
-    wrapBlock(
-      "No Copilot audits cached. Run: GITHUB_TOKEN=$(gh auth token) ruro review <repo>"
-    );
-    boxEnd();
-    return;
-  }
-  const q = filter?.toLowerCase();
-  const items = q ? cache.repos.filter(
-    (r) => r.fullName.toLowerCase().includes(q) || r.fullName.toLowerCase().endsWith(`/${q}`)
-  ) : cache.repos;
-  if (!items.length) throw new Error(`No review for: ${filter}`);
-  boxTitle(`RURO REVIEW CACHE  \xB7  ${cache.status}`);
-  if (cache.note) wrapBlock(cache.note);
-  for (const r of items) {
-    section2(r.fullName);
-    row("audit", r.status);
-    wrapBlock(`why: ${r.why_showable || "\u2014"}`);
-    wrapBlock(`strengths: ${r.strengths.join(" | ") || "\u2014"}`);
-    wrapBlock(`weaknesses: ${r.weaknesses.join(" | ") || "\u2014"}`);
-    console.log(`\u2502${" ".repeat(W)}\u2502`);
-    for (const line2 of (r.review || "\u2014").split("\n")) {
-      wrapBlock(line2);
-    }
-    if (r.error) wrapBlock(`error: ${r.error}`);
-  }
-  boxEnd();
-}
 
 // src/run.ts
 import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync5, writeFileSync as writeFileSync2 } from "node:fs";
@@ -1055,11 +1199,11 @@ init_retry();
 import { graphql } from "@octokit/graphql";
 import { Octokit } from "@octokit/rest";
 function createClients(token) {
-  const octokit = new Octokit({ auth: token, userAgent: "ruro/0.1" });
+  const octokit = new Octokit({ auth: token, userAgent: "ruro/0.2" });
   const gqlClient = graphql.defaults({
     headers: {
       authorization: `token ${token}`,
-      "user-agent": "ruro/0.1"
+      "user-agent": "ruro/0.2"
     }
   });
   return {
@@ -1107,36 +1251,6 @@ var REPO_FIELDS = `
           ... on Blob { text }
         }
         licenseFile: object(expression: "HEAD:LICENSE") { ... on Blob { id } }
-        workflows: object(expression: "HEAD:.github/workflows") {
-          ... on Tree { entries { name type } }
-        }
-        dependabotYml: object(expression: "HEAD:.github/dependabot.yml") { ... on Blob { id } }
-        dependabotYaml: object(expression: "HEAD:.github/dependabot.yaml") { ... on Blob { id } }
-        codeowners: object(expression: "HEAD:.github/CODEOWNERS") { ... on Blob { id } }
-        packageJson: object(expression: "HEAD:package.json") { ... on Blob { text id } }
-        cargoToml: object(expression: "HEAD:Cargo.toml") { ... on Blob { id } }
-        goMod: object(expression: "HEAD:go.mod") { ... on Blob { id } }
-        pyproject: object(expression: "HEAD:pyproject.toml") { ... on Blob { text id } }
-        requirements: object(expression: "HEAD:requirements.txt") { ... on Blob { id } }
-        eslintJs: object(expression: "HEAD:eslint.config.js") { ... on Blob { id } }
-        eslintCjs: object(expression: "HEAD:eslint.config.cjs") { ... on Blob { id } }
-        eslintrcJson: object(expression: "HEAD:.eslintrc.json") { ... on Blob { id } }
-        ruffToml: object(expression: "HEAD:ruff.toml") { ... on Blob { id } }
-        prettierrc: object(expression: "HEAD:.prettierrc") { ... on Blob { id } }
-        vitestConfig: object(expression: "HEAD:vitest.config.ts") { ... on Blob { id } }
-        jestConfig: object(expression: "HEAD:jest.config.js") { ... on Blob { id } }
-        packageLock: object(expression: "HEAD:package-lock.json") { ... on Blob { id } }
-        yarnLock: object(expression: "HEAD:yarn.lock") { ... on Blob { id } }
-        pnpmLock: object(expression: "HEAD:pnpm-lock.yaml") { ... on Blob { id } }
-        poetryLock: object(expression: "HEAD:poetry.lock") { ... on Blob { id } }
-        testDir: object(expression: "HEAD:test") { ... on Tree { id } }
-        testsDir: object(expression: "HEAD:tests") { ... on Tree { id } }
-        srcTestDir: object(expression: "HEAD:src/__tests__") { ... on Tree { id } }
-        underscoreTests: object(expression: "HEAD:__tests__") { ... on Tree { id } }
-        specDir: object(expression: "HEAD:spec") { ... on Tree { id } }
-        srcDir: object(expression: "HEAD:src") { ... on Tree { id } }
-        dockerfile: object(expression: "HEAD:Dockerfile") { ... on Blob { id } }
-        containerfile: object(expression: "HEAD:Containerfile") { ... on Blob { id } }
         releases(first: 1, orderBy: { field: CREATED_AT, direction: DESC }) {
           totalCount
           nodes { publishedAt createdAt }
@@ -1180,52 +1294,10 @@ function daysBetween(iso, now) {
 function countCommitsSince(dates, now, withinDays) {
   return dates.filter((d) => daysBetween(d, now) <= withinDays).length;
 }
-function detectTestScript(packageJsonText, pyprojectText) {
-  if (packageJsonText) {
-    try {
-      const pkg = JSON.parse(packageJsonText);
-      const scripts = Object.values(pkg.scripts ?? {}).join(" ").toLowerCase();
-      if (/\b(test|vitest|jest|mocha|pytest|playwright|cypress)\b/.test(scripts)) {
-        return true;
-      }
-      const deps = {
-        ...pkg.dependencies ?? {},
-        ...pkg.devDependencies ?? {}
-      };
-      if (["vitest", "jest", "mocha", "@playwright/test", "cypress"].some(
-        (d) => d in deps
-      )) {
-        return true;
-      }
-    } catch {
-    }
-  }
-  if (pyprojectText) {
-    const lower = pyprojectText.toLowerCase();
-    if (lower.includes("pytest") || lower.includes("unittest") || /\[tool\.pytest/.test(lower)) {
-      return true;
-    }
-  }
-  return false;
-}
 function mapRepo(node, now) {
   const commitDates = node.defaultBranchRef?.target?.history?.nodes.map((n) => n.committedDate) ?? [];
   const readmeText = node.object?.text ?? null;
-  const workflowEntries = node.workflows?.entries ?? [];
-  const hasWorkflows = workflowEntries.some(
-    (e) => e.type === "blob" && /\.ya?ml$/i.test(e.name)
-  );
   const latestReleaseAt = node.releases.nodes[0]?.publishedAt ?? node.releases.nodes[0]?.createdAt ?? null;
-  const hasTestScript = detectTestScript(
-    node.packageJson?.text,
-    node.pyproject?.text
-  );
-  const hasTestsHeuristic = Boolean(
-    node.testDir || node.testsDir || node.srcTestDir || node.underscoreTests || node.specDir || node.vitestConfig || node.jestConfig || hasTestScript
-  );
-  const hasPackageManifest = Boolean(
-    node.packageJson || node.pyproject || node.requirements || node.goMod || node.cargoToml
-  );
   return {
     name: node.name,
     fullName: node.nameWithOwner,
@@ -1251,21 +1323,18 @@ function mapRepo(node, now) {
     diskUsageKb: node.diskUsage ?? 0,
     readmeBytes: readmeText ? Buffer.byteLength(readmeText, "utf8") : null,
     hasLicenseFile: Boolean(node.licenseFile) || Boolean(node.licenseInfo),
-    hasWorkflows,
-    hasDependabotConfig: Boolean(node.dependabotYml || node.dependabotYaml),
-    hasCodeowners: Boolean(node.codeowners),
-    hasTestsHeuristic,
-    hasTestScript,
-    hasLintConfigHeuristic: Boolean(
-      node.eslintJs || node.eslintCjs || node.eslintrcJson || node.ruffToml || node.prettierrc
-    ),
-    hasLockfile: Boolean(
-      node.packageLock || node.yarnLock || node.pnpmLock || node.poetryLock
-    ),
-    hasPackageManifest,
+    // Defaults — overwritten by tree classifiers when tree fetch succeeds
+    hasWorkflows: false,
+    hasDependabotConfig: false,
+    hasCodeowners: false,
+    hasTestsHeuristic: false,
+    hasTestScript: false,
+    hasLintConfigHeuristic: false,
+    hasLockfile: false,
+    hasPackageManifest: false,
     substantialCodebase: (node.diskUsage ?? 0) >= 200,
-    hasSrcLayout: Boolean(node.srcDir),
-    hasContainerfile: Boolean(node.dockerfile || node.containerfile),
+    hasSrcLayout: false,
+    hasContainerfile: false,
     recentWorkflowConclusion: null,
     recentWorkflowAgeDays: null,
     commitsLast30Days: countCommitsSince(commitDates, now, 30),
@@ -1335,9 +1404,9 @@ async function collectRepoSignals(clients, config) {
     hasNext = conn.pageInfo.hasNextPage;
     cursor = conn.pageInfo.endCursor;
   }
-  await enrichWorkflowSignals(clients, collected, now);
   const { enrichCodeFitness: enrichCodeFitness2 } = await Promise.resolve().then(() => (init_code(), code_exports));
   await enrichCodeFitness2(clients, collected);
+  await enrichWorkflowSignals(clients, collected, now);
   return { included: collected, excludedCount };
 }
 async function enrichWorkflowSignals(clients, repos, now) {
@@ -1805,12 +1874,12 @@ function renderDashboard(report, config) {
     "## Legend",
     "",
     "- **Score** = `0.40*Quality + 0.35*Alive + 0.25*Structure` (configurable)",
-    "- **Status**: `LIVE` demo up \xB7 `ACTIVE` recent pushes \xB7 `STALE`/`DORMANT` quiet \xB7 `DEAD` abandoned \xB7 `ARCHIVED`",
-    "- **Demo**: `UP`/`DOWN`/`NONE`/`ERROR` from homepage probe",
+    "- **Status**: `LIVE` = verified deploy **and** push within `active_days` \xB7 `ACTIVE` recent without LIVE \xB7 `STALE`/`DORMANT` quiet \xB7 `DEAD` abandoned \xB7 `ARCHIVED`",
+    "- **Demo**: `UP`/`DOWN`/`NONE`/`ERROR` from homepage probe (`verified` is separate from status)",
     "- Notes prefixed with `!` are blockers",
     "",
     "---",
-    "_Ruro does not use AI. Same inputs \u21D2 same scores._",
+    "_Ruro core is zero-AI. Same inputs \u21D2 same scores. Copilot audit is optional judgment._",
     ""
   );
   return lines.join("\n");
@@ -2387,7 +2456,7 @@ function renderWebDashboard(report, config, cwd = process.cwd()) {
     <section aria-label="Showables">
       <p class="sec-kicker">Show path</p>
       <h2 class="sec-title">What to open in an interview</h2>
-      <p class="sec-copy">Ranked by showability. Fitness is without-AI tree truth. Deploy is only \u201Cverified\u201D when the probe passed.</p>
+      <p class="sec-copy">Ranked by showability. Fitness is without-AI tree truth. LIVE = verified deploy and recent push (active_days). Deploy \u201Cverified\u201D is separate from status.</p>
       <div>${showHtml}</div>
     </section>
 
@@ -2433,241 +2502,188 @@ function daysSince(iso, now) {
   if (!iso) return null;
   return Math.max(0, (now.getTime() - new Date(iso).getTime()) / 864e5);
 }
-function scoreQuality(s) {
-  let score = 18;
-  const drivers = [];
-  const blockers = [];
-  if (s.hasPackageManifest) {
-    score += 8;
-    drivers.push("manifest");
-  }
-  if (s.substantialCodebase) {
-    score += 10;
-    drivers.push("substantial_code");
-  }
-  if (s.fitness.score >= 70) {
-    score += 14;
-    drivers.push("code_fitness_high");
-  } else if (s.fitness.score >= 45) {
-    score += 8;
-    drivers.push("code_fitness_ok");
-  } else if (s.fitness.flags.includes("no_source_files")) {
-    score -= 18;
-    blockers.push("no_source_files");
-  } else if (s.fitness.flags.includes("tiny_tree")) {
-    score -= 10;
-    blockers.push("tiny_tree");
-  }
-  if (s.fitness.flags.includes("has_test_files")) {
-    score += 6;
-    drivers.push("test_files_in_tree");
-  }
-  if (s.fitness.flags.includes("god_file")) {
-    score -= 6;
-    blockers.push("god_file");
-  }
-  if (s.hasSrcLayout) {
-    score += 4;
-    drivers.push("src_layout");
-  }
-  if (s.hasContainerfile) {
-    score += 4;
-    drivers.push("containerized");
-  }
+var BASE = {
+  quality: 18,
+  alive: 0,
+  structure: 15
+};
+function qualityFeatures(s) {
+  const out = [];
+  const q = (code, delta) => {
+    out.push({ code, pillar: "quality", delta });
+  };
+  if (s.hasPackageManifest) q("manifest", 8);
+  if (s.substantialCodebase) q("substantial_code", 10);
+  if (s.fitness.score >= 70) q("code_fitness_high", 14);
+  else if (s.fitness.score >= 45) q("code_fitness_ok", 8);
+  else if (s.fitness.flags.includes("no_source_files")) q("no_source_files", -18);
+  else if (s.fitness.flags.includes("tiny_tree")) q("tiny_tree", -10);
+  if (s.fitness.flags.includes("has_test_files")) q("test_files_in_tree", 6);
+  if (s.fitness.flags.includes("god_file")) q("god_file", -6);
+  if (s.hasSrcLayout) q("src_layout", 4);
+  if (s.hasContainerfile) q("containerized", 4);
   if (s.hasTestsHeuristic) {
-    score += 20;
-    drivers.push("tests_present");
-    if (s.hasTestScript) {
-      score += 4;
-      drivers.push("test_script");
-    }
+    q("tests_present", 20);
+    if (s.hasTestScript) q("test_script", 4);
   } else {
-    blockers.push("no_tests_detected");
+    q("no_tests_detected", 0);
   }
-  if (s.hasWorkflows) {
-    score += 12;
-    drivers.push("ci_workflows");
-  } else {
-    blockers.push("no_ci");
-  }
-  if (s.recentWorkflowConclusion === "success") {
-    score += 12;
-    drivers.push("ci_green");
-  } else if (s.recentWorkflowConclusion === "failure") {
-    score -= 8;
-    blockers.push("ci_failing");
-  }
-  if (s.hasLintConfigHeuristic) {
-    score += 10;
-    drivers.push("lint_config");
-  }
-  if (s.hasDependabotConfig) {
-    score += 8;
-    drivers.push("dependabot");
-  }
-  if (s.hasLockfile) {
-    score += 6;
-    drivers.push("lockfile");
-  }
-  if (s.hasCodeowners) {
-    score += 4;
-    drivers.push("codeowners");
-  }
+  if (s.hasWorkflows) q("ci_workflows", 12);
+  else q("no_ci", 0);
+  if (s.recentWorkflowConclusion === "success") q("ci_green", 12);
+  else if (s.recentWorkflowConclusion === "failure") q("ci_failing", -8);
+  if (s.hasLintConfigHeuristic) q("lint_config", 10);
+  if (s.hasDependabotConfig) q("dependabot", 8);
+  if (s.hasLockfile) q("lockfile", 6);
+  if (s.hasCodeowners) q("codeowners", 4);
   if (s.diskUsageKb > 0 && s.diskUsageKb < 40 && !s.hasTestsHeuristic) {
-    score -= 15;
-    blockers.push("stub_sized");
+    q("stub_sized", -15);
   }
-  if (!s.primaryLanguage && s.diskUsageKb < 80) {
-    score -= 10;
-    blockers.push("no_language");
-  }
-  return { score: clamp(score), drivers, blockers };
+  if (!s.primaryLanguage && s.diskUsageKb < 80) q("no_language", -10);
+  return out;
 }
-function scoreAlive(s, thresholds) {
-  let score = 0;
-  const drivers = [];
-  const blockers = [];
-  const now = /* @__PURE__ */ new Date();
+function aliveFeatures(s, thresholds, now) {
+  const out = [];
+  const a = (code, delta) => {
+    out.push({ code, pillar: "alive", delta });
+  };
   const pushAge = daysSince(s.pushedAt, now);
-  if (s.demo.status === "UP" && s.demo.verified) {
-    score += 35;
-    drivers.push("demo_verified");
-  } else if (s.demo.status === "DOWN" || s.demo.status === "ERROR") {
-    score -= 10;
-    blockers.push("demo_unproven");
-    if (s.demo.error) blockers.push(s.demo.error.replace(/\s+/g, "_").slice(0, 40));
-  } else if (s.homepageUrl) {
-    blockers.push("homepage_unproven");
-  }
-  if (pushAge === null) {
-    blockers.push("never_pushed");
-  } else if (pushAge <= 14) {
-    score += 30;
-    drivers.push("pushed_2w");
-  } else if (pushAge <= thresholds.active_days) {
-    score += 22;
-    drivers.push("pushed_active_window");
-  } else if (pushAge <= thresholds.stale_days) {
-    score += 12;
-  } else if (pushAge <= thresholds.dormant_days) {
-    score += 5;
-    blockers.push("quiet_long");
-  } else {
-    blockers.push("very_quiet");
-  }
-  if (s.commitsLast30Days >= 5) {
-    score += 15;
-    drivers.push("high_cadence_30d");
-  } else if (s.commitsLast30Days >= 1) {
-    score += 8;
-    drivers.push("cadence_30d");
-  } else if (s.commitsLast90Days >= 3) {
-    score += 5;
-  }
-  if (s.releasesCount > 0) {
-    score += 8;
-    drivers.push("has_releases");
-    const releaseAge = daysSince(s.latestReleaseAt, now);
-    if (releaseAge !== null && releaseAge <= 180) {
-      score += 5;
-      drivers.push("recent_release");
+  if (s.demo.status === "UP" && s.demo.verified) a("demo_verified", 35);
+  else if (s.demo.status === "DOWN" || s.demo.status === "ERROR") {
+    a("demo_unproven", -10);
+    if (s.demo.error) {
+      a(s.demo.error.replace(/\s+/g, "_").slice(0, 40), 0);
     }
+  } else if (s.homepageUrl) {
+    a("homepage_unproven", 0);
+  }
+  if (pushAge === null) a("never_pushed", 0);
+  else if (pushAge <= 14) a("pushed_2w", 30);
+  else if (pushAge <= thresholds.active_days) a("pushed_active_window", 22);
+  else if (pushAge <= thresholds.stale_days) a("pushed_stale_window", 12);
+  else if (pushAge <= thresholds.dormant_days) a("quiet_long", 5);
+  else a("very_quiet", 0);
+  if (s.commitsLast30Days >= 5) a("high_cadence_30d", 15);
+  else if (s.commitsLast30Days >= 1) a("cadence_30d", 8);
+  else if (s.commitsLast90Days >= 3) a("cadence_90d", 5);
+  if (s.releasesCount > 0) {
+    a("has_releases", 8);
+    const releaseAge = daysSince(s.latestReleaseAt, now);
+    if (releaseAge !== null && releaseAge <= 180) a("recent_release", 5);
   }
   if (s.recentWorkflowConclusion === "success" && s.recentWorkflowAgeDays !== null && s.recentWorkflowAgeDays <= 30) {
-    score += 7;
-    drivers.push("ci_fresh");
+    a("ci_fresh", 7);
   }
-  return { score: clamp(score), drivers, blockers };
+  return out;
 }
-function scoreStructure(s) {
-  let score = 15;
-  const drivers = [];
-  const blockers = [];
-  if (s.description && s.description.trim().length >= 20) {
-    score += 12;
-    drivers.push("description");
-  } else {
-    blockers.push("weak_description");
-  }
-  if (s.readmeBytes !== null && s.readmeBytes >= 800) {
-    score += 20;
-    drivers.push("readme_substance");
-  } else if (s.readmeBytes !== null && s.readmeBytes >= 200) {
-    score += 10;
-    drivers.push("readme_basic");
-  } else {
-    blockers.push("thin_readme");
-  }
-  if (s.hasLicenseFile || s.licenseSpdx) {
-    score += 15;
-    drivers.push("license");
-  } else {
-    blockers.push("no_license");
-  }
-  if (s.topics.length >= 3) {
-    score += 8;
-    drivers.push("topics");
-  } else if (s.topics.length === 0) {
-    blockers.push("no_topics");
-  }
-  if (s.homepageUrl && s.demo.verified) {
-    score += 10;
-    drivers.push("homepage_verified");
-  } else if (s.homepageUrl) {
-    blockers.push("homepage_unproven");
-  }
-  if (s.primaryLanguage) {
-    score += 8;
-  }
-  if (s.isFork) {
-    score -= 20;
-    blockers.push("fork");
-  }
-  return { score: clamp(score), drivers, blockers };
+function structureFeatures(s) {
+  const out = [];
+  const st = (code, delta) => {
+    out.push({ code, pillar: "structure", delta });
+  };
+  if (s.description && s.description.trim().length >= 20) st("description", 12);
+  else st("weak_description", 0);
+  if (s.readmeBytes !== null && s.readmeBytes >= 800) st("readme_substance", 20);
+  else if (s.readmeBytes !== null && s.readmeBytes >= 200) st("readme_basic", 10);
+  else st("thin_readme", 0);
+  if (s.hasLicenseFile || s.licenseSpdx) st("license", 15);
+  else st("no_license", 0);
+  if (s.topics.length >= 3) st("topics", 8);
+  else if (s.topics.length === 0) st("no_topics", 0);
+  if (s.homepageUrl && s.demo.verified) st("homepage_verified", 10);
+  else if (s.homepageUrl) st("homepage_unproven", 0);
+  if (s.primaryLanguage) st("has_language", 8);
+  if (s.isFork) st("fork", -20);
+  return out;
 }
-function deriveStatus(s, thresholds) {
+function pillarFrom(pillar, features) {
+  const sum = features.filter((f) => f.pillar === pillar).reduce((acc, f) => acc + f.delta, 0);
+  return clamp(BASE[pillar] + sum);
+}
+var HURT_CODES = /* @__PURE__ */ new Set([
+  "no_tests_detected",
+  "no_ci",
+  "no_source_files",
+  "tiny_tree",
+  "god_file",
+  "stub_sized",
+  "no_language",
+  "ci_failing",
+  "demo_unproven",
+  "homepage_unproven",
+  "never_pushed",
+  "quiet_long",
+  "very_quiet",
+  "weak_description",
+  "thin_readme",
+  "no_license",
+  "no_topics",
+  "fork",
+  "parking_or_soft_404",
+  "homepage_is_github_repo_not_deploy",
+  "redirected_to_github_repo",
+  "empty_or_tiny_response"
+]);
+function driversFrom(features) {
+  return [
+    ...new Set(
+      features.filter((f) => f.delta > 0 && !HURT_CODES.has(f.code)).map((f) => f.code)
+    )
+  ].slice(0, 10);
+}
+function blockersFrom(features) {
+  return [
+    ...new Set(
+      features.filter((f) => f.delta < 0 || HURT_CODES.has(f.code)).map((f) => f.code)
+    )
+  ].slice(0, 10);
+}
+function deriveStatus(s, thresholds, now = /* @__PURE__ */ new Date()) {
   if (s.isArchived) return "ARCHIVED";
-  const pushAge = daysSince(s.pushedAt, /* @__PURE__ */ new Date());
+  const pushAge = daysSince(s.pushedAt, now);
   const demoUp = s.demo.status === "UP" && s.demo.verified;
-  if (demoUp && (pushAge === null || pushAge <= thresholds.dormant_days)) {
+  if (demoUp && pushAge !== null && pushAge <= thresholds.active_days) {
     return "LIVE";
   }
   if (pushAge !== null && pushAge <= thresholds.active_days) {
-    return demoUp ? "LIVE" : "ACTIVE";
+    return "ACTIVE";
   }
   if (pushAge !== null && pushAge <= thresholds.stale_days) return "STALE";
   if (pushAge !== null && pushAge <= thresholds.dormant_days) return "DORMANT";
   return "DEAD";
 }
-function scoreRepo(s, config) {
-  const q = scoreQuality(s);
-  const a = scoreAlive(s, config.thresholds);
-  const st = scoreStructure(s);
+function scoreRepo(s, config, now = /* @__PURE__ */ new Date()) {
+  const contributions = [
+    ...qualityFeatures(s),
+    ...aliveFeatures(s, config.thresholds, now),
+    ...structureFeatures(s)
+  ];
   const pillars = {
-    quality: q.score,
-    alive: a.score,
-    structure: st.score
+    quality: pillarFrom("quality", contributions),
+    alive: pillarFrom("alive", contributions),
+    structure: pillarFrom("structure", contributions)
   };
   const score = clamp(
     config.weights.quality * pillars.quality + config.weights.alive * pillars.alive + config.weights.structure * pillars.structure
   );
-  const drivers = [
-    .../* @__PURE__ */ new Set([...a.drivers, ...q.drivers, ...st.drivers])
-  ].slice(0, 10);
-  const blockers = [
-    .../* @__PURE__ */ new Set([...a.blockers, ...q.blockers, ...st.blockers])
-  ].slice(0, 10);
+  const aliveFirst = [
+    ...driversFrom(contributions.filter((c2) => c2.pillar === "alive")),
+    ...driversFrom(contributions.filter((c2) => c2.pillar !== "alive"))
+  ];
+  const drivers = [...new Set(aliveFirst)].slice(0, 10);
+  const blockers = blockersFrom(contributions);
   return {
     signals: s,
     score,
     pillars,
-    status: deriveStatus(s, config.thresholds),
+    status: deriveStatus(s, config.thresholds, now),
     drivers,
-    blockers
+    blockers,
+    contributions
   };
 }
-function scoreAll(signals, config) {
-  return signals.map((s) => scoreRepo(s, config)).sort((a, b) => {
+function scoreAll(signals, config, now = /* @__PURE__ */ new Date()) {
+  return signals.map((s) => scoreRepo(s, config, now)).sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     return a.signals.fullName.localeCompare(b.signals.fullName);
   });
@@ -2782,156 +2798,148 @@ async function runRuro(options) {
 }
 
 // src/cli/repl.ts
-function helpLive() {
-  console.log(`
- ${color("lime", "live session")} \u2014 type a command, Ruri stays up
-
-  view                 fleet board
-  top [n]              top N showables
-  status <repo>        full dossier + audit cache
-  why <repo>           score math + explained codes
-  review <repo>        Copilot audit (needs GITHUB_TOKEN)
-  scan                 refresh truth (needs GITHUB_TOKEN)
-  reload               re-read data/latest.json
-  clear                clear screen + banner
-  help                 this help
-  exit | quit | q      leave session
-`);
+function help() {
+  agent(
+    [
+      "I\u2019m Ruri \u2014 fleet operator for this GitHub OS.",
+      "",
+      "  view                 show path",
+      "  top 5                ranked shortlist",
+      "  aryanbloodbank      short dossier (any repo name)",
+      "  full phantom         long dossier",
+      "  why phantom          score math",
+      "  review <repo>        Copilot audit",
+      "  scan                 refresh truth",
+      "",
+      "Slash forms work too. /exit to leave."
+    ].join("\n")
+  );
 }
 async function startRepl(opts) {
   const cwd = opts.cwd ?? process.cwd();
-  let config = opts.config;
+  const config = opts.config;
   let report = loadLatestReport(config, cwd);
-  printBanner("live");
-  console.log(color("mute", "  OpenClaw-style session. Commands keep running until you exit."));
-  console.log(color("mute", `  owner=${report.owner}  repos=${report.included_count}  generated=${report.generated_at.slice(0, 19)}`));
-  console.log(color("mute", "  type help \xB7 exit with q"));
-  console.log("");
+  printBoot({ owner: report.owner, repos: report.included_count });
+  agent(
+    `Online. Ask for the fleet, a repo name, why, or a review.`
+  );
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: color("lime", "ruro") + color("mute", " \u203A "),
+    prompt: `${c("lime", "\u203A")} `,
     terminal: true
   });
   const reload = () => {
     report = loadLatestReport(config, cwd);
-    console.log(
-      color("mute", `[ruro] reloaded ${report.included_count} repos @ ${report.generated_at.slice(0, 19)}`)
+    agent(
+      `Reloaded \xB7 ${report.included_count} repos \xB7 ${report.generated_at.slice(0, 19)}`
     );
   };
-  const runLine = async (line2) => {
-    const raw = line2.trim();
-    if (!raw) return "continue";
-    const parts = raw.split(/\s+/);
-    const cmd = parts[0]?.toLowerCase() ?? "";
-    const args = parts.slice(1);
+  const handle = async (line) => {
+    const intent = parseIntent(line);
     try {
-      if (cmd === "exit" || cmd === "quit" || cmd === "q") {
-        console.log(color("sand", "  ruri out."));
-        return "exit";
-      }
-      if (cmd === "help" || cmd === "?") {
-        helpLive();
-        return "continue";
-      }
-      if (cmd === "clear") {
-        console.clear();
-        printBanner("live");
-        console.log(ruriArt());
-        return "continue";
-      }
-      if (cmd === "reload") {
-        reload();
-        return "continue";
-      }
-      if (cmd === "view") {
-        printView(report);
-        return "continue";
-      }
-      if (cmd === "top") {
-        const n = args[0] ? Number.parseInt(args[0], 10) : 5;
-        if (!Number.isFinite(n) || n < 1) {
-          console.error("usage: top [n]");
+      switch (intent.kind) {
+        case "exit":
+          agent("Offline.");
+          return "exit";
+        case "help":
+          help();
           return "continue";
-        }
-        printTop(report, n);
-        return "continue";
-      }
-      if (cmd === "status") {
-        if (!args[0]) {
-          console.error("usage: status <repo>");
+        case "clear":
+          console.clear();
+          printBoot({ owner: report.owner, repos: report.included_count });
           return "continue";
-        }
-        printStatus(report, args[0]);
-        printReviews(readAiCache(cwd, config.ai.cache_dir), args[0]);
-        return "continue";
-      }
-      if (cmd === "why" || cmd === "explain") {
-        if (!args[0]) {
-          console.error("usage: why <repo>");
+        case "reload":
+          reload();
           return "continue";
-        }
-        printWhy(report, config, args[0]);
-        return "continue";
-      }
-      if (cmd === "review") {
-        const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || void 0;
-        if (!token) {
-          console.error("set GITHUB_TOKEN / GH_TOKEN for review");
+        case "view":
+          narrateView(report);
           return "continue";
-        }
-        const query = args[0];
-        const aiConfig = {
-          ...config,
-          ai: {
-            ...config.ai,
-            enabled: true,
-            provider: "copilot",
-            top_n: query ? 1 : config.ai.top_n
+        case "top":
+          narrateTop(report, intent.n ?? 5);
+          return "continue";
+        case "status":
+          if (!intent.arg) {
+            agent("Which repo? e.g. aryanbloodbank");
+            return "continue";
           }
-        };
-        const scoped = query ? { ...report, repos: [findRepo(report, query)] } : { ...report, repos: report.repos.slice(0, config.ai.top_n) };
-        console.log(
-          color(
-            "mute",
-            `[ruro] reviewing ${scoped.repos.map((r) => r.signals.name).join(", ")}\u2026`
-          )
-        );
-        const result = await annotateWithCopilot({
-          report: scoped,
-          config: aiConfig,
-          cwd,
-          token
-        });
-        console.log(
-          result.skipped ? `[ruro] skipped: ${result.reason ?? "unknown"}` : `[ruro] audited ${result.annotated}`
-        );
-        printReviews(readAiCache(cwd, config.ai.cache_dir), query);
-        return "continue";
-      }
-      if (cmd === "scan") {
-        const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || void 0;
-        if (!token) {
-          console.error("set GITHUB_TOKEN / GH_TOKEN for scan");
+          narrateStatus(report, intent.arg);
+          return "continue";
+        case "full":
+          if (!intent.arg) {
+            agent("Which repo? e.g. full aryanbloodbank");
+            return "continue";
+          }
+          narrateFull(report, intent.arg);
+          return "continue";
+        case "why":
+          if (!intent.arg) {
+            agent("Which repo? e.g. why phantom");
+            return "continue";
+          }
+          narrateWhy(report, config, intent.arg);
+          return "continue";
+        case "review": {
+          const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || void 0;
+          if (!token) {
+            agent("Set GITHUB_TOKEN (or GH_TOKEN) in this shell, then retry.");
+            return "continue";
+          }
+          if (!intent.arg) {
+            agent("Which repo? e.g. review aryanbloodbank");
+            return "continue";
+          }
+          const target = findIn(report, intent.arg);
+          tool(`auditing ${target.signals.fullName} with Copilot\u2026`);
+          const aiConfig = {
+            ...config,
+            ai: {
+              ...config.ai,
+              enabled: true,
+              provider: "copilot",
+              top_n: 1
+            }
+          };
+          const result = await annotateWithCopilot({
+            report: { ...report, repos: [target] },
+            config: aiConfig,
+            cwd,
+            token
+          });
+          if (result.skipped) {
+            agent(`Audit skipped \u2014 ${result.reason ?? "unknown"}`);
+          } else {
+            agent(`Audit stored.`);
+          }
+          narrateReview(readAiCache(cwd, config.ai.cache_dir), intent.arg);
           return "continue";
         }
-        console.log(color("mute", "[ruro] scanning\u2026"));
-        const result = await runRuro({ token, config, cwd });
-        console.log(
-          `[ruro] scored ${result.report.included_count} \u2192 ${result.dashboardPath}`
-        );
-        reload();
-        return "continue";
+        case "scan": {
+          const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || void 0;
+          if (!token) {
+            agent("Set GITHUB_TOKEN (or GH_TOKEN) to scan.");
+            return "continue";
+          }
+          tool("scanning GitHub + probes + fitness\u2026");
+          const result = await runRuro({ token, config, cwd });
+          agent(
+            `Done \xB7 ${result.report.included_count} scored \xB7 lead ${result.report.repos[0]?.signals.name ?? "\u2014"}`
+          );
+          reload();
+          return "continue";
+        }
+        default:
+          agent(`Didn\u2019t catch that. Try \u201Cview\u201D, a repo name, or /help.`);
+          return "continue";
       }
-      console.error(`unknown: ${cmd}  (type help)`);
     } catch (err) {
-      console.error(err instanceof Error ? err.message : err);
+      agent(err instanceof Error ? err.message : String(err));
+      return "continue";
     }
-    return "continue";
   };
   rl.prompt();
-  for await (const line2 of rl) {
-    const next = await runLine(line2);
+  for await (const line of rl) {
+    const next = await handle(line);
     if (next === "exit") {
       rl.close();
       break;
@@ -2944,22 +2952,31 @@ async function startRepl(opts) {
 function usage() {
   printBanner("help");
   console.log(`
-  ruro                      start LIVE session (stays open \u2014 like OpenClaw)
-  ruro repl                 same as above
-  ruro scan [...]           one-shot scan
-  ruro view | top | status | why | review   one-shot commands
+  ruro                         live agent session (Ruri)
+  ruro repl|live|shell         same
+  ruro scan                    refresh truth (needs token)
+  ruro view | top [n]          fleet / shortlist
+  ruro status <repo>           short dossier
+  ruro why <repo>              score math + contributions
+  ruro review [repo]           Copilot audit (optional)
+  ruro --json <cmd> \u2026          machine output (no chrome)
 
-Live session (recommended):
+Live:
   $ npm run ruro
-  ruro \u203A view
-  ruro \u203A status aryanbloodbank
-  ruro \u203A why phantom
-  ruro \u203A review aryanbloodbank
-  ruro \u203A exit
+  \u203A view
+  \u203A aryanbloodbank
+  \u203A why phantom
+  \u203A /exit
 
-Env: GITHUB_TOKEN / GH_TOKEN for scan & review
+Env: GITHUB_TOKEN or GH_TOKEN for scan & review
 `);
   process.exit(1);
+}
+function takeFlag(args, flag) {
+  const i = args.indexOf(flag);
+  if (i < 0) return false;
+  args.splice(i, 1);
+  return true;
 }
 function parseConfigPath(args) {
   let configPath = "ruro.yml";
@@ -2981,7 +2998,24 @@ function loadCfg(configPath, owner) {
     return defaultConfig(owner);
   }
 }
-async function runScan(args) {
+function emitJson(payload) {
+  process.stdout.write(`${JSON.stringify(payload, null, 2)}
+`);
+}
+function whyPayload(repo, config) {
+  return {
+    fullName: repo.signals.fullName,
+    score: repo.score,
+    status: repo.status,
+    pillars: repo.pillars,
+    weights: config.weights,
+    formula: explainScoreLine(repo.score, repo.pillars, config.weights),
+    contributions: repo.contributions ?? [],
+    drivers: repo.drivers.map((d) => ({ code: d, explain: explainCode(d) })),
+    blockers: repo.blockers.map((b) => ({ code: b, explain: explainCode(b) }))
+  };
+}
+async function runScan(args, asJson) {
   let configPath = "ruro.yml";
   let owner;
   let token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || void 0;
@@ -2995,6 +3029,7 @@ async function runScan(args) {
     else if (a === "--dry-run") dryRun = true;
     else if (a === "--sync-profile") syncProfile = true;
     else if (a === "--no-sync-profile") syncProfile = false;
+    else if (a === "--json") continue;
     else {
       console.error(`Unknown arg: ${a}`);
       usage();
@@ -3004,22 +3039,28 @@ async function runScan(args) {
     console.error("Missing token. Set GITHUB_TOKEN or pass --token.");
     process.exit(1);
   }
-  printBanner("scan");
-  console.log("[ruro] scan starting (github + probes + fitness)\u2026");
+  if (!asJson) {
+    printBanner("scan");
+    tool("scanning GitHub + probes + fitness\u2026");
+  }
   const config = loadCfg(configPath, owner);
   const result = await runRuro({ token, config, dryRun, syncProfile });
-  console.log(
-    `[ruro] scored ${result.report.included_count} \u2192 ${result.dashboardPath}`
-  );
-  console.log(`[ruro] web \u2192 ${result.webPath}`);
-  if (result.report.repos[0]) {
-    const top = result.report.repos[0];
-    console.log(
-      `[ruro] lead ${top.signals.fullName} [${top.status}] score=${top.score}`
-    );
+  if (asJson) {
+    emitJson({
+      ok: true,
+      included: result.report.included_count,
+      lead: result.report.repos[0]?.signals.fullName ?? null,
+      dashboardPath: result.dashboardPath,
+      webPath: result.webPath,
+      generated_at: result.report.generated_at
+    });
+    return;
   }
+  agent(
+    `Done \xB7 ${result.report.included_count} scored \xB7 lead ${result.report.repos[0]?.signals.name ?? "\u2014"}`
+  );
 }
-async function runReview(args) {
+async function runReview(args, asJson) {
   let configPath = "ruro.yml";
   let token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || void 0;
   let query;
@@ -3027,7 +3068,7 @@ async function runReview(args) {
     const a = args[i];
     if (a === "--config") configPath = args[++i];
     else if (a === "--token") token = args[++i];
-    else if (a === "--force") continue;
+    else if (a === "--force" || a === "--json") continue;
     else if (a.startsWith("-")) {
       console.error(`Unknown arg: ${a}`);
       usage();
@@ -3049,22 +3090,43 @@ async function runReview(args) {
     }
   };
   const scoped = query ? { ...report, repos: [findRepo(report, query)] } : { ...report, repos: report.repos.slice(0, config.ai.top_n) };
-  printBanner(`review ${query ?? "top"}`);
+  if (!asJson) {
+    printBanner(`review ${query ?? "top"}`);
+    tool(`auditing ${query ?? "top"} with Copilot\u2026`);
+  }
   const result = await annotateWithCopilot({
     report: scoped,
     config: aiConfig,
     cwd: process.cwd(),
     token
   });
-  console.log(
-    result.skipped ? `[ruro] review skipped: ${result.reason ?? "unknown"}` : `[ruro] audited ${result.annotated} \u2192 ${config.ai.cache_dir}`
-  );
-  printReviews(readAiCache(process.cwd(), config.ai.cache_dir), query);
+  const cache = readAiCache(process.cwd(), config.ai.cache_dir);
+  if (asJson) {
+    emitJson({
+      ok: !result.skipped,
+      skipped: result.skipped,
+      reason: result.reason,
+      annotated: result.annotated,
+      cache
+    });
+    return;
+  }
+  if (result.skipped) {
+    agent(`Audit skipped \u2014 ${result.reason ?? "unknown"}`);
+  } else {
+    agent(`Audit stored (${result.annotated}).`);
+  }
+  narrateReview(cache, query);
 }
 async function main() {
   const argv = process.argv.slice(2);
   if (argv.includes("-h") || argv.includes("--help")) usage();
+  const asJson = takeFlag(argv, "--json");
   if (argv.length === 0 || argv[0] === "repl" || argv[0] === "shell" || argv[0] === "live") {
+    if (asJson) {
+      console.error("--json cannot start an interactive session");
+      process.exit(1);
+    }
     let configPath2 = "ruro.yml";
     const rest2 = argv[0] && ["repl", "shell", "live"].includes(argv[0]) ? argv.slice(1) : argv;
     for (let i = 0; i < rest2.length; i += 1) {
@@ -3085,24 +3147,27 @@ async function main() {
     "explain"
   ].includes(cmd);
   if (!isSub) {
-    await runScan(argv);
+    await runScan(argv, asJson);
     return;
   }
   const subArgs = argv.slice(1);
   if (cmd === "scan") {
-    await runScan(subArgs);
+    await runScan(subArgs, asJson);
     return;
   }
   if (cmd === "review") {
-    await runReview(subArgs);
+    await runReview(subArgs, asJson);
     return;
   }
   const { configPath, rest } = parseConfigPath(subArgs);
   const config = loadCfg(configPath);
   const report = loadLatestReport(config);
   if (cmd === "view") {
-    printBanner("view");
-    printView(report);
+    if (asJson) {
+      emitJson(summarizeReport(report));
+      return;
+    }
+    narrateView(report);
     return;
   }
   if (cmd === "top") {
@@ -3111,8 +3176,14 @@ async function main() {
       console.error("top expects a positive integer");
       process.exit(1);
     }
-    printBanner(`top ${n}`);
-    printTop(report, n);
+    if (asJson) {
+      emitJson({
+        owner: report.owner,
+        top: report.repos.slice(0, n).map(summarizeRepo)
+      });
+      return;
+    }
+    narrateTop(report, n);
     return;
   }
   if (cmd === "status") {
@@ -3121,9 +3192,11 @@ async function main() {
       console.error("status expects a repo name");
       process.exit(1);
     }
-    printBanner(`status ${query}`);
-    printStatus(report, query);
-    printReviews(readAiCache(process.cwd(), config.ai.cache_dir), query);
+    if (asJson) {
+      emitJson(summarizeRepo(findRepo(report, query)));
+      return;
+    }
+    narrateStatus(report, query);
     return;
   }
   if (cmd === "why" || cmd === "explain") {
@@ -3132,9 +3205,42 @@ async function main() {
       console.error("why expects a repo name");
       process.exit(1);
     }
-    printBanner(`why ${query}`);
-    printWhy(report, config, query);
+    const repo = findRepo(report, query);
+    if (asJson) {
+      emitJson(whyPayload(repo, config));
+      return;
+    }
+    narrateWhy(report, config, query);
   }
+}
+function summarizeRepo(repo) {
+  return {
+    fullName: repo.signals.fullName,
+    name: repo.signals.name,
+    status: repo.status,
+    score: repo.score,
+    pillars: repo.pillars,
+    deploy: {
+      status: repo.signals.demo.status,
+      verified: repo.signals.demo.verified,
+      url: repo.signals.demo.url
+    },
+    fitness: repo.signals.fitness.score,
+    drivers: repo.drivers,
+    blockers: repo.blockers,
+    contributions: repo.contributions ?? []
+  };
+}
+function summarizeReport(report) {
+  return {
+    owner: report.owner,
+    generated_at: report.generated_at,
+    included_count: report.included_count,
+    excluded_count: report.excluded_count,
+    status_counts: report.status_counts,
+    verified: report.repos.filter((r) => r.signals.demo.verified).length,
+    repos: report.repos.map(summarizeRepo)
+  };
 }
 main().catch((err) => {
   console.error(err instanceof Error ? err.message : err);

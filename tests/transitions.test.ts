@@ -14,6 +14,7 @@ function stubRepo(
     pillars: { quality: score, alive: score, structure: score },
     drivers: [],
     blockers: [],
+    contributions: [],
     signals: baseSignals({
       name,
       fullName: `acme/${name}`,

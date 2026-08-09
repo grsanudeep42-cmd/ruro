@@ -27,7 +27,7 @@ export function printBanner(cmd: string): void {
   console.log(bar);
   console.log(ruriArt());
   console.log(
-    `  ${c("bold", c("ink", "RURO"))} ${c("mute", "v0.1.0")}  ${c("lime", "▸")} ${c("sand", cmd)}`,
+    `  ${c("bold", c("ink", "RURO"))} ${c("mute", "v0.2.0")}  ${c("lime", "▸")} ${c("sand", cmd)}`,
   );
   console.log(
     c("mute", "  scan · view · top · status · why · review"),

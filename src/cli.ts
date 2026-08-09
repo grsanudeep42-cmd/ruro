@@ -2,36 +2,49 @@
 import { loadConfig, defaultConfig } from "./config.js";
 import { annotateWithCopilot, readAiCache } from "./ai/copilot.js";
 import { printBanner } from "./cli/banner.js";
-import { startRepl } from "./cli/repl.js";
 import {
-  findRepo,
-  loadLatestReport,
-  printReviews,
-  printStatus,
-  printTop,
-  printView,
-  printWhy,
-} from "./cli/view.js";
+  narrateReview,
+  narrateStatus,
+  narrateTop,
+  narrateView,
+  narrateWhy,
+} from "./cli/narrate.js";
+import { startRepl } from "./cli/repl.js";
+import { agent, tool } from "./cli/tui.js";
+import { findRepo, loadLatestReport } from "./cli/view.js";
+import { explainCode, explainScoreLine } from "./score/explain.js";
 import { runRuro } from "./run.js";
+import type { RuroReport, ScoredRepo } from "./types.js";
 
 function usage(): never {
   printBanner("help");
   console.log(`
-  ruro                      start LIVE agent session (stays open)
-  ruro repl                 same
-  ruro scan | view | top | status | why | review   one-shot
+  ruro                         live agent session (Ruri)
+  ruro repl|live|shell         same
+  ruro scan                    refresh truth (needs token)
+  ruro view | top [n]          fleet / shortlist
+  ruro status <repo>           short dossier
+  ruro why <repo>              score math + contributions
+  ruro review [repo]           Copilot audit (optional)
+  ruro --json <cmd> …          machine output (no chrome)
 
-Live (what you want):
+Live:
   $ npm run ruro
   › view
   › aryanbloodbank
   › why phantom
-  › review aryanbloodbank
   › /exit
 
-Env: GITHUB_TOKEN / GH_TOKEN for scan & review
+Env: GITHUB_TOKEN or GH_TOKEN for scan & review
 `);
   process.exit(1);
+}
+
+function takeFlag(args: string[], flag: string): boolean {
+  const i = args.indexOf(flag);
+  if (i < 0) return false;
+  args.splice(i, 1);
+  return true;
 }
 
 function parseConfigPath(args: string[]): { configPath: string; rest: string[] } {
@@ -56,7 +69,25 @@ function loadCfg(configPath: string, owner?: string) {
   }
 }
 
-async function runScan(args: string[]): Promise<void> {
+function emitJson(payload: unknown): void {
+  process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+}
+
+function whyPayload(repo: ScoredRepo, config: ReturnType<typeof loadCfg>) {
+  return {
+    fullName: repo.signals.fullName,
+    score: repo.score,
+    status: repo.status,
+    pillars: repo.pillars,
+    weights: config.weights,
+    formula: explainScoreLine(repo.score, repo.pillars, config.weights),
+    contributions: repo.contributions ?? [],
+    drivers: repo.drivers.map((d) => ({ code: d, explain: explainCode(d) })),
+    blockers: repo.blockers.map((b) => ({ code: b, explain: explainCode(b) })),
+  };
+}
+
+async function runScan(args: string[], asJson: boolean): Promise<void> {
   let configPath = "ruro.yml";
   let owner: string | undefined;
   let token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
@@ -71,6 +102,7 @@ async function runScan(args: string[]): Promise<void> {
     else if (a === "--dry-run") dryRun = true;
     else if (a === "--sync-profile") syncProfile = true;
     else if (a === "--no-sync-profile") syncProfile = false;
+    else if (a === "--json") continue;
     else {
       console.error(`Unknown arg: ${a}`);
       usage();
@@ -82,23 +114,29 @@ async function runScan(args: string[]): Promise<void> {
     process.exit(1);
   }
 
-  printBanner("scan");
-  console.log("[ruro] scan starting (github + probes + fitness)…");
+  if (!asJson) {
+    printBanner("scan");
+    tool("scanning GitHub + probes + fitness…");
+  }
   const config = loadCfg(configPath, owner);
   const result = await runRuro({ token, config, dryRun, syncProfile });
-  console.log(
-    `[ruro] scored ${result.report.included_count} → ${result.dashboardPath}`,
-  );
-  console.log(`[ruro] web → ${result.webPath}`);
-  if (result.report.repos[0]) {
-    const top = result.report.repos[0];
-    console.log(
-      `[ruro] lead ${top.signals.fullName} [${top.status}] score=${top.score}`,
-    );
+  if (asJson) {
+    emitJson({
+      ok: true,
+      included: result.report.included_count,
+      lead: result.report.repos[0]?.signals.fullName ?? null,
+      dashboardPath: result.dashboardPath,
+      webPath: result.webPath,
+      generated_at: result.report.generated_at,
+    });
+    return;
   }
+  agent(
+    `Done · ${result.report.included_count} scored · lead ${result.report.repos[0]?.signals.name ?? "—"}`,
+  );
 }
 
-async function runReview(args: string[]): Promise<void> {
+async function runReview(args: string[], asJson: boolean): Promise<void> {
   let configPath = "ruro.yml";
   let token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
   let query: string | undefined;
@@ -107,7 +145,7 @@ async function runReview(args: string[]): Promise<void> {
     const a = args[i];
     if (a === "--config") configPath = args[++i];
     else if (a === "--token") token = args[++i];
-    else if (a === "--force") continue;
+    else if (a === "--force" || a === "--json") continue;
     else if (a.startsWith("-")) {
       console.error(`Unknown arg: ${a}`);
       usage();
@@ -134,36 +172,57 @@ async function runReview(args: string[]): Promise<void> {
     ? { ...report, repos: [findRepo(report, query)] }
     : { ...report, repos: report.repos.slice(0, config.ai.top_n) };
 
-  printBanner(`review ${query ?? "top"}`);
+  if (!asJson) {
+    printBanner(`review ${query ?? "top"}`);
+    tool(`auditing ${query ?? "top"} with Copilot…`);
+  }
   const result = await annotateWithCopilot({
     report: scoped,
     config: aiConfig,
     cwd: process.cwd(),
     token,
   });
-  console.log(
-    result.skipped
-      ? `[ruro] review skipped: ${result.reason ?? "unknown"}`
-      : `[ruro] audited ${result.annotated} → ${config.ai.cache_dir}`,
-  );
-  printReviews(readAiCache(process.cwd(), config.ai.cache_dir), query);
+  const cache = readAiCache(process.cwd(), config.ai.cache_dir);
+  if (asJson) {
+    emitJson({
+      ok: !result.skipped,
+      skipped: result.skipped,
+      reason: result.reason,
+      annotated: result.annotated,
+      cache,
+    });
+    return;
+  }
+  if (result.skipped) {
+    agent(`Audit skipped — ${result.reason ?? "unknown"}`);
+  } else {
+    agent(`Audit stored (${result.annotated}).`);
+  }
+  narrateReview(cache, query);
 }
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   if (argv.includes("-h") || argv.includes("--help")) usage();
 
-  // No args / repl / shell → LIVE session (stays open)
+  const asJson = takeFlag(argv, "--json");
+
+  // No args / repl / shell → LIVE session (stays open) — not with --json
   if (
     argv.length === 0 ||
     argv[0] === "repl" ||
     argv[0] === "shell" ||
     argv[0] === "live"
   ) {
+    if (asJson) {
+      console.error("--json cannot start an interactive session");
+      process.exit(1);
+    }
     let configPath = "ruro.yml";
-    const rest = argv[0] && ["repl", "shell", "live"].includes(argv[0])
-      ? argv.slice(1)
-      : argv;
+    const rest =
+      argv[0] && ["repl", "shell", "live"].includes(argv[0])
+        ? argv.slice(1)
+        : argv;
     for (let i = 0; i < rest.length; i += 1) {
       if (rest[i] === "--config") configPath = rest[++i];
     }
@@ -184,17 +243,17 @@ async function main(): Promise<void> {
   ].includes(cmd);
 
   if (!isSub) {
-    await runScan(argv);
+    await runScan(argv, asJson);
     return;
   }
 
   const subArgs = argv.slice(1);
   if (cmd === "scan") {
-    await runScan(subArgs);
+    await runScan(subArgs, asJson);
     return;
   }
   if (cmd === "review") {
-    await runReview(subArgs);
+    await runReview(subArgs, asJson);
     return;
   }
 
@@ -203,8 +262,11 @@ async function main(): Promise<void> {
   const report = loadLatestReport(config);
 
   if (cmd === "view") {
-    printBanner("view");
-    printView(report);
+    if (asJson) {
+      emitJson(summarizeReport(report));
+      return;
+    }
+    narrateView(report);
     return;
   }
   if (cmd === "top") {
@@ -213,8 +275,14 @@ async function main(): Promise<void> {
       console.error("top expects a positive integer");
       process.exit(1);
     }
-    printBanner(`top ${n}`);
-    printTop(report, n);
+    if (asJson) {
+      emitJson({
+        owner: report.owner,
+        top: report.repos.slice(0, n).map(summarizeRepo),
+      });
+      return;
+    }
+    narrateTop(report, n);
     return;
   }
   if (cmd === "status") {
@@ -223,9 +291,11 @@ async function main(): Promise<void> {
       console.error("status expects a repo name");
       process.exit(1);
     }
-    printBanner(`status ${query}`);
-    printStatus(report, query);
-    printReviews(readAiCache(process.cwd(), config.ai.cache_dir), query);
+    if (asJson) {
+      emitJson(summarizeRepo(findRepo(report, query)));
+      return;
+    }
+    narrateStatus(report, query);
     return;
   }
   if (cmd === "why" || cmd === "explain") {
@@ -234,9 +304,44 @@ async function main(): Promise<void> {
       console.error("why expects a repo name");
       process.exit(1);
     }
-    printBanner(`why ${query}`);
-    printWhy(report, config, query);
+    const repo = findRepo(report, query);
+    if (asJson) {
+      emitJson(whyPayload(repo, config));
+      return;
+    }
+    narrateWhy(report, config, query);
   }
+}
+
+function summarizeRepo(repo: ScoredRepo) {
+  return {
+    fullName: repo.signals.fullName,
+    name: repo.signals.name,
+    status: repo.status,
+    score: repo.score,
+    pillars: repo.pillars,
+    deploy: {
+      status: repo.signals.demo.status,
+      verified: repo.signals.demo.verified,
+      url: repo.signals.demo.url,
+    },
+    fitness: repo.signals.fitness.score,
+    drivers: repo.drivers,
+    blockers: repo.blockers,
+    contributions: repo.contributions ?? [],
+  };
+}
+
+function summarizeReport(report: RuroReport) {
+  return {
+    owner: report.owner,
+    generated_at: report.generated_at,
+    included_count: report.included_count,
+    excluded_count: report.excluded_count,
+    status_counts: report.status_counts,
+    verified: report.repos.filter((r) => r.signals.demo.verified).length,
+    repos: report.repos.map(summarizeRepo),
+  };
 }
 
 main().catch((err) => {

@@ -26,6 +26,17 @@ export interface RepoReview {
   error?: string;
 }
 
+export const AI_CACHE_SCHEMA = 1 as const;
+
+export interface AiCachePayload {
+  schema_version: typeof AI_CACHE_SCHEMA;
+  generated_at: string;
+  provider: string;
+  status: string;
+  note?: string;
+  repos: RepoReview[];
+}
+
 export interface AnnotateResult {
   annotated: number;
   skipped: boolean;
@@ -79,11 +90,12 @@ export async function annotateWithCopilot(opts: {
   }
 
   const ok = reviews.filter((r) => r.status === "ok");
-  const payload = {
+  const payload: AiCachePayload = {
+    schema_version: AI_CACHE_SCHEMA,
     generated_at: new Date().toISOString(),
     provider: "copilot",
     status: ok.length ? "reviewed" : "partial",
-    note: "Scores stay signal-based. Audit uses an embedded source dossier (no sandbox file dependency).",
+    note: "Judgment only — never moves scores. Embedded dossier; cite real paths.",
     repos: reviews,
   };
   writeJson(join(cacheDir, "latest.json"), payload);
@@ -204,11 +216,7 @@ async function reviewOneRepo(opts: {
       );
     }
 
-    const cited = extractCitedPaths(text);
-    const known = listKnownPaths(dossier);
-    const hits = cited.filter((p) =>
-      known.some((k) => k.endsWith(p) || k.includes(`/${p}`) || k === p),
-    );
+    const hits = citationHits(text, dossier);
     if (hits.length < 2) {
       throw new Error(
         `audit rejected: need ≥2 dossier path citations (got ${hits.length}: ${hits.join(", ") || "none"}). Head: ${text.slice(0, 280)}`,
@@ -355,10 +363,10 @@ function buildRepoDossier(repoDir: string, repo: ScoredRepo): string {
   return `${lines.join("\n")}\n`;
 }
 
-function extractCitedPaths(text: string): string[] {
+export function extractCitedPaths(text: string): string[] {
   const found = new Set<string>();
   const re =
-    /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"'),]|$)/gim;
+    /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)*[\w.-]+\.(?:tsx|jsx|mjs|cjs|json|toml|yaml|yml|swift|java|sql|css|ts|js|py|go|rs|md|kt))(?=[\s`"'),.:;!?]|$)/gim;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
     found.add(m[1].replace(/^\.\//, ""));
@@ -369,7 +377,7 @@ function extractCitedPaths(text: string): string[] {
   return [...found];
 }
 
-function listKnownPaths(dossier: string): string[] {
+export function listKnownPaths(dossier: string): string[] {
   const paths: string[] = [];
   for (const line of dossier.split("\n")) {
     const t = line.trim();
@@ -382,6 +390,14 @@ function listKnownPaths(dossier: string): string[] {
     if (t.startsWith("### ")) paths.push(t.slice(4).trim());
   }
   return paths;
+}
+
+export function citationHits(text: string, dossier: string): string[] {
+  const cited = extractCitedPaths(text);
+  const known = listKnownPaths(dossier);
+  return cited.filter((p) =>
+    known.some((k) => k.endsWith(p) || k.includes(`/${p}`) || k === p),
+  );
 }
 
 function parseReviewMarkdown(
@@ -451,8 +467,9 @@ function formatReviewMd(r: RepoReview): string {
   ].join("\n");
 }
 
-function emptyPayload(status: string, note: string) {
+function emptyPayload(status: string, note: string): AiCachePayload {
   return {
+    schema_version: AI_CACHE_SCHEMA,
     generated_at: new Date().toISOString(),
     provider: "copilot",
     status,
@@ -480,19 +497,13 @@ async function commandExists(bin: string): Promise<boolean> {
 export function readAiCache(
   cwd: string,
   cacheDir: string,
-): {
-  status: string;
-  note?: string;
-  repos: RepoReview[];
-} | null {
+): AiCachePayload | null {
   const path = resolve(cwd, cacheDir, "latest.json");
   if (!existsSync(path)) return null;
   try {
-    return JSON.parse(readFileSync(path, "utf8")) as {
-      status: string;
-      note?: string;
-      repos: RepoReview[];
-    };
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as AiCachePayload;
+    if (!Array.isArray(parsed.repos)) return null;
+    return parsed;
   } catch {
     return null;
   }

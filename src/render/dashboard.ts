@@ -129,12 +129,12 @@ export function renderDashboard(report: RuroReport, config: RuroConfig): string 
     "## Legend",
     "",
     "- **Score** = `0.40*Quality + 0.35*Alive + 0.25*Structure` (configurable)",
-    "- **Status**: `LIVE` demo up · `ACTIVE` recent pushes · `STALE`/`DORMANT` quiet · `DEAD` abandoned · `ARCHIVED`",
-    "- **Demo**: `UP`/`DOWN`/`NONE`/`ERROR` from homepage probe",
+    "- **Status**: `LIVE` = verified deploy **and** push within `active_days` · `ACTIVE` recent without LIVE · `STALE`/`DORMANT` quiet · `DEAD` abandoned · `ARCHIVED`",
+    "- **Demo**: `UP`/`DOWN`/`NONE`/`ERROR` from homepage probe (`verified` is separate from status)",
     "- Notes prefixed with `!` are blockers",
     "",
     "---",
-    "_Ruro does not use AI. Same inputs ⇒ same scores._",
+    "_Ruro core is zero-AI. Same inputs ⇒ same scores. Copilot audit is optional judgment._",
     "",
   );
 
