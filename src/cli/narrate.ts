@@ -11,6 +11,7 @@ import {
   explainScoreLine,
 } from "../score/explain.js";
 import type { RuroReport, ScoredRepo } from "../types.js";
+import { resolveSlashPrefix } from "./slash.js";
 import { agent, c, item, note, say } from "./tui.js";
 
 function deployLabel(repo: ScoredRepo): string {
@@ -325,6 +326,52 @@ export function findIn(report: RuroReport, query: string): ScoredRepo {
   return repo;
 }
 
+function intentFromSlash(
+  cmd: string,
+  rest: string,
+): {
+  kind:
+    | "view"
+    | "top"
+    | "status"
+    | "full"
+    | "why"
+    | "review"
+    | "scan"
+    | "brief"
+    | "next"
+    | "diff"
+    | "reload"
+    | "help"
+    | "exit"
+    | "clear"
+    | "menu"
+    | "empty"
+    | "unknown";
+  arg?: string;
+  n?: number;
+} {
+  if (cmd === "view") return { kind: "view" };
+  if (cmd === "scan") return { kind: "scan" };
+  if (cmd === "brief") return { kind: "brief" };
+  if (cmd === "next") return { kind: "next" };
+  if (cmd === "diff") return { kind: "diff" };
+  if (cmd === "help") return { kind: "help" };
+  if (cmd === "exit") return { kind: "exit" };
+  if (cmd === "clear") return { kind: "clear" };
+  if (cmd === "reload") return { kind: "reload" };
+  if (cmd === "top") {
+    const n = rest ? Number.parseInt(rest, 10) : 5;
+    return { kind: "top", n: Number.isFinite(n) ? n : 5 };
+  }
+  if (cmd === "status") return { kind: "status", arg: rest || undefined };
+  if (cmd === "full") return { kind: "full", arg: rest || undefined };
+  if (cmd === "why" || cmd === "explain")
+    return { kind: "why", arg: rest || undefined };
+  if (cmd === "review") return { kind: "review", arg: rest || undefined };
+  return { kind: "unknown" };
+}
+
 export function parseIntent(line: string): {
   kind:
     | "view"
@@ -356,54 +403,21 @@ export function parseIntent(line: string): {
   if (/^(clear|\/clear)$/i.test(raw)) return { kind: "clear" };
   if (/^(reload|\/reload)$/i.test(raw)) return { kind: "reload" };
 
-  // Bare "/" or "/partial" that isn't a full command → slash menu
+  // Bare "/" → menu. Partial "/br" → unique match runs that command; else filtered menu.
   if (raw === "/") return { kind: "menu" };
-  const menuOnly = raw.match(/^\/([a-z]*)$/i);
+  const menuOnly = raw.match(/^\/([a-z]+)$/i);
   if (menuOnly) {
     const partial = menuOnly[1].toLowerCase();
-    const known = [
-      "view",
-      "top",
-      "status",
-      "full",
-      "why",
-      "review",
-      "scan",
-      "explain",
-      "brief",
-      "next",
-      "diff",
-      "help",
-      "exit",
-      "clear",
-      "reload",
-      "quit",
-    ];
-    if (!known.includes(partial)) {
-      return { kind: "menu", arg: partial };
-    }
+    const resolved = resolveSlashPrefix(partial);
+    if (!resolved) return { kind: "menu", arg: partial };
+    return intentFromSlash(resolved.cmd, "");
   }
 
   const slash = raw.match(
-    /^\/(view|top|status|full|why|review|scan|explain|brief|next|diff)\s*(.*)$/i,
+    /^\/(view|top|status|full|why|review|scan|explain|brief|next|diff|help|exit|clear|reload)\s*(.*)$/i,
   );
   if (slash) {
-    const cmd = slash[1].toLowerCase();
-    const rest = slash[2].trim();
-    if (cmd === "view") return { kind: "view" };
-    if (cmd === "scan") return { kind: "scan" };
-    if (cmd === "brief") return { kind: "brief" };
-    if (cmd === "next") return { kind: "next" };
-    if (cmd === "diff") return { kind: "diff" };
-    if (cmd === "top") {
-      const n = rest ? Number.parseInt(rest, 10) : 5;
-      return { kind: "top", n: Number.isFinite(n) ? n : 5 };
-    }
-    if (cmd === "status") return { kind: "status", arg: rest || undefined };
-    if (cmd === "full") return { kind: "full", arg: rest || undefined };
-    if (cmd === "why" || cmd === "explain")
-      return { kind: "why", arg: rest || undefined };
-    if (cmd === "review") return { kind: "review", arg: rest || undefined };
+    return intentFromSlash(slash[1].toLowerCase(), slash[2].trim());
   }
 
   if (/^(view|fleet|list|show(\s+fleet)?)$/i.test(lower)) return { kind: "view" };

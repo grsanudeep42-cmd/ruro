@@ -45,29 +45,51 @@ export function tool(label: string): void {
   console.log(`  ${c("mute", "↳")} ${c("sand", label)}`);
 }
 
-/** Cursor-style slash menu: action + description. */
+/** Cursor-style slash menu: action + description. Returns lines printed (for redraw). */
 export function printSlashMenu(
   commands: Array<{ cmd: string; description: string; args?: string }>,
   title = "commands",
-): void {
-  console.log("");
-  console.log(`  ${c("lime", "●")} ${c("bold", "ruri")} ${c("mute", `· /${title}`)}`);
-  console.log("");
-  const width = Math.max(...commands.map((x) => {
-    const label = x.args ? `/${x.cmd} ${x.args}` : `/${x.cmd}`;
-    return label.length;
-  }), 12);
+): number {
+  if (!commands.length) {
+    console.log("");
+    console.log(`  ${c("mute", "no matching commands")}`);
+    console.log("");
+    return 3;
+  }
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(
+    `  ${c("lime", "●")} ${c("bold", "ruri")} ${c("mute", `· /${title}`)}`,
+  );
+  lines.push("");
+  const width = Math.max(
+    ...commands.map((x) => {
+      const label = x.args ? `/${x.cmd} ${x.args}` : `/${x.cmd}`;
+      return label.length;
+    }),
+    12,
+  );
   for (const x of commands) {
     const label = x.args ? `/${x.cmd} ${x.args}` : `/${x.cmd}`;
-    console.log(
+    lines.push(
       `  ${c("lime", label.padEnd(width))}  ${c("mute", x.description)}`,
     );
   }
-  console.log("");
-  console.log(
-    c("mute", "  type / for menu (live) · tab completes · enter runs"),
+  lines.push("");
+  lines.push(
+    c("mute", "  tab completes · enter runs · esc clears"),
   );
-  console.log("");
+  lines.push("");
+  for (const l of lines) console.log(l);
+  return lines.length;
+}
+
+/** Erase previously drawn slash menu so live / doesn't stack forever. */
+export function eraseSlashMenu(lineCount: number): void {
+  if (!lineCount || !process.stdout.isTTY) return;
+  for (let i = 0; i < lineCount; i += 1) {
+    process.stdout.write("\x1b[1A\x1b[2K");
+  }
 }
 
 

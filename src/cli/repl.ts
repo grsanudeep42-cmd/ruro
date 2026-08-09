@@ -14,9 +14,20 @@ import {
   narrateWhy,
   parseIntent,
 } from "./narrate.js";
-import { filterSlashCommands, SLASH_COMMANDS } from "./slash.js";
+import {
+  filterSlashCommands,
+  resolveSlashPrefix,
+  SLASH_COMMANDS,
+} from "./slash.js";
 import { loadLatestReport } from "./view.js";
-import { agent, c, printBoot, printSlashMenu, startProgress } from "./tui.js";
+import {
+  agent,
+  c,
+  eraseSlashMenu,
+  printBoot,
+  printSlashMenu,
+  startProgress,
+} from "./tui.js";
 import { runRuro } from "../run.js";
 
 function help(): void {
@@ -30,10 +41,7 @@ function completer(reportNames: string[]): readline.Completer {
       const space = rest.indexOf(" ");
       if (space < 0) {
         const hits = filterSlashCommands(rest).map((x) => `/${x.cmd}`);
-        return [
-          hits.length ? hits : SLASH_COMMANDS.map((x) => `/${x.cmd}`),
-          line,
-        ];
+        return [hits.length ? hits : SLASH_COMMANDS.map((x) => `/${x.cmd}`), line];
       }
       const after = rest.slice(space + 1);
       const hits = reportNames.filter((n) => n.startsWith(after));
@@ -62,7 +70,7 @@ export async function startRepl(opts: {
   const repoNames = report.repos.map((r) => r.signals.name);
 
   printBoot({ owner: report.owner, repos: report.included_count });
-  agent(`Online. Type / — menu opens instantly. Tab completes. Enter runs.`);
+  agent(`Online. Type / for the menu. Tab completes. Enter runs.`);
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -72,32 +80,50 @@ export async function startRepl(opts: {
     completer: completer(repoNames),
   });
 
-  // Cursor-style: show/filter slash menu as you type "/", no Enter needed
   let slashMenuShownFor = "";
+  let slashMenuLines = 0;
+  let slashAlreadyVisible = false;
+
+  const redrawSlashMenu = (partial: string): void => {
+    const filtered = filterSlashCommands(partial);
+    const list = filtered.length ? filtered : SLASH_COMMANDS;
+    const signature = `${partial}|${list.map((x) => x.cmd).join(",")}`;
+    if (signature === slashMenuShownFor) return;
+    slashMenuShownFor = signature;
+    if (slashMenuLines > 0) eraseSlashMenu(slashMenuLines);
+    slashMenuLines = printSlashMenu(list, partial || "menu");
+    slashAlreadyVisible = true;
+    rl.prompt(true);
+  };
+
+  const clearSlashUi = (): void => {
+    if (slashMenuLines > 0) eraseSlashMenu(slashMenuLines);
+    slashMenuLines = 0;
+    slashMenuShownFor = "";
+    slashAlreadyVisible = false;
+  };
+
   readline.emitKeypressEvents(process.stdin, rl);
-  const onKeypress = (_str: string, key: readline.Key): void => {
+  const onKeypress = (_str: string, key: { name?: string; ctrl?: boolean; meta?: boolean }): void => {
     if (!key || key.ctrl || key.meta) return;
-    // Defer until readline has updated rl.line
+    // Never redraw on Enter — line handler owns that
+    if (key.name === "return" || key.name === "enter") return;
+    if (key.name === "escape") {
+      clearSlashUi();
+      rl.prompt(true);
+      return;
+    }
     setImmediate(() => {
       const line = rl.line ?? "";
       if (!line.startsWith("/")) {
-        slashMenuShownFor = "";
+        clearSlashUi();
         return;
       }
-      // Only while composing a slash command (no args yet)
-      if (line.includes(" ", 1)) return;
-      const partial = line.slice(1).toLowerCase();
-      const filtered = filterSlashCommands(partial);
-      const list = filtered.length ? filtered : SLASH_COMMANDS;
-      const signature = list.map((x) => x.cmd).join(",");
-      if (signature === slashMenuShownFor) return;
-      slashMenuShownFor = signature;
-      // Clear a bit of space then draw menu under the prompt
-      printSlashMenu(
-        list,
-        partial || "menu",
-      );
-      rl.prompt(true);
+      if (line.includes(" ", 1)) {
+        clearSlashUi();
+        return;
+      }
+      redrawSlashMenu(line.slice(1).toLowerCase());
     });
   };
   process.stdin.on("keypress", onKeypress);
@@ -124,7 +150,23 @@ export async function startRepl(opts: {
   process.on("SIGINT", onSigInt);
 
   const handle = async (line: string): Promise<"continue" | "exit"> => {
-    const intent = parseIntent(line);
+    // Enter on bare "/" while menu already showing → don't reprint
+    if (line.trim() === "/" && slashAlreadyVisible) {
+      clearSlashUi();
+      agent("Pick a command (e.g. /brief) or keep typing to filter.");
+      return "continue";
+    }
+
+    // Expand unique prefix before parse: /br → /brief
+    let input = line;
+    const bare = line.trim().match(/^\/([a-z]+)$/i);
+    if (bare) {
+      const hit = resolveSlashPrefix(bare[1]);
+      if (hit) input = `/${hit.cmd}`;
+    }
+
+    clearSlashUi();
+    const intent = parseIntent(input);
     try {
       switch (intent.kind) {
         case "empty":
@@ -132,10 +174,7 @@ export async function startRepl(opts: {
         case "menu": {
           const filtered = filterSlashCommands(intent.arg ?? "");
           const list = filtered.length ? filtered : SLASH_COMMANDS;
-          printSlashMenu(
-            list,
-            filtered.length && intent.arg ? intent.arg : "menu",
-          );
+          printSlashMenu(list, intent.arg || "menu");
           return "continue";
         }
         case "exit":
@@ -168,21 +207,21 @@ export async function startRepl(opts: {
           return "continue";
         case "status":
           if (!intent.arg) {
-            agent("Which repo? e.g. aryanbloodbank");
+            agent("Which repo? e.g. /status aryanbloodbank");
             return "continue";
           }
           narrateStatus(report, intent.arg);
           return "continue";
         case "full":
           if (!intent.arg) {
-            agent("Which repo? e.g. full aryanbloodbank");
+            agent("Which repo? e.g. /full aryanbloodbank");
             return "continue";
           }
           narrateFull(report, intent.arg);
           return "continue";
         case "why":
           if (!intent.arg) {
-            agent("Which repo? e.g. why phantom");
+            agent("Which repo? e.g. /why phantom");
             return "continue";
           }
           narrateWhy(report, config, intent.arg);
@@ -195,7 +234,7 @@ export async function startRepl(opts: {
             return "continue";
           }
           if (!intent.arg) {
-            agent("Which repo? e.g. review aryanbloodbank");
+            agent("Which repo? e.g. /review aryanbloodbank");
             return "continue";
           }
           const target = findIn(report, intent.arg);
@@ -283,7 +322,6 @@ export async function startRepl(opts: {
       rl.close();
       break;
     }
-    slashMenuShownFor = "";
     rl.prompt();
   }
 }

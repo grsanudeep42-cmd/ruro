@@ -73,6 +73,14 @@ export const SLASH_COMMANDS: SlashCommand[] = [
 
 export function filterSlashCommands(prefix: string): SlashCommand[] {
   const p = prefix.replace(/^\//, "").toLowerCase();
-  if (!p) return SLASH_COMMANDS;
+  if (!p) return [...SLASH_COMMANDS];
   return SLASH_COMMANDS.filter((c) => c.cmd.startsWith(p));
+}
+
+/** Unique command if prefix matches exactly one entry. */
+export function resolveSlashPrefix(prefix: string): SlashCommand | null {
+  const hits = filterSlashCommands(prefix);
+  if (hits.length === 1) return hits[0];
+  const exact = hits.find((h) => h.cmd === prefix.replace(/^\//, "").toLowerCase());
+  return exact ?? null;
 }
