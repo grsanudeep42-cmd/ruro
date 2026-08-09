@@ -14,30 +14,32 @@
 
 ## Correct way to use it
 
+**Live session (this is the product):**
+
 ```bash
-git clone https://github.com/grsanudeep42-cmd/ruro.git
 cd ruro && npm ci && npm run build
-
-# 1) refresh truth (needs token)
-GITHUB_TOKEN=$(gh auth token) npm run ruro -- scan
-
-# 2) look around offline from data/latest.json
-npm run ruro -- view
-npm run ruro -- top 5
-npm run ruro -- status aryanbloodbank
-npm run ruro -- why aryanbloodbank
-
-# 3) optional: Copilot reads a clone and writes data/ai/ (never changes scores)
-GITHUB_TOKEN=$(gh auth token) npm run ruro -- review aryanbloodbank
+npm run ruro
 ```
 
-| Command | What you get |
+```text
+ruro › view
+ruro › status aryanbloodbank
+ruro › why phantom
+ruro › review aryanbloodbank
+ruro › scan
+ruro › exit
+```
+
+The process **stays open** until you `exit` — same idea as OpenClaw’s live CLI, not one-shot scripts.
+
+**One-shot** (scripts/CI) still works: `npm run ruro -- view`, `npm run ruro -- why <repo>`, etc.
+
+| Command | What |
 | --- | --- |
-| `scan` | GitHub signals + **verified** deploy probes + tree fitness → `data/`, `docs/`, `OVERVIEW.md` |
-| `view` | Full fleet table (status, score, fitness, deploy) |
-| `status` | Full dossier: probe proof, fitness, platform signals, explained drivers/blockers + cached audit |
-| `why` | Exact score math + plain-English meaning of every driver/blocker |
-| `review` | Copilot audit that must cite real files (soft-fail; scores untouched) |
+| *(no args)* / `repl` | Live session |
+| `scan` | Refresh truth (needs token) |
+| `view` / `top` / `status` / `why` | Inspect fleet |
+| `review` | Copilot audit (embedded dossier; never moves scores) |
 
 Point `owner` in [`ruro.yml`](./ruro.yml) at any GitHub login to boot **their** fleet.
 

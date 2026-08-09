@@ -2,6 +2,7 @@
 import { loadConfig, defaultConfig } from "./config.js";
 import { annotateWithCopilot, readAiCache } from "./ai/copilot.js";
 import { printBanner } from "./cli/banner.js";
+import { startRepl } from "./cli/repl.js";
 import {
   findRepo,
   loadLatestReport,
@@ -16,21 +17,20 @@ import { runRuro } from "./run.js";
 function usage(): never {
   printBanner("help");
   console.log(`
-  ruro scan [--config ruro.yml] [--owner LOGIN] [--token TOKEN] [--dry-run]
-  ruro view [--config ruro.yml]
-  ruro top [n] [--config ruro.yml]
-  ruro status <repo> [--config ruro.yml]
-  ruro why <repo> [--config ruro.yml]
-  ruro review [repo] [--config ruro.yml] [--token TOKEN]
+  ruro                      start LIVE session (stays open — like OpenClaw)
+  ruro repl                 same as above
+  ruro scan [...]           one-shot scan
+  ruro view | top | status | why | review   one-shot commands
 
-Correct flow:
-  1) scan     signals + verified deploys + fitness → data/
-  2) view     fleet board
-  3) status   full dossier
-  4) why      score math + explained codes
-  5) review   Copilot audit from embedded source dossier (never moves scores)
+Live session (recommended):
+  $ npm run ruro
+  ruro › view
+  ruro › status aryanbloodbank
+  ruro › why phantom
+  ruro › review aryanbloodbank
+  ruro › exit
 
-Env: GITHUB_TOKEN / GH_TOKEN · Copilot CLI for review
+Env: GITHUB_TOKEN / GH_TOKEN for scan & review
 `);
   process.exit(1);
 }
@@ -83,23 +83,19 @@ async function runScan(args: string[]): Promise<void> {
     process.exit(1);
   }
 
-  console.log("[ruro] scan starting (github + probes + fitness)…");
   printBanner("scan");
+  console.log("[ruro] scan starting (github + probes + fitness)…");
   const config = loadCfg(configPath, owner);
   const result = await runRuro({ token, config, dryRun, syncProfile });
   console.log(
     `[ruro] scored ${result.report.included_count} → ${result.dashboardPath}`,
   );
   console.log(`[ruro] web → ${result.webPath}`);
-  console.log(`[ruro] overview → ${config.render.overview_path}`);
   if (result.report.repos[0]) {
     const top = result.report.repos[0];
     console.log(
       `[ruro] lead ${top.signals.fullName} [${top.status}] score=${top.score}`,
     );
-  }
-  if (result.aiAnnotated > 0) {
-    console.log(`[ruro] ai audits → ${result.aiAnnotated}`);
   }
 }
 
@@ -139,9 +135,6 @@ async function runReview(args: string[]): Promise<void> {
     ? { ...report, repos: [findRepo(report, query)] }
     : { ...report, repos: report.repos.slice(0, config.ai.top_n) };
 
-  console.log(
-    `[ruro] review ${scoped.repos.map((r) => r.signals.name).join(", ")} (clone + embedded dossier + Copilot)…`,
-  );
   printBanner(`review ${query ?? "top"}`);
   const result = await annotateWithCopilot({
     report: scoped,
@@ -159,14 +152,37 @@ async function runReview(args: string[]): Promise<void> {
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
-  if (argv.includes("-h") || argv.includes("--help") || argv.length === 0) {
-    usage();
+  if (argv.includes("-h") || argv.includes("--help")) usage();
+
+  // No args / repl / shell → LIVE session (stays open)
+  if (
+    argv.length === 0 ||
+    argv[0] === "repl" ||
+    argv[0] === "shell" ||
+    argv[0] === "live"
+  ) {
+    let configPath = "ruro.yml";
+    const rest = argv[0] && ["repl", "shell", "live"].includes(argv[0])
+      ? argv.slice(1)
+      : argv;
+    for (let i = 0; i < rest.length; i += 1) {
+      if (rest[i] === "--config") configPath = rest[++i];
+    }
+    const config = loadCfg(configPath);
+    await startRepl({ config });
+    return;
   }
 
   const cmd = argv[0];
-  const isSub = ["scan", "view", "top", "status", "why", "review", "explain"].includes(
-    cmd,
-  );
+  const isSub = [
+    "scan",
+    "view",
+    "top",
+    "status",
+    "why",
+    "review",
+    "explain",
+  ].includes(cmd);
 
   if (!isSub) {
     await runScan(argv);
