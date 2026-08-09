@@ -14,49 +14,38 @@ import {
   narrateWhy,
   parseIntent,
 } from "./narrate.js";
+import { filterSlashCommands, SLASH_COMMANDS } from "./slash.js";
 import { loadLatestReport } from "./view.js";
-import { agent, c, printBoot, startProgress } from "./tui.js";
+import { agent, c, printBoot, printSlashMenu, startProgress } from "./tui.js";
 import { runRuro } from "../run.js";
 
 function help(): void {
-  agent(
-    [
-      "Ruri — fleet operator. Deterministic truth first; Copilot is optional.",
-      "",
-      "  brief / next / diff     operator surfaces (demo these)",
-      "  view / top 5            fleet path",
-      "  <repo> / status <repo>  dossier + deploy proof",
-      "  why <repo>              contribution math + fixes",
-      "  scan                    refresh truth",
-      "  review <repo>           Copilot judgment (garnish)",
-      "",
-      "Tab completes repo names. Blank line is silent. /exit to leave.",
-    ].join("\n"),
-  );
+  printSlashMenu(SLASH_COMMANDS, "menu");
 }
 
-function completer(reportRepos: string[]): readline.Completer {
-  const cmds = [
-    "brief",
-    "next",
-    "diff",
-    "view",
-    "top",
-    "status",
-    "why",
-    "full",
-    "scan",
-    "review",
-    "help",
-    "exit",
-  ];
+function completer(reportNames: string[]): readline.Completer {
   return (line: string): [string[], string] => {
+    if (line.startsWith("/")) {
+      const rest = line.slice(1);
+      const space = rest.indexOf(" ");
+      if (space < 0) {
+        const hits = filterSlashCommands(rest).map((x) => `/${x.cmd}`);
+        return [
+          hits.length ? hits : SLASH_COMMANDS.map((x) => `/${x.cmd}`),
+          line,
+        ];
+      }
+      const after = rest.slice(space + 1);
+      const hits = reportNames.filter((n) => n.startsWith(after));
+      const prefix = line.slice(0, line.length - after.length);
+      return [hits.map((n) => prefix + n), after];
+    }
+
     const parts = line.split(/\s+/);
     const last = parts[parts.length - 1] ?? "";
+    const cmds = SLASH_COMMANDS.map((x) => x.cmd);
     const pool =
-      parts.length <= 1
-        ? [...cmds, ...reportRepos]
-        : reportRepos;
+      parts.length <= 1 ? [...cmds, ...reportNames] : [...reportNames];
     const hits = pool.filter((name) => name.startsWith(last));
     return [hits.length ? hits : pool, last];
   };
@@ -73,7 +62,7 @@ export async function startRepl(opts: {
   const repoNames = report.repos.map((r) => r.signals.name);
 
   printBoot({ owner: report.owner, repos: report.included_count });
-  agent(`Online. Start with brief — or a repo name. Copilot is optional.`);
+  agent(`Online. Type / for the command menu — or a repo name.`);
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -85,7 +74,11 @@ export async function startRepl(opts: {
 
   const reload = (): void => {
     report = loadLatestReport(config, cwd);
-    repoNames.splice(0, repoNames.length, ...report.repos.map((r) => r.signals.name));
+    repoNames.splice(
+      0,
+      repoNames.length,
+      ...report.repos.map((r) => r.signals.name),
+    );
     agent(
       `Reloaded · ${report.included_count} repos · ${report.generated_at.slice(0, 19)}`,
     );
@@ -106,6 +99,14 @@ export async function startRepl(opts: {
       switch (intent.kind) {
         case "empty":
           return "continue";
+        case "menu": {
+          const filtered = filterSlashCommands(intent.arg ?? "");
+          printSlashMenu(
+            filtered.length ? filtered : SLASH_COMMANDS,
+            filtered.length && intent.arg ? intent.arg : "menu",
+          );
+          return "continue";
+        }
         case "exit":
           agent("Offline.");
           return "exit";
@@ -233,7 +234,7 @@ export async function startRepl(opts: {
           return "continue";
         }
         default:
-          agent(`Unknown. Try brief, next, diff, view, a repo name, or /help.`);
+          agent(`Unknown. Type / for the command menu.`);
           return "continue";
       }
     } catch (err) {

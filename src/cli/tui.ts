@@ -45,6 +45,32 @@ export function tool(label: string): void {
   console.log(`  ${c("mute", "↳")} ${c("sand", label)}`);
 }
 
+/** Cursor-style slash menu: action + description. */
+export function printSlashMenu(
+  commands: Array<{ cmd: string; description: string; args?: string }>,
+  title = "commands",
+): void {
+  console.log("");
+  console.log(`  ${c("lime", "●")} ${c("bold", "ruri")} ${c("mute", `· /${title}`)}`);
+  console.log("");
+  const width = Math.max(...commands.map((x) => {
+    const label = x.args ? `/${x.cmd} ${x.args}` : `/${x.cmd}`;
+    return label.length;
+  }), 12);
+  for (const x of commands) {
+    const label = x.args ? `/${x.cmd} ${x.args}` : `/${x.cmd}`;
+    console.log(
+      `  ${c("lime", label.padEnd(width))}  ${c("mute", x.description)}`,
+    );
+  }
+  console.log("");
+  console.log(
+    c("mute", "  type / then a name · tab completes · enter runs"),
+  );
+  console.log("");
+}
+
+
 export function startProgress(label: string): {
   tick: (msg?: string) => void;
   done: (msg?: string) => void;
@@ -128,7 +154,7 @@ export function printBoot(meta?: { owner?: string; repos?: number }): void {
   console.log(
     c(
       "mute",
-      "  /brief /diff /next /view /why /status · tab completes repos · /exit",
+      "  /brief /diff /next /view /why /status · type / for menu · /exit",
     ),
   );
   console.log(bar);

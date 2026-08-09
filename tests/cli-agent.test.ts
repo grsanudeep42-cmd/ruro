@@ -30,6 +30,9 @@ describe("parseIntent", () => {
     expect(parseIntent("status")).toEqual({ kind: "status" });
     expect(parseIntent("why")).toEqual({ kind: "why" });
     expect(parseIntent("review")).toEqual({ kind: "review" });
+    expect(parseIntent("/").kind).toBe("menu");
+    expect(parseIntent("/br").kind).toBe("menu");
+    expect(parseIntent("/brief").kind).toBe("brief");
   });
 });
 

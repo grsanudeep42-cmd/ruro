@@ -341,6 +341,7 @@ export function parseIntent(line: string): {
     | "help"
     | "exit"
     | "clear"
+    | "menu"
     | "empty"
     | "unknown";
   arg?: string;
@@ -354,6 +355,34 @@ export function parseIntent(line: string): {
   if (/^(help|\?|\/help)$/i.test(raw)) return { kind: "help" };
   if (/^(clear|\/clear)$/i.test(raw)) return { kind: "clear" };
   if (/^(reload|\/reload)$/i.test(raw)) return { kind: "reload" };
+
+  // Bare "/" or "/partial" that isn't a full command → slash menu
+  if (raw === "/") return { kind: "menu" };
+  const menuOnly = raw.match(/^\/([a-z]*)$/i);
+  if (menuOnly) {
+    const partial = menuOnly[1].toLowerCase();
+    const known = [
+      "view",
+      "top",
+      "status",
+      "full",
+      "why",
+      "review",
+      "scan",
+      "explain",
+      "brief",
+      "next",
+      "diff",
+      "help",
+      "exit",
+      "clear",
+      "reload",
+      "quit",
+    ];
+    if (!known.includes(partial)) {
+      return { kind: "menu", arg: partial };
+    }
+  }
 
   const slash = raw.match(
     /^\/(view|top|status|full|why|review|scan|explain|brief|next|diff)\s*(.*)$/i,
