@@ -21,8 +21,9 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: JSON CLI smoke (no token)
+        # Use dist bin — npm run banners pollute stdout and break JSON pipes
         run: |
-          npm run ruro -- --json view | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const j=JSON.parse(s); if(!j.owner||!Array.isArray(j.repos)) process.exit(1);})"
-          npm run ruro -- --json brief | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{JSON.parse(s);})"
+          node dist/cli.js --json view | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const j=JSON.parse(s); if(!j.owner||!Array.isArray(j.repos)) process.exit(1);})"
+          node dist/cli.js --json brief | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{JSON.parse(s);})"
       - name: Verify authorship
         run: bash scripts/verify-authorship.sh

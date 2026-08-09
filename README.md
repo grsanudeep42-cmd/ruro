@@ -34,7 +34,7 @@ npm run ruro
 
 ```bash
 npm run ruro -- brief
-npm run ruro -- --json why phantom
+npm run build && node dist/cli.js --json why phantom
 ```
 
 | Command | What |
