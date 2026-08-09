@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { isBlockedProbeHost, isLiveSpaShell, probeDemoUrl } from "../src/probes/demo.js";
 import { defaultConfig } from "../src/config.js";
-import { isLiveSpaShell, probeDemoUrl } from "../src/probes/demo.js";
 
 describe("probeDemoUrl", () => {
   const config = defaultConfig("acme");
@@ -20,6 +20,17 @@ describe("probeDemoUrl", () => {
     expect(result.status).toBe("DOWN");
     expect(result.verified).toBe(false);
     expect(result.error).toMatch(/github_repo/);
+  });
+
+  it("blocks loopback / private IP homepage probes (SSRF)", async () => {
+    expect(isBlockedProbeHost("127.0.0.1")).toBe(true);
+    expect(isBlockedProbeHost("10.0.0.5")).toBe(true);
+    expect(isBlockedProbeHost("169.254.169.254")).toBe(true);
+    expect(isBlockedProbeHost("example.com")).toBe(false);
+    const result = await probeDemoUrl("http://127.0.0.1/", config);
+    expect(result.status).toBe("DOWN");
+    expect(result.verified).toBe(false);
+    expect(result.error).toMatch(/ssrf/i);
   });
 
   it("normalizes bare domains to https", async () => {

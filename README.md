@@ -227,6 +227,26 @@ npm run ruro
 › brief
 ```
 
+### Private repos (important)
+
+Ruro can score private repos — but **do not publish them on a public meta-repo**.
+
+| Goal | Config |
+| --- | --- |
+| Public Pages / public GitHub OS (default) | `include_private: false` + `privacy.mode: public_only_render` |
+| Full private fleet (local or **private** meta-repo) | `include_private: true` + `privacy.mode: full` + token with `repo` scope |
+
+```yaml
+# Private OS — use a PRIVATE GitHub repo (or keep data/ unpushed)
+scan:
+  include_private: true
+privacy:
+  mode: full
+```
+
+`public_only_render` strips private repos from the published report (DASHBOARD / Pages / committed `data/`).  
+`full` writes everything — only safe when the meta-repo itself is private.
+
 ### 3. Optional Copilot review
 
 Scores never depend on this.

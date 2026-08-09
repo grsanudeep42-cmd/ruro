@@ -278,6 +278,7 @@ function mapRepo(node: GraphqlRepo, now: Date, ownerLogin: string): RepoSignals 
 export async function collectRepoSignals(
   clients: GithubClients,
   config: RuroConfig,
+  signal?: AbortSignal,
 ): Promise<{ included: RepoSignals[]; excludedCount: number }> {
   const now = new Date();
   const exclude = new Set(
@@ -290,6 +291,7 @@ export async function collectRepoSignals(
   let cursor: string | null = null;
   let hasNext = true;
   while (hasNext) {
+    if (signal?.aborted) throw new Error("aborted");
     const data: ReposQueryResult = await clients.gql(query, {
       owner: config.owner,
       cursor,
@@ -323,8 +325,10 @@ export async function collectRepoSignals(
     cursor = conn.pageInfo.endCursor;
   }
 
+  if (signal?.aborted) throw new Error("aborted");
   const { enrichCodeFitness } = await import("../fitness/code.js");
   await enrichCodeFitness(clients, collected);
+  if (signal?.aborted) throw new Error("aborted");
   await enrichWorkflowSignals(clients, collected, now);
   return { included: collected, excludedCount };
 }

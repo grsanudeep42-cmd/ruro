@@ -23,6 +23,7 @@ export interface RunOptions {
   cwd?: string;
   dryRun?: boolean;
   syncProfile?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface RunResult {
@@ -35,6 +36,10 @@ export interface RunResult {
   webPath: string;
   profileSynced: boolean;
   aiAnnotated: number;
+}
+
+function assertNotAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new Error("aborted");
 }
 
 function loadPreviousReport(dataPath: string): RuroReport | null {
@@ -88,13 +93,17 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
   const cwd = resolve(options.cwd ?? process.cwd());
   const dataPath = resolve(cwd, options.config.render.data_path);
   const previous = loadPreviousReport(dataPath);
+  const signal = options.signal;
 
+  assertNotAborted(signal);
   const clients = createClients(options.token);
   const { included, excludedCount } = await collectRepoSignals(
     clients,
     options.config,
+    signal,
   );
 
+  assertNotAborted(signal);
   const probes = await probeAll(
     included.map((r) => ({
       homepageUrl: r.homepageUrl,
@@ -102,11 +111,14 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
       fullName: r.fullName,
     })),
     options.config,
+    6,
+    signal,
   );
   included.forEach((repo, i) => {
     repo.demo = probes[i];
   });
 
+  assertNotAborted(signal);
   const scored = scoreAll(included, options.config);
   const draft = buildReport(options.config, scored, excludedCount, []);
   const transitions = computeTransitions(previous, draft);
@@ -116,7 +128,7 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
   const profileSnippet = renderProfileSnippet(report, options.config);
   const profileSvg = renderProfileSvg(report, options.config);
   const overviewMarkdown = renderOverview(report, options.config);
-  const webHtml = renderWebDashboard(report, options.config);
+  let webHtml = renderWebDashboard(report, options.config);
 
   const dashboardPath = resolve(cwd, options.config.render.dashboard_path);
   const profileSnippetPath = resolve(
@@ -157,6 +169,7 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
 
     const shouldSync = options.syncProfile ?? options.config.profile.enabled;
     if (shouldSync && options.config.profile.enabled) {
+      assertNotAborted(signal);
       const sync = await syncProfileReadme(
         options.token,
         options.config,
@@ -166,13 +179,18 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
     }
 
     if (options.config.ai.enabled && options.config.ai.provider === "copilot") {
+      assertNotAborted(signal);
       const ai = await annotateWithCopilot({
         report,
         config: options.config,
         cwd,
         token: options.token,
+        signal,
       });
       aiAnnotated = ai.annotated;
+      // Re-render Pages so Judgment section matches this run's AI cache
+      webHtml = renderWebDashboard(report, options.config);
+      writeFileSync(webPath, webHtml, "utf8");
     }
   }
 

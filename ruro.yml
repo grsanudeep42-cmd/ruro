@@ -49,6 +49,9 @@ profile:
   repo: grsanudeep42-cmd/grsanudeep42-cmd
   readme_path: README.md
   commit_message: "chore(ruro): refresh profile portfolio truth"
+  # Required if profile.enabled — never leave blank when syncing
+  commit_author_name: ""
+  commit_author_email: ""
 
 ai:
   # Off by default. Needs Copilot CLI + credits. Never affects scores.

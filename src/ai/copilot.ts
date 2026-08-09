@@ -53,8 +53,10 @@ export async function annotateWithCopilot(opts: {
   config: RuroConfig;
   cwd: string;
   token?: string;
+  signal?: AbortSignal;
 }): Promise<AnnotateResult> {
-  const { report, config, cwd, token } = opts;
+  const { report, config, cwd, token, signal } = opts;
+  if (signal?.aborted) throw new Error("aborted");
   if (!config.ai.enabled || config.ai.provider !== "copilot") {
     return { annotated: 0, skipped: true, reason: "ai disabled", reviews: [] };
   }
@@ -80,6 +82,7 @@ export async function annotateWithCopilot(opts: {
   const reviews: RepoReview[] = [];
 
   for (const repo of top) {
+    if (signal?.aborted) throw new Error("aborted");
     const reviewed = await reviewOneRepo({
       repo,
       config,
@@ -141,26 +144,52 @@ async function reviewOneRepo(opts: {
   let work: string | null = null;
   try {
     work = mkdtempSync(join(tmpdir(), "ruro-review-"));
-    const cloneUrl = `https://x-access-token:${token}@github.com/${fullName}.git`;
+    const repoDir = join(work, "repo");
+    const askpass = join(work, "askpass.sh");
+    writeFileSync(
+      askpass,
+      [
+        "#!/bin/sh",
+        'case "$1" in',
+        "  *Username*) echo x-access-token ;;",
+        '  *) echo "$RURO_GIT_ASKPASS_TOKEN" ;;',
+        "esac",
+        "",
+      ].join("\n"),
+      { mode: 0o700 },
+    );
+    // Token via GIT_ASKPASS env — never embed PAT in argv or remote URL
     const clone = spawnSync(
       "git",
       [
+        "-c",
+        "credential.helper=",
         "clone",
         "--depth",
         "1",
         "--single-branch",
-        cloneUrl,
-        join(work, "repo"),
+        `https://github.com/${fullName}.git`,
+        repoDir,
       ],
-      { encoding: "utf8", timeout: 120_000 },
+      {
+        encoding: "utf8",
+        timeout: 120_000,
+        env: {
+          ...process.env,
+          GIT_ASKPASS: askpass,
+          GIT_TERMINAL_PROMPT: "0",
+          RURO_GIT_ASKPASS_TOKEN: token,
+        },
+      },
     );
     if (clone.status !== 0) {
       throw new Error(
-        (clone.stderr || clone.stdout || "git clone failed").slice(0, 400),
+        redactSecrets(
+          (clone.stderr || clone.stdout || "git clone failed").slice(0, 400),
+          token,
+        ),
       );
     }
-
-    const repoDir = join(work, "repo");
     const dossier = buildRepoDossier(repoDir, repo);
     writeFileSync(join(repoDir, "RURO_DOSSIER.md"), dossier, "utf8");
 
@@ -240,7 +269,10 @@ async function reviewOneRepo(opts: {
     const fallback: RepoReview = {
       ...base,
       status: "error",
-      error: err instanceof Error ? err.message : String(err),
+      error: redactSecrets(
+        err instanceof Error ? err.message : String(err),
+        token ?? "",
+      ),
       why_showable: signalWhy(repo),
       review: signalFallbackReview(repo),
     };
@@ -260,6 +292,17 @@ async function reviewOneRepo(opts: {
       }
     }
   }
+}
+
+function redactSecrets(text: string, token: string): string {
+  let out = text;
+  if (token) {
+    out = out.split(token).join("[redacted]");
+  }
+  return out
+    .replace(/x-access-token:[^\s@/'"]+/gi, "x-access-token:[redacted]")
+    .replace(/bearer\s+[a-z0-9._-]+/gi, "bearer [redacted]")
+    .replace(/gh[pousr]_[A-Za-z0-9_]{10,}/g, "[redacted-token]");
 }
 
 function collectSourceFiles(root: string, limit = 10): string[] {

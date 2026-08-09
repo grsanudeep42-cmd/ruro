@@ -23,6 +23,7 @@ const PARKING_MARKERS = [
 export interface ProbeContext {
   repoHtmlUrl?: string | null;
   fullName?: string | null;
+  signal?: AbortSignal;
 }
 
 function normalizeUrl(raw: string): string | null {
@@ -38,6 +39,50 @@ function normalizeUrl(raw: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** Block probe targets that would hit loopback / link-local / private nets (SSRF). */
+export function isBlockedProbeHost(hostname: string): boolean {
+  const host = hostname.trim().toLowerCase().replace(/\.$/, "");
+  if (!host) return true;
+  if (host === "localhost" || host.endsWith(".localhost")) return true;
+  if (host === "metadata.google.internal") return true;
+  if (host === "metadata" || host.endsWith(".metadata.google.internal"))
+    return true;
+
+  // IPv4 literals
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const parts = v4.slice(1).map((x) => Number(x));
+    if (parts.some((n) => n > 255)) return true;
+    const [a, b] = parts;
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    return false;
+  }
+
+  // IPv6 / IPv4-mapped literals (common metadata + loopback)
+  if (host.includes(":")) {
+    if (
+      host === "::1" ||
+      host === "::" ||
+      host.startsWith("fc") ||
+      host.startsWith("fd") ||
+      host.startsWith("fe80") ||
+      host.includes("::ffff:127.") ||
+      host.includes("::ffff:10.") ||
+      host.includes("::ffff:192.168.") ||
+      host.includes("::ffff:169.254.")
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function isGithubRepoUrl(candidate: string, ctx: ProbeContext): boolean {
@@ -190,8 +235,34 @@ export async function probeDemoUrl(
     });
   }
 
+  try {
+    const host = new URL(url).hostname;
+    if (isBlockedProbeHost(host)) {
+      return emptyResult("DOWN", {
+        url,
+        finalUrl: url,
+        error: "homepage_blocked_ssrf",
+        redirectChain: [url],
+      });
+    }
+  } catch {
+    return emptyResult("NONE");
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.probes.timeout_ms);
+  if (ctx.signal) {
+    if (ctx.signal.aborted) {
+      clearTimeout(timer);
+      return emptyResult("ERROR", {
+        url,
+        error: "aborted",
+      });
+    }
+    ctx.signal.addEventListener("abort", () => controller.abort(), {
+      once: true,
+    });
+  }
 
   try {
     const first = await fetchOnce(url, config, controller.signal);
@@ -217,6 +288,26 @@ export async function probeDemoUrl(
         bodyHash,
         spaShell,
       });
+    }
+
+    try {
+      const finalHost = new URL(finalUrl).hostname;
+      if (isBlockedProbeHost(finalHost)) {
+        return emptyResult("DOWN", {
+          url,
+          finalUrl,
+          httpStatus: response.status,
+          latencyMs,
+          error: "redirected_to_blocked_host",
+          proofBytes,
+          contentType,
+          redirectChain,
+          bodyHash,
+          spaShell,
+        });
+      }
+    } catch {
+      /* keep going — finalUrl parse failure handled as normal DOWN paths */
     }
 
     const httpOk = response.status >= 200 && response.status < 400;
@@ -310,18 +401,23 @@ export async function probeAll(
   }>,
   config: RuroConfig,
   concurrency = 6,
+  signal?: AbortSignal,
 ): Promise<DemoProbeResult[]> {
   const results: DemoProbeResult[] = new Array(repos.length);
   let index = 0;
 
   async function worker(): Promise<void> {
     while (index < repos.length) {
+      if (signal?.aborted) {
+        throw new Error("aborted");
+      }
       const current = index;
       index += 1;
       const repo = repos[current];
       results[current] = await probeDemoUrl(repo.homepageUrl, config, {
         repoHtmlUrl: repo.url,
         fullName: repo.fullName,
+        signal,
       });
     }
   }

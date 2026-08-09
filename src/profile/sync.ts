@@ -48,24 +48,31 @@ export async function syncProfileReadme(
     };
   }
 
-  const written = await withRetries(`profile:put:${profile.repo}`, () =>
-    octokit.repos.createOrUpdateFileContents({
+  const written = await withRetries(`profile:put:${profile.repo}`, () => {
+    const name =
+      profile.commit_author_name.trim() ||
+      process.env.RURO_GIT_NAME?.trim() ||
+      "";
+    const email =
+      profile.commit_author_email.trim() ||
+      process.env.RURO_GIT_EMAIL?.trim() ||
+      "";
+    if (!name || !email) {
+      throw new Error(
+        "profile sync needs profile.commit_author_name + profile.commit_author_email (or RURO_GIT_NAME / RURO_GIT_EMAIL)",
+      );
+    }
+    return octokit.repos.createOrUpdateFileContents({
       owner,
       repo,
       path,
       message: profile.commit_message,
       content: Buffer.from(next, "utf8").toString("base64"),
       sha: file.sha,
-      committer: {
-        name: "Anudeep GRS",
-        email: "grsanudeep42@gmail.com",
-      },
-      author: {
-        name: "Anudeep GRS",
-        email: "grsanudeep42@gmail.com",
-      },
-    }),
-  );
+      committer: { name, email },
+      author: { name, email },
+    });
+  });
 
   return {
     updated: true,

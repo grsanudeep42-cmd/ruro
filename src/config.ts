@@ -51,7 +51,7 @@ const ConfigSchema = z.object({
     .object({
       mode: z.enum(["full", "public_only_render"]).default("public_only_render"),
     })
-    .default({ mode: "full" }),
+    .default({ mode: "public_only_render" }),
   profile: z
     .object({
       enabled: z.boolean().default(false),
@@ -60,12 +60,17 @@ const ConfigSchema = z.object({
       commit_message: z
         .string()
         .default("chore(ruro): refresh profile portfolio truth"),
+      /** Required when profile sync is enabled — never hardcode another identity. */
+      commit_author_name: z.string().default(""),
+      commit_author_email: z.string().default(""),
     })
     .default({
       enabled: false,
       repo: "",
       readme_path: "README.md",
       commit_message: "chore(ruro): refresh profile portfolio truth",
+      commit_author_name: "",
+      commit_author_email: "",
     }),
   ai: z
     .object({
@@ -136,6 +141,8 @@ export function defaultConfig(owner: string): RuroConfig {
       repo: `${owner}/${owner}`,
       readme_path: "README.md",
       commit_message: "chore(ruro): refresh profile portfolio truth",
+      commit_author_name: "",
+      commit_author_email: "",
     },
     ai: {
       enabled: false,

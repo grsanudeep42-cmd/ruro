@@ -263,17 +263,22 @@ var ConfigSchema = z.object({
   }),
   privacy: z.object({
     mode: z.enum(["full", "public_only_render"]).default("public_only_render")
-  }).default({ mode: "full" }),
+  }).default({ mode: "public_only_render" }),
   profile: z.object({
     enabled: z.boolean().default(false),
     repo: z.string().default(""),
     readme_path: z.string().default("README.md"),
-    commit_message: z.string().default("chore(ruro): refresh profile portfolio truth")
+    commit_message: z.string().default("chore(ruro): refresh profile portfolio truth"),
+    /** Required when profile sync is enabled — never hardcode another identity. */
+    commit_author_name: z.string().default(""),
+    commit_author_email: z.string().default("")
   }).default({
     enabled: false,
     repo: "",
     readme_path: "README.md",
-    commit_message: "chore(ruro): refresh profile portfolio truth"
+    commit_message: "chore(ruro): refresh profile portfolio truth",
+    commit_author_name: "",
+    commit_author_email: ""
   }),
   ai: z.object({
     enabled: z.boolean().default(false),
@@ -337,7 +342,9 @@ function defaultConfig(owner) {
       enabled: false,
       repo: `${owner}/${owner}`,
       readme_path: "README.md",
-      commit_message: "chore(ruro): refresh profile portfolio truth"
+      commit_message: "chore(ruro): refresh profile portfolio truth",
+      commit_author_name: "",
+      commit_author_email: ""
     },
     ai: {
       enabled: false,
@@ -365,7 +372,8 @@ import { join, relative, resolve as resolve2 } from "node:path";
 import { spawnSync } from "node:child_process";
 var AI_CACHE_SCHEMA = 1;
 async function annotateWithCopilot(opts) {
-  const { report, config, cwd, token } = opts;
+  const { report, config, cwd, token, signal } = opts;
+  if (signal?.aborted) throw new Error("aborted");
   if (!config.ai.enabled || config.ai.provider !== "copilot") {
     return { annotated: 0, skipped: true, reason: "ai disabled", reviews: [] };
   }
@@ -387,6 +395,7 @@ async function annotateWithCopilot(opts) {
   const top = report.repos.slice(0, config.ai.top_n);
   const reviews = [];
   for (const repo of top) {
+    if (signal?.aborted) throw new Error("aborted");
     const reviewed = await reviewOneRepo({
       repo,
       config,
@@ -438,25 +447,51 @@ async function reviewOneRepo(opts) {
   let work = null;
   try {
     work = mkdtempSync(join(tmpdir(), "ruro-review-"));
-    const cloneUrl = `https://x-access-token:${token}@github.com/${fullName}.git`;
+    const repoDir = join(work, "repo");
+    const askpass = join(work, "askpass.sh");
+    writeFileSync(
+      askpass,
+      [
+        "#!/bin/sh",
+        'case "$1" in',
+        "  *Username*) echo x-access-token ;;",
+        '  *) echo "$RURO_GIT_ASKPASS_TOKEN" ;;',
+        "esac",
+        ""
+      ].join("\n"),
+      { mode: 448 }
+    );
     const clone = spawnSync(
       "git",
       [
+        "-c",
+        "credential.helper=",
         "clone",
         "--depth",
         "1",
         "--single-branch",
-        cloneUrl,
-        join(work, "repo")
+        `https://github.com/${fullName}.git`,
+        repoDir
       ],
-      { encoding: "utf8", timeout: 12e4 }
+      {
+        encoding: "utf8",
+        timeout: 12e4,
+        env: {
+          ...process.env,
+          GIT_ASKPASS: askpass,
+          GIT_TERMINAL_PROMPT: "0",
+          RURO_GIT_ASKPASS_TOKEN: token
+        }
+      }
     );
     if (clone.status !== 0) {
       throw new Error(
-        (clone.stderr || clone.stdout || "git clone failed").slice(0, 400)
+        redactSecrets(
+          (clone.stderr || clone.stdout || "git clone failed").slice(0, 400),
+          token
+        )
       );
     }
-    const repoDir = join(work, "repo");
     const dossier = buildRepoDossier(repoDir, repo);
     writeFileSync(join(repoDir, "RURO_DOSSIER.md"), dossier, "utf8");
     const embedded = dossier.slice(0, 28e3);
@@ -529,7 +564,10 @@ _Cited:_ ${hits.slice(0, 12).join(", ")}`
     const fallback = {
       ...base,
       status: "error",
-      error: err instanceof Error ? err.message : String(err),
+      error: redactSecrets(
+        err instanceof Error ? err.message : String(err),
+        token ?? ""
+      ),
       why_showable: signalWhy(repo),
       review: signalFallbackReview(repo)
     };
@@ -548,6 +586,13 @@ _Cited:_ ${hits.slice(0, 12).join(", ")}`
       }
     }
   }
+}
+function redactSecrets(text, token) {
+  let out = text;
+  if (token) {
+    out = out.split(token).join("[redacted]");
+  }
+  return out.replace(/x-access-token:[^\s@/'"]+/gi, "x-access-token:[redacted]").replace(/bearer\s+[a-z0-9._-]+/gi, "bearer [redacted]").replace(/gh[pousr]_[A-Za-z0-9_]{10,}/g, "[redacted-token]");
 }
 function collectSourceFiles(root, limit = 10) {
   const out = [];
@@ -1791,7 +1836,7 @@ function mapRepo(node, now, ownerLogin) {
     }
   };
 }
-async function collectRepoSignals(clients, config) {
+async function collectRepoSignals(clients, config, signal) {
   const now = /* @__PURE__ */ new Date();
   const exclude = new Set(
     config.scan.exclude_repos.map((r) => r.toLowerCase())
@@ -1802,6 +1847,7 @@ async function collectRepoSignals(clients, config) {
   let cursor = null;
   let hasNext = true;
   while (hasNext) {
+    if (signal?.aborted) throw new Error("aborted");
     const data = await clients.gql(query, {
       owner: config.owner,
       cursor
@@ -1832,8 +1878,10 @@ async function collectRepoSignals(clients, config) {
     hasNext = conn.pageInfo.hasNextPage;
     cursor = conn.pageInfo.endCursor;
   }
+  if (signal?.aborted) throw new Error("aborted");
   const { enrichCodeFitness: enrichCodeFitness2 } = await Promise.resolve().then(() => (init_code(), code_exports));
   await enrichCodeFitness2(clients, collected);
+  if (signal?.aborted) throw new Error("aborted");
   await enrichWorkflowSignals(clients, collected, now);
   return { included: collected, excludedCount };
 }
@@ -1924,6 +1972,34 @@ function normalizeUrl(raw) {
   } catch {
     return null;
   }
+}
+function isBlockedProbeHost(hostname) {
+  const host = hostname.trim().toLowerCase().replace(/\.$/, "");
+  if (!host) return true;
+  if (host === "localhost" || host.endsWith(".localhost")) return true;
+  if (host === "metadata.google.internal") return true;
+  if (host === "metadata" || host.endsWith(".metadata.google.internal"))
+    return true;
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const parts = v4.slice(1).map((x) => Number(x));
+    if (parts.some((n) => n > 255)) return true;
+    const [a, b] = parts;
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+    return false;
+  }
+  if (host.includes(":")) {
+    if (host === "::1" || host === "::" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80") || host.includes("::ffff:127.") || host.includes("::ffff:10.") || host.includes("::ffff:192.168.") || host.includes("::ffff:169.254.")) {
+      return true;
+    }
+  }
+  return false;
 }
 function isGithubRepoUrl(candidate, ctx) {
   try {
@@ -2025,8 +2101,33 @@ async function probeDemoUrl(homepageUrl, config, ctx = {}) {
       redirectChain: [url]
     });
   }
+  try {
+    const host = new URL(url).hostname;
+    if (isBlockedProbeHost(host)) {
+      return emptyResult("DOWN", {
+        url,
+        finalUrl: url,
+        error: "homepage_blocked_ssrf",
+        redirectChain: [url]
+      });
+    }
+  } catch {
+    return emptyResult("NONE");
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.probes.timeout_ms);
+  if (ctx.signal) {
+    if (ctx.signal.aborted) {
+      clearTimeout(timer);
+      return emptyResult("ERROR", {
+        url,
+        error: "aborted"
+      });
+    }
+    ctx.signal.addEventListener("abort", () => controller.abort(), {
+      once: true
+    });
+  }
   try {
     const first = await fetchOnce(url, config, controller.signal);
     const { response, buf, latencyMs, finalUrl } = first;
@@ -2049,6 +2150,24 @@ async function probeDemoUrl(homepageUrl, config, ctx = {}) {
         bodyHash,
         spaShell
       });
+    }
+    try {
+      const finalHost = new URL(finalUrl).hostname;
+      if (isBlockedProbeHost(finalHost)) {
+        return emptyResult("DOWN", {
+          url,
+          finalUrl,
+          httpStatus: response.status,
+          latencyMs,
+          error: "redirected_to_blocked_host",
+          proofBytes,
+          contentType,
+          redirectChain,
+          bodyHash,
+          spaShell
+        });
+      }
+    } catch {
     }
     const httpOk = response.status >= 200 && response.status < 400;
     if (!httpOk) {
@@ -2127,17 +2246,21 @@ async function probeDemoUrl(homepageUrl, config, ctx = {}) {
     clearTimeout(timer);
   }
 }
-async function probeAll(repos, config, concurrency = 6) {
+async function probeAll(repos, config, concurrency = 6, signal) {
   const results = new Array(repos.length);
   let index = 0;
   async function worker() {
     while (index < repos.length) {
+      if (signal?.aborted) {
+        throw new Error("aborted");
+      }
       const current = index;
       index += 1;
       const repo = repos[current];
       results[current] = await probeDemoUrl(repo.homepageUrl, config, {
         repoHtmlUrl: repo.url,
-        fullName: repo.fullName
+        fullName: repo.fullName,
+        signal
       });
     }
   }
@@ -2213,25 +2336,25 @@ async function syncProfileReadme(token, config, snippetMarkdown) {
       sha: file.sha
     };
   }
-  const written = await withRetries(
-    `profile:put:${profile.repo}`,
-    () => octokit.repos.createOrUpdateFileContents({
+  const written = await withRetries(`profile:put:${profile.repo}`, () => {
+    const name = profile.commit_author_name.trim() || process.env.RURO_GIT_NAME?.trim() || "";
+    const email = profile.commit_author_email.trim() || process.env.RURO_GIT_EMAIL?.trim() || "";
+    if (!name || !email) {
+      throw new Error(
+        "profile sync needs profile.commit_author_name + profile.commit_author_email (or RURO_GIT_NAME / RURO_GIT_EMAIL)"
+      );
+    }
+    return octokit.repos.createOrUpdateFileContents({
       owner,
       repo,
       path,
       message: profile.commit_message,
       content: Buffer.from(next, "utf8").toString("base64"),
       sha: file.sha,
-      committer: {
-        name: "Anudeep GRS",
-        email: "grsanudeep42@gmail.com"
-      },
-      author: {
-        name: "Anudeep GRS",
-        email: "grsanudeep42@gmail.com"
-      }
-    })
-  );
+      committer: { name, email },
+      author: { name, email }
+    });
+  });
   return {
     updated: true,
     repo: profile.repo,
@@ -3178,6 +3301,9 @@ function scoreAll(signals, config, now = /* @__PURE__ */ new Date()) {
 }
 
 // src/run.ts
+function assertNotAborted(signal) {
+  if (signal?.aborted) throw new Error("aborted");
+}
 function loadPreviousReport(dataPath) {
   if (!existsSync6(dataPath)) return null;
   try {
@@ -3229,22 +3355,29 @@ async function runRuro(options) {
   const cwd = resolve6(options.cwd ?? process.cwd());
   const dataPath = resolve6(cwd, options.config.render.data_path);
   const previous = loadPreviousReport(dataPath);
+  const signal = options.signal;
+  assertNotAborted(signal);
   const clients = createClients(options.token);
   const { included, excludedCount } = await collectRepoSignals(
     clients,
-    options.config
+    options.config,
+    signal
   );
+  assertNotAborted(signal);
   const probes = await probeAll(
     included.map((r) => ({
       homepageUrl: r.homepageUrl,
       url: r.url,
       fullName: r.fullName
     })),
-    options.config
+    options.config,
+    6,
+    signal
   );
   included.forEach((repo, i) => {
     repo.demo = probes[i];
   });
+  assertNotAborted(signal);
   const scored = scoreAll(included, options.config);
   const draft = buildReport(options.config, scored, excludedCount, []);
   const transitions = computeTransitions(previous, draft);
@@ -3254,7 +3387,7 @@ async function runRuro(options) {
   const profileSnippet = renderProfileSnippet(report, options.config);
   const profileSvg = renderProfileSvg(report, options.config);
   const overviewMarkdown = renderOverview(report, options.config);
-  const webHtml = renderWebDashboard(report, options.config);
+  let webHtml = renderWebDashboard(report, options.config);
   const dashboardPath = resolve6(cwd, options.config.render.dashboard_path);
   const profileSnippetPath = resolve6(
     cwd,
@@ -3292,6 +3425,7 @@ async function runRuro(options) {
     }
     const shouldSync = options.syncProfile ?? options.config.profile.enabled;
     if (shouldSync && options.config.profile.enabled) {
+      assertNotAborted(signal);
       const sync = await syncProfileReadme(
         options.token,
         options.config,
@@ -3300,13 +3434,17 @@ async function runRuro(options) {
       profileSynced = sync.updated;
     }
     if (options.config.ai.enabled && options.config.ai.provider === "copilot") {
+      assertNotAborted(signal);
       const ai = await annotateWithCopilot({
         report,
         config: options.config,
         cwd,
-        token: options.token
+        token: options.token,
+        signal
       });
       aiAnnotated = ai.annotated;
+      webHtml = renderWebDashboard(report, options.config);
+      writeFileSync2(webPath, webHtml, "utf8");
     }
   }
   return {
@@ -3525,7 +3663,8 @@ async function startRepl(opts) {
               report: { ...report, repos: [target] },
               config: aiConfig,
               cwd,
-              token
+              token,
+              signal: abort.signal
             });
             if (abort.signal.aborted) {
               prog.fail("cancelled");
@@ -3553,7 +3692,12 @@ async function startRepl(opts) {
           const prog = startProgress("scanning GitHub + probes + fitness");
           abort = new AbortController();
           try {
-            const result = await runRuro({ token, config, cwd });
+            const result = await runRuro({
+              token,
+              config,
+              cwd,
+              signal: abort.signal
+            });
             if (abort.signal.aborted) {
               prog.fail("cancelled");
               return "continue";
@@ -3566,6 +3710,10 @@ async function startRepl(opts) {
             );
             reload();
           } catch (err) {
+            if (abort?.signal.aborted || err instanceof Error && err.message === "aborted") {
+              prog.fail("cancelled");
+              return "continue";
+            }
             prog.fail("scan failed");
             throw err;
           } finally {
@@ -3639,12 +3787,18 @@ function parseConfigPath(args) {
 function loadCfg(configPath, owner) {
   try {
     return loadConfig(configPath, owner);
-  } catch {
-    if (!owner) {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const missing = /Config not found:/i.test(msg);
+    if (missing && owner) {
+      return defaultConfig(owner);
+    }
+    if (missing) {
       console.error(`Config missing at ${configPath}; pass --owner.`);
       process.exit(1);
     }
-    return defaultConfig(owner);
+    console.error(msg);
+    process.exit(1);
   }
 }
 function emitJson(payload) {

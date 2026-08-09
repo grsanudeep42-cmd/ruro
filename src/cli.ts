@@ -66,12 +66,19 @@ function parseConfigPath(args: string[]): { configPath: string; rest: string[] }
 function loadCfg(configPath: string, owner?: string) {
   try {
     return loadConfig(configPath, owner);
-  } catch {
-    if (!owner) {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const missing = /Config not found:/i.test(msg);
+    if (missing && owner) {
+      return defaultConfig(owner);
+    }
+    if (missing) {
       console.error(`Config missing at ${configPath}; pass --owner.`);
       process.exit(1);
     }
-    return defaultConfig(owner);
+    // Invalid YAML / Zod — never silently ignore a broken ruro.yml
+    console.error(msg);
+    process.exit(1);
   }
 }
 

@@ -255,6 +255,7 @@ export async function startRepl(opts: {
               config: aiConfig,
               cwd,
               token,
+              signal: abort.signal,
             });
             if (abort.signal.aborted) {
               prog.fail("cancelled");
@@ -283,7 +284,12 @@ export async function startRepl(opts: {
           const prog = startProgress("scanning GitHub + probes + fitness");
           abort = new AbortController();
           try {
-            const result = await runRuro({ token, config, cwd });
+            const result = await runRuro({
+              token,
+              config,
+              cwd,
+              signal: abort.signal,
+            });
             if (abort.signal.aborted) {
               prog.fail("cancelled");
               return "continue";
@@ -296,6 +302,10 @@ export async function startRepl(opts: {
             );
             reload();
           } catch (err) {
+            if (abort?.signal.aborted || (err instanceof Error && err.message === "aborted")) {
+              prog.fail("cancelled");
+              return "continue";
+            }
             prog.fail("scan failed");
             throw err;
           } finally {
