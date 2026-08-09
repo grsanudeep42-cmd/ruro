@@ -13,9 +13,10 @@ describe("renderWebDashboard", () => {
     const html = renderWebDashboard(report, config);
     expect(html).toContain("<!doctype html>");
     expect(html).toContain("RURO");
-    expect(html).toContain("GitHub OS");
-    expect(html).toContain("Verified deployments");
+    expect(html).toContain("Your GitHub, operated.");
+    expect(html).toContain("Proven");
     expect(html).toContain("Attention");
+    expect(html).toContain("Syne");
     expect(html).toContain("alpha");
     expect(html).not.toContain("purple");
   });

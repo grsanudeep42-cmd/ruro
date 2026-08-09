@@ -20,10 +20,6 @@ function esc(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function statusClass(status: string): string {
-  return `st-${status.toLowerCase()}`;
-}
-
 function loadAiReviews(config: RuroConfig, cwd = process.cwd()): AiReviewLite[] {
   const path = resolve(cwd, config.ai.cache_dir, "latest.json");
   if (!existsSync(path)) return [];
@@ -48,15 +44,31 @@ function attentionItems(report: RuroReport): ScoredRepo[] {
         ) ||
         (r.signals.homepageUrl && !r.signals.demo.verified),
     )
-    .slice(0, 8);
+    .slice(0, 6);
 }
 
 function liveVerified(report: RuroReport): ScoredRepo[] {
-  return report.repos.filter((r) => r.signals.demo.verified).slice(0, 8);
+  return report.repos.filter((r) => r.signals.demo.verified);
+}
+
+function fmtWhen(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+      timeZoneName: "short",
+    });
+  } catch {
+    return iso;
+  }
 }
 
 /**
- * GitHub OS home — not a scoreboard. Living workspace for portfolio truth.
+ * Product face for Ruro — craft first. Generated static, feels inevitable.
  */
 export function renderWebDashboard(
   report: RuroReport,
@@ -66,210 +78,479 @@ export function renderWebDashboard(
   const aiReviews = loadAiReviews(config, cwd);
   const attention = attentionItems(report);
   const live = liveVerified(report);
-  const top = report.repos.slice(0, 5);
-  const mix = Object.entries(report.status_counts)
-    .filter(([, n]) => n > 0)
-    .map(([k, n]) => `${k} ${n}`)
-    .join(" · ");
+  const lead = report.repos[0];
+  const show = report.repos.slice(0, 4);
+
+  const liveCount = live.length;
+  const attentionCount = attention.length;
 
   const attentionHtml =
     attention.length === 0
-      ? `<p class="muted">No urgent blockers. Fleet looks clean.</p>`
-      : `<ul class="list">${attention
+      ? `<p class="empty">Nothing urgent. Keep building.</p>`
+      : attention
           .map(
-            (r) =>
-              `<li><a href="${esc(r.signals.url)}">${esc(r.signals.name)}</a> <span class="pill ${statusClass(r.status)}">${esc(r.status)}</span> <span class="muted">${esc(r.blockers.slice(0, 3).join(" · "))}</span></li>`,
+            (r) => `<a class="row" href="${esc(r.signals.url)}" target="_blank" rel="noreferrer">
+  <span class="row-name">${esc(r.signals.name)}</span>
+  <span class="row-meta">${esc(r.blockers.slice(0, 2).join(" · ") || r.status)}</span>
+  <span class="row-go" aria-hidden="true">→</span>
+</a>`,
           )
-          .join("")}</ul>`;
+          .join("\n");
 
   const liveHtml =
     live.length === 0
-      ? `<p class="muted">No verified deployments yet. Claimed URLs without proof do not count.</p>`
-      : `<ul class="list">${live
+      ? `<p class="empty">No deployment passed verification. Claimed URLs do not count.</p>`
+      : live
           .map((r) => {
             const d = r.signals.demo;
-            return `<li><a href="${esc(d.finalUrl || d.url || r.signals.url)}" target="_blank" rel="noreferrer">${esc(r.signals.name)}</a> <span class="pill demo-up">VERIFIED</span> <span class="muted">${d.latencyMs ?? "—"}ms · ${d.proofBytes ?? 0}B</span></li>`;
+            const href = d.finalUrl || d.url || r.signals.url;
+            return `<a class="proof" href="${esc(href)}" target="_blank" rel="noreferrer">
+  <span class="proof-name">${esc(r.signals.name)}</span>
+  <span class="proof-stat">${d.latencyMs ?? "—"}ms</span>
+</a>`;
           })
-          .join("")}</ul>`;
+          .join("\n");
 
-  const showHtml = top
-    .map(
-      (r, i) => `<article class="show-card">
-  <div class="rank">0${i + 1}</div>
-  <h2><a href="${esc(r.signals.url)}">${esc(r.signals.name)}</a></h2>
-  <p><span class="pill ${statusClass(r.status)}">${esc(r.status)}</span> <span class="score">${r.score}</span>
-  <span class="muted">fitness ${r.signals.fitness.score}</span></p>
-  <p class="muted">${esc(r.drivers.slice(0, 3).join(" · ") || "—")}</p>
-</article>`,
-    )
+  const showHtml = show
+    .map((r, i) => {
+      const n = String(i + 1).padStart(2, "0");
+      const deploy = r.signals.demo.verified
+        ? "verified"
+        : r.signals.demo.status.toLowerCase();
+      return `<a class="show" href="${esc(r.signals.url)}" target="_blank" rel="noreferrer" style="--i:${i}">
+  <span class="show-i">${n}</span>
+  <span class="show-body">
+    <span class="show-name">${esc(r.signals.name)}</span>
+    <span class="show-line">${esc(r.status)} · ${r.score} · fitness ${r.signals.fitness?.score ?? 0} · deploy ${esc(deploy)}</span>
+  </span>
+</a>`;
+    })
     .join("\n");
 
   const aiHtml =
-    aiReviews.length === 0
-      ? `<p class="muted">Copilot judgment off. Run <code>ruro review</code> when you want code-depth. Scores never depend on AI.</p>`
+    aiReviews.filter((r) => r.status === "ok" || r.review).length === 0
+      ? `<p class="empty">No deep review yet. Run <code>ruro review &lt;repo&gt;</code> when you want file-aware judgment.</p>`
       : aiReviews
+          .slice(0, 3)
           .map(
-            (r) => `<article class="ai-card">
-  <h4>${esc(r.fullName)} <span class="pill">${esc(r.status)}</span></h4>
-  <p>${esc(r.why_showable || "—")}</p>
-  <p class="muted">${esc((r.weaknesses ?? []).slice(0, 4).join(" · ") || "—")}</p>
+            (r) => `<article class="brief">
+  <h3>${esc(r.fullName.split("/")[1] ?? r.fullName)}</h3>
+  <p>${esc((r.why_showable || "").slice(0, 220))}${
+              (r.why_showable || "").length > 220 ? "…" : ""
+            }</p>
+  <p class="brief-weak">${esc((r.weaknesses ?? []).slice(0, 3).join(" · ") || "—")}</p>
 </article>`,
           )
           .join("\n");
 
   const fleetRows = report.repos
     .map((r, i) => {
-      const demo = r.signals.demo.verified
-        ? "VERIFIED"
-        : r.signals.demo.status;
+      const deploy = r.signals.demo.verified
+        ? "verified"
+        : r.signals.demo.status.toLowerCase();
       return `<tr>
-  <td>${i + 1}</td>
-  <td><a href="${esc(r.signals.url)}">${esc(r.signals.name)}</a></td>
-  <td><span class="pill ${statusClass(r.status)}">${esc(r.status)}</span></td>
-  <td>${r.score}</td>
-  <td>${r.signals.fitness.score}</td>
-  <td><span class="pill demo-${demo.toLowerCase()}">${esc(demo)}</span></td>
+  <td class="num">${i + 1}</td>
+  <td><a href="${esc(r.signals.url)}" target="_blank" rel="noreferrer">${esc(r.signals.name)}</a></td>
+  <td><span class="mark mark-${r.status.toLowerCase()}">${esc(r.status)}</span></td>
+  <td class="num">${r.score}</td>
+  <td class="num">${r.signals.fitness?.score ?? 0}</td>
+  <td><span class="mark mark-${deploy}">${esc(deploy)}</span></td>
   <td>${esc(r.signals.primaryLanguage ?? "—")}</td>
 </tr>`;
     })
     .join("\n");
+
+  const leadLine = lead
+    ? `${lead.signals.name} leads at ${lead.score}.`
+    : "Fleet awaiting first scan.";
 
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ruro · GitHub OS</title>
+  <title>Ruro — GitHub OS</title>
+  <meta name="description" content="GitHub-native operating surface. Automatic truth. Deployed means verified." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Syne:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #06080c;
-      --ink: #e8edf5;
-      --muted: #8b97a8;
-      --line: #1a2330;
-      --panel: #0c1118;
-      --lime: #c8f531;
-      --sky: #6ec8ff;
-      --warn: #ffb020;
-      --bad: #ff6b6b;
+      --bg: #030303;
+      --fg: #f4f1ea;
+      --mute: #8a867c;
+      --line: rgba(244,241,234,0.12);
+      --lime: #d6ff3c;
+      --sand: #c4b8a0;
+      --bad: #ff5c4d;
+      --ok: #d6ff3c;
+      --warn: #ffc14d;
+      --pad: clamp(20px, 4vw, 48px);
+      --max: 1120px;
     }
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      color: var(--ink);
-      font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+      color: var(--fg);
+      background: var(--bg);
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    code { color: var(--lime); font-family: inherit; }
+
+    .veil {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
       background:
-        radial-gradient(900px 420px at 0% 0%, #132418 0%, transparent 55%),
-        radial-gradient(700px 380px at 100% 10%, #0d1a28 0%, transparent 50%),
-        var(--bg);
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(214,255,60,0.09), transparent 55%),
+        radial-gradient(ellipse 50% 40% at 100% 20%, rgba(196,184,160,0.06), transparent 50%),
+        linear-gradient(180deg, #030303 0%, #070707 100%);
+    }
+    .veil::after {
+      content: "";
+      position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(244,241,234,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(244,241,234,0.03) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: radial-gradient(ellipse at 50% 0%, #000 20%, transparent 70%);
+      animation: drift 28s linear infinite;
+    }
+    @keyframes drift {
+      from { transform: translateY(0); }
+      to { transform: translateY(64px); }
+    }
+
+    .wrap { position: relative; z-index: 1; }
+
+    .hero {
       min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: var(--pad);
+      padding-bottom: clamp(40px, 8vh, 80px);
+      max-width: var(--max);
+      margin: 0 auto;
     }
-    .shell { max-width: 1080px; margin: 0 auto; padding: 36px 20px 96px; }
     .brand {
-      font-size: clamp(42px, 8vw, 72px);
-      line-height: 0.95;
-      letter-spacing: -0.04em;
-      margin: 0 0 10px;
-      font-weight: 600;
+      font-family: Syne, sans-serif;
+      font-weight: 800;
+      font-size: clamp(4.8rem, 18vw, 11rem);
+      line-height: 0.82;
+      letter-spacing: -0.06em;
+      margin: 0;
+      opacity: 0;
+      animation: rise 1s cubic-bezier(0.16,1,0.3,1) 0.05s forwards;
     }
-    .brand span { color: var(--lime); }
-    .lede { color: var(--muted); max-width: 46rem; line-height: 1.55; margin: 0 0 28px; }
+    .brand em {
+      font-style: normal;
+      color: var(--lime);
+    }
+    .headline {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-weight: 400;
+      font-size: clamp(1.6rem, 3.6vw, 2.6rem);
+      line-height: 1.15;
+      max-width: 16ch;
+      margin: 28px 0 14px;
+      opacity: 0;
+      animation: rise 1s cubic-bezier(0.16,1,0.3,1) 0.18s forwards;
+    }
+    .sub {
+      color: var(--mute);
+      max-width: 36rem;
+      margin: 0 0 28px;
+      font-size: 13px;
+      opacity: 0;
+      animation: rise 1s cubic-bezier(0.16,1,0.3,1) 0.28s forwards;
+    }
+    .cta {
+      display: flex; flex-wrap: wrap; gap: 12px;
+      opacity: 0;
+      animation: rise 1s cubic-bezier(0.16,1,0.3,1) 0.38s forwards;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 18px;
+      border: 1px solid var(--fg);
+      background: var(--fg);
+      color: var(--bg);
+      font-family: Syne, sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--fg);
+    }
+    .btn-ghost:hover { background: rgba(244,241,234,0.06); }
     .pulse {
-      display: flex; flex-wrap: wrap; gap: 10px 18px;
-      border: 1px solid var(--line); background: rgba(12,17,24,0.9);
-      padding: 12px 14px; margin-bottom: 28px;
+      width: 8px; height: 8px; background: var(--lime);
+      animation: blink 2.2s ease-in-out infinite;
     }
-    .pulse strong { color: var(--ink); }
-    .pulse span { color: var(--muted); font-size: 12px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-    @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
-    .panel {
-      background: var(--panel); border: 1px solid var(--line); padding: 16px 18px;
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
     }
-    .panel h3 {
-      margin: 0 0 12px; font-size: 11px; letter-spacing: 0.14em;
-      text-transform: uppercase; color: var(--muted); font-weight: 500;
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(28px); }
+      to { opacity: 1; transform: translateY(0); }
     }
-    .list { list-style: none; margin: 0; padding: 0; }
-    .list li { padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
-    .list li:first-child { border-top: 0; padding-top: 0; }
-    .list a { color: var(--ink); text-decoration: none; }
-    .list a:hover { color: var(--lime); }
-    .shows { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 14px 0 22px; }
-    @media (max-width: 960px) { .shows { grid-template-columns: 1fr 1fr; } }
-    .show-card { border: 1px solid var(--line); background: var(--panel); padding: 14px; min-height: 120px; }
-    .rank { color: var(--lime); font-size: 11px; letter-spacing: 0.12em; margin-bottom: 8px; }
-    .show-card h2 { margin: 0 0 8px; font-size: 15px; }
-    .show-card a { color: var(--ink); text-decoration: none; }
-    .show-card a:hover { color: var(--lime); }
-    .score { color: var(--lime); margin-left: 6px; }
-    .muted { color: var(--muted); font-size: 12px; }
-    .pill {
-      display: inline-block; padding: 1px 7px; border: 1px solid var(--line);
-      font-size: 10px; letter-spacing: 0.04em;
+
+    section {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 72px var(--pad);
+      border-top: 1px solid var(--line);
     }
-    .st-live { background: var(--lime); color: #08110a; border-color: transparent; }
-    .st-active { background: var(--sky); color: #041018; border-color: transparent; }
-    .st-stale { background: var(--warn); color: #1a1000; border-color: transparent; }
-    .st-dormant, .st-dead { background: var(--bad); color: #1a0505; border-color: transparent; }
-    .st-archived { background: #64748b; color: #0b1220; border-color: transparent; }
-    .demo-verified, .demo-up { color: var(--lime); }
-    .demo-down, .demo-error { color: var(--bad); }
-    .demo-none { color: var(--muted); }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th, td { text-align: left; padding: 9px 6px; border-bottom: 1px solid var(--line); }
-    th { color: var(--muted); font-weight: 500; }
-    td a { color: var(--ink); text-decoration: none; }
+    .sec-kicker {
+      font-family: Syne, sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--lime);
+      margin: 0 0 10px;
+    }
+    .sec-title {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 400;
+      margin: 0 0 12px;
+      max-width: 14ch;
+      line-height: 1.1;
+    }
+    .sec-copy {
+      color: var(--mute);
+      max-width: 34rem;
+      margin: 0 0 32px;
+      font-size: 13px;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+    }
+    @media (max-width: 840px) {
+      .split { grid-template-columns: 1fr; gap: 40px; }
+    }
+
+    .row, .proof, .show {
+      display: flex; align-items: baseline; gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--line);
+      transition: color 0.2s ease, padding-left 0.25s ease;
+    }
+    .row:hover, .proof:hover, .show:hover {
+      color: var(--lime);
+      padding-left: 6px;
+    }
+    .row-name, .proof-name, .show-name {
+      font-family: Syne, sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      min-width: 0;
+    }
+    .row-meta, .show-line {
+      color: var(--mute);
+      font-size: 12px;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .row:hover .row-meta, .show:hover .show-line { color: rgba(214,255,60,0.7); }
+    .row-go, .proof-stat {
+      color: var(--mute);
+      font-size: 12px;
+      margin-left: auto;
+    }
+    .proof-stat { color: var(--lime); }
+
+    .show { opacity: 0; animation: rise 0.8s cubic-bezier(0.16,1,0.3,1) forwards; animation-delay: calc(0.08s * var(--i) + 0.1s); }
+    .show-i {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: 28px;
+      color: var(--sand);
+      width: 2.2ch;
+    }
+    .show-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+    .meter {
+      display: flex; gap: 28px; flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .meter div { min-width: 88px; }
+    .meter strong {
+      display: block;
+      font-family: Syne, sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .meter span { color: var(--mute); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+    .brief {
+      padding: 20px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .brief h3 {
+      font-family: Syne, sans-serif;
+      font-size: 18px;
+      margin: 0 0 8px;
+    }
+    .brief p { margin: 0 0 8px; color: var(--fg); max-width: 52rem; }
+    .brief-weak { color: var(--mute) !important; font-size: 12px; }
+
+    .empty { color: var(--mute); margin: 0; }
+
+    .fleet-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th {
+      text-align: left;
+      color: var(--mute);
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 10px;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    td {
+      padding: 12px 8px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
     td a:hover { color: var(--lime); }
-    .ai-card { border-top: 1px solid var(--line); padding: 12px 0; }
-    .ai-card:first-child { border-top: 0; padding-top: 0; }
-    .ai-card h4 { margin: 0 0 6px; font-size: 13px; }
-    footer { margin-top: 22px; color: #4b5568; font-size: 11px; }
-    code { color: var(--sky); }
+    .num { font-variant-numeric: tabular-nums; color: var(--mute); }
+    .mark {
+      display: inline-block;
+      padding: 2px 6px;
+      border: 1px solid var(--line);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .mark-live, .mark-verified { border-color: var(--ok); color: var(--ok); }
+    .mark-active { border-color: var(--sand); color: var(--sand); }
+    .mark-stale, .mark-dormant, .mark-warn { border-color: var(--warn); color: var(--warn); }
+    .mark-dead, .mark-down, .mark-error { border-color: var(--bad); color: var(--bad); }
+    .mark-archived, .mark-none { color: var(--mute); }
+
+    footer {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 28px var(--pad) 64px;
+      color: var(--mute);
+      font-size: 11px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 24px;
+      justify-content: space-between;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+      .brand, .headline, .sub, .cta, .show { opacity: 1; transform: none; }
+    }
   </style>
 </head>
 <body>
-  <main class="shell">
-    <h1 class="brand">RURO <span>OS</span></h1>
-    <p class="lede">GitHub-native operating surface for <code>${esc(report.owner)}</code>. Automatic truth. Deployed means verified. Core is zero-AI; Copilot is optional judgment. Generated ${esc(report.generated_at)}.</p>
-    <div class="pulse">
-      <span>fleet <strong>${report.included_count}</strong>/${report.repo_count}</span>
-      <span>excluded <strong>${report.excluded_count}</strong></span>
-      <span>verified live <strong>${live.length}</strong></span>
-      <span>${esc(mix || "—")}</span>
-    </div>
+  <div class="veil" aria-hidden="true"></div>
+  <div class="wrap">
+    <header class="hero">
+      <h1 class="brand">RURO<em>.</em></h1>
+      <p class="headline">Your GitHub, operated.</p>
+      <p class="sub">Automatic truth for <code>${esc(report.owner)}</code>. Deployed means verified. Core is deterministic — Copilot is optional judgment. ${esc(leadLine)}</p>
+      <div class="cta">
+        <a class="btn" href="#proven"><span class="pulse" aria-hidden="true"></span> See proven live</a>
+        <a class="btn btn-ghost" href="#fleet">Open fleet</a>
+      </div>
+    </header>
 
-    <div class="grid">
-      <section class="panel">
-        <h3>Attention</h3>
-        ${attentionHtml}
-      </section>
-      <section class="panel">
-        <h3>Verified deployments</h3>
-        ${liveHtml}
-      </section>
-    </div>
-
-    <section>
-      <h3 style="margin:18px 0 10px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);">Showables</h3>
-      <div class="shows">${showHtml}</div>
+    <section id="signal" aria-label="Signal">
+      <p class="sec-kicker">Signal</p>
+      <h2 class="sec-title">What is true right now</h2>
+      <p class="sec-copy">Refreshed ${esc(fmtWhen(report.generated_at))}. Same inputs ⇒ same scores. This is the operating pulse — not a vanity chart.</p>
+      <div class="meter">
+        <div><strong>${report.included_count}</strong><span>in fleet</span></div>
+        <div><strong>${liveCount}</strong><span>verified live</span></div>
+        <div><strong>${attentionCount}</strong><span>need attention</span></div>
+        <div><strong>${report.status_counts.LIVE ?? 0}</strong><span>live status</span></div>
+      </div>
     </section>
 
-    <section class="panel" style="margin-bottom:14px">
-      <h3>Copilot judgment</h3>
+    <section aria-label="Work">
+      <div class="split">
+        <div>
+          <p class="sec-kicker">Attention</p>
+          <h2 class="sec-title">Fix these first</h2>
+          <p class="sec-copy">Blockers the OS will not politely ignore.</p>
+          ${attentionHtml}
+        </div>
+        <div id="proven">
+          <p class="sec-kicker">Proven</p>
+          <h2 class="sec-title">Deployments that answered</h2>
+          <p class="sec-copy">HTTP proof with body — not a homepage string on GitHub.</p>
+          ${liveHtml}
+        </div>
+      </div>
+    </section>
+
+    <section aria-label="Showables">
+      <p class="sec-kicker">Show path</p>
+      <h2 class="sec-title">What to open in an interview</h2>
+      <p class="sec-copy">Ranked by showability. Fitness is without-AI tree truth. Deploy is only “verified” when the probe passed.</p>
+      <div>${showHtml}</div>
+    </section>
+
+    <section aria-label="Judgment">
+      <p class="sec-kicker">Judgment</p>
+      <h2 class="sec-title">Copilot depth</h2>
+      <p class="sec-copy">Optional. Never moves scores. When present, this is the blunt skim of whether the code feels real.</p>
       ${aiHtml}
     </section>
 
-    <section class="panel">
-      <h3>Fleet</h3>
-      <table>
-        <thead>
-          <tr><th>#</th><th>Repo</th><th>Status</th><th>Score</th><th>Fitness</th><th>Deploy</th><th>Stack</th></tr>
-        </thead>
-        <tbody>${fleetRows}</tbody>
-      </table>
+    <section id="fleet" aria-label="Fleet">
+      <p class="sec-kicker">Fleet</p>
+      <h2 class="sec-title">Every owned repo</h2>
+      <p class="sec-copy">Full inventory. Scroll when you need the whole map.</p>
+      <div class="fleet-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Repo</th><th>Status</th><th>Score</th>
+              <th>Fitness</th><th>Deploy</th><th>Stack</th>
+            </tr>
+          </thead>
+          <tbody>${fleetRows}</tbody>
+        </table>
+      </div>
     </section>
-    <footer>Claimed homepage ≠ live. Same inputs ⇒ same scores. Host from /docs on GitHub Pages.</footer>
-  </main>
+
+    <footer>
+      <span>Ruro · GitHub OS · ${esc(report.owner)}</span>
+      <span>Pages from /docs · CLI: <code>ruro view</code> · <code>ruro review</code></span>
+    </footer>
+  </div>
 </body>
 </html>
 `;
