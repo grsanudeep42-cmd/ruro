@@ -92,7 +92,7 @@ export function narrateStatus(report: RuroReport, query: string): void {
       `${repo.status} · score ${repo.score} · Q${repo.pillars.quality} A${repo.pillars.alive} S${repo.pillars.structure}`,
       `Tree: ${s.fitness.sourceFiles} src · ${s.fitness.testFiles} tests · fit ${s.fitness.score} · ${s.primaryLanguage ?? "—"}`,
       `Cadence: push ${s.pushedAt?.slice(0, 10) ?? "—"} · ${s.commitsLast30Days}/30d · owner share ${s.ownerCommitShare ?? "—"}%`,
-      `CI: ${s.ciConclusions.length ? s.ciConclusions.join(",") : s.hasWorkflows ? "workflows" : "none"}`,
+      `CI: ${(s.ciConclusions ?? []).length ? (s.ciConclusions ?? []).join(",") : s.hasWorkflows ? "workflows" : "none"}`,
     ].join("\n"),
   );
 

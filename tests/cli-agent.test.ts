@@ -3,9 +3,8 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defaultConfig } from "../src/config.js";
-import { parseIntent } from "../src/cli/narrate.js";
-import { loadLatestReport } from "../src/cli/view.js";
-import { narrateView, narrateWhy } from "../src/cli/narrate.js";
+import { parseIntent, narrateStatus, narrateView, narrateWhy } from "../src/cli/narrate.js";
+import { loadLatestReport, normalizeReport } from "../src/cli/view.js";
 import { buildReport } from "../src/render/dashboard.js";
 import { scoreRepo } from "../src/score/score.js";
 import { baseSignals, emptyDemo } from "./helpers.js";
@@ -64,6 +63,30 @@ describe("cli narrate + loaders", () => {
     expect(out).toContain("alpha");
     expect(out).toContain("biggest movers");
     expect(out).not.toContain("RURO FLEET");
+    log.mockRestore();
+  });
+
+  it("status works when older scorecards omit ciConclusions", () => {
+    const config = defaultConfig("acme");
+    const scored = scoreRepo(
+      baseSignals({ homepageUrl: null, demo: emptyDemo() }),
+      config,
+    );
+    const raw = buildReport(config, [scored], 0);
+    // Simulate pre-v0.3 on-disk JSON
+    delete (raw.repos[0]!.signals as { ciConclusions?: string[] }).ciConclusions;
+    delete (raw.repos[0]!.signals as { ownerCommitShare?: number | null })
+      .ownerCommitShare;
+
+    const normalized = normalizeReport(raw);
+    expect(normalized.repos[0]!.signals.ciConclusions).toEqual([]);
+    expect(normalized.repos[0]!.signals.ownerCommitShare).toBeNull();
+
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    expect(() => narrateStatus(normalized, "alpha")).not.toThrow();
+    const out = log.mock.calls.flat().join("\n");
+    expect(out).toContain("alpha");
+    expect(out).toMatch(/CI:/);
     log.mockRestore();
   });
 });

@@ -5,6 +5,7 @@ import { printBanner } from "./cli/banner.js";
 import {
   narrateBrief,
   narrateDiff,
+  narrateFull,
   narrateNext,
   narrateReview,
   narrateStatus,
@@ -19,7 +20,7 @@ import { explainCode, explainScoreLine } from "./score/explain.js";
 import { runRuro } from "./run.js";
 import type { RuroReport, ScoredRepo } from "./types.js";
 
-function usage(): never {
+function usage(code = 1): never {
   printBanner("help");
   console.log(`
   ruro                         live agent session (Ruri)
@@ -28,8 +29,10 @@ function usage(): never {
   ruro brief | next | diff     operator surfaces
   ruro view | top [n]          fleet / shortlist
   ruro status <repo>           dossier + deploy proof
+  ruro full <repo>             long dossier
   ruro why <repo>              contributions + playbook
   ruro review [repo]           Copilot garnish (optional)
+  ruro help                    this help
   ruro --json <cmd> …          machine output
 
 Live:
@@ -40,7 +43,7 @@ Live:
 
 Env: GITHUB_TOKEN or GH_TOKEN for scan & review
 `);
-  process.exit(1);
+  process.exit(code);
 }
 
 function takeFlag(args: string[], flag: string): boolean {
@@ -206,7 +209,9 @@ async function runReview(args: string[], asJson: boolean): Promise<void> {
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
-  if (argv.includes("-h") || argv.includes("--help")) usage();
+  if (argv.includes("-h") || argv.includes("--help") || argv[0] === "help") {
+    usage(0);
+  }
 
   const asJson = takeFlag(argv, "--json");
 
@@ -240,6 +245,7 @@ async function main(): Promise<void> {
     "view",
     "top",
     "status",
+    "full",
     "why",
     "review",
     "explain",
@@ -250,7 +256,7 @@ async function main(): Promise<void> {
 
   if (!isSub) {
     console.error(`Unknown command: ${cmd}`);
-    usage();
+    usage(1);
   }
 
   const subArgs = argv.slice(1);
@@ -329,14 +335,18 @@ async function main(): Promise<void> {
     narrateTop(report, n);
     return;
   }
-  if (cmd === "status") {
+  if (cmd === "status" || cmd === "full") {
     const query = rest[0];
     if (!query) {
-      console.error("status expects a repo name");
+      console.error(`${cmd} expects a repo name`);
       process.exit(1);
     }
     if (asJson) {
       emitJson(summarizeRepo(findRepo(report, query)));
+      return;
+    }
+    if (cmd === "full") {
+      narrateFull(report, query);
       return;
     }
     narrateStatus(report, query);

@@ -3,6 +3,44 @@ import { resolve } from "node:path";
 import type { RuroConfig } from "../config.js";
 import type { RuroReport, ScoredRepo } from "../types.js";
 
+/** Fill fields added after older scorecards so CLI never crashes on missing arrays. */
+export function normalizeReport(report: RuroReport): RuroReport {
+  return {
+    ...report,
+    regressions: report.regressions ?? [],
+    repos: report.repos.map(normalizeRepo),
+  };
+}
+
+function normalizeRepo(repo: ScoredRepo): ScoredRepo {
+  const s = repo.signals;
+  const fitness = s.fitness ?? {
+    score: 0,
+    sourceFiles: 0,
+    testFiles: 0,
+    otherFiles: 0,
+    maxBlobBytes: 0,
+    flags: [] as string[],
+  };
+  return {
+    ...repo,
+    drivers: repo.drivers ?? [],
+    blockers: repo.blockers ?? [],
+    contributions: repo.contributions ?? [],
+    signals: {
+      ...s,
+      ciConclusions: s.ciConclusions ?? [],
+      ownerCommitShare: s.ownerCommitShare ?? null,
+      languages: s.languages ?? [],
+      topics: s.topics ?? [],
+      fitness: {
+        ...fitness,
+        flags: fitness.flags ?? [],
+      },
+    },
+  };
+}
+
 export function loadLatestReport(
   config: RuroConfig,
   cwd = process.cwd(),
@@ -15,7 +53,7 @@ export function loadLatestReport(
   if (parsed?.schema_version !== 1 || !Array.isArray(parsed.repos)) {
     throw new Error(`Invalid scorecard data at ${path}`);
   }
-  return parsed;
+  return normalizeReport(parsed);
 }
 
 export function findRepo(report: RuroReport, query: string): ScoredRepo {
