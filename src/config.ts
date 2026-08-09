@@ -92,6 +92,31 @@ const ConfigSchema = z.object({
 
 export type RuroConfig = z.infer<typeof ConfigSchema>;
 
+const PLACEHOLDER_OWNERS = new Set([
+  "your_github_login",
+  "your_github_username",
+  "your-username",
+  "changeme",
+  "owner",
+  "username",
+]);
+
+export function assertOwnerConfigured(config: RuroConfig): void {
+  const owner = config.owner.trim();
+  if (!owner || PLACEHOLDER_OWNERS.has(owner.toLowerCase())) {
+    throw new Error(
+      [
+        `ruro.yml owner is still a placeholder (“${config.owner}”).`,
+        "Fix:",
+        "  cp ruro.example.yml ruro.yml",
+        "  # set owner: YOUR_GITHUB_LOGIN",
+        "  export GITHUB_TOKEN=…   # or GH_TOKEN",
+        "  npm run ruro -- scan",
+      ].join("\n"),
+    );
+  }
+}
+
 export function loadConfig(path: string, ownerOverride?: string): RuroConfig {
   const abs = resolve(path);
   if (!existsSync(abs)) {
@@ -99,10 +124,11 @@ export function loadConfig(path: string, ownerOverride?: string): RuroConfig {
   }
   const raw = yaml.load(readFileSync(abs, "utf8"));
   const parsed = ConfigSchema.parse(raw);
-  if (ownerOverride?.trim()) {
-    return { ...parsed, owner: ownerOverride.trim() };
-  }
-  return parsed;
+  const config = ownerOverride?.trim()
+    ? { ...parsed, owner: ownerOverride.trim() }
+    : parsed;
+  assertOwnerConfigured(config);
+  return config;
 }
 
 export function defaultConfig(owner: string): RuroConfig {

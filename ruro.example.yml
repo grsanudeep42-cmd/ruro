@@ -1,14 +1,18 @@
-# Ruro — THIS repo's live scorecard config (grsanudeep42-cmd public OS).
-# New users: do NOT keep this owner. Copy the template instead:
+# Ruro config — COPY this file to get started:
 #   cp ruro.example.yml ruro.yml
-# then set owner to YOUR login and run `npm run ruro -- scan`.
+# Then set `owner` to YOUR GitHub username and run:
+#   export GITHUB_TOKEN=…   # or GH_TOKEN
+#   npm run ruro -- scan
+#   npm run ruro
 #
 schema_version: 1
 
-owner: grsanudeep42-cmd
+# REQUIRED — your GitHub login or org (not someone else's)
+owner: YOUR_GITHUB_LOGIN
 
 scan:
-  # Public meta-repo: do not pull private repos into committed data/
+  # false = public repos only (safe for a public meta-repo)
+  # true  = include privates (use a PRIVATE meta-repo + repo-scoped token)
   include_private: false
   include_forks: false
   include_archived: true
@@ -17,6 +21,7 @@ scan:
     - ".github"
 
 weights:
+  # Must sum to 1.0 — Quality / Alive / Structure
   quality: 0.40
   alive: 0.35
   structure: 0.25
@@ -29,7 +34,7 @@ thresholds:
 probes:
   enabled: true
   timeout_ms: 8000
-  user_agent: "ruro-probe/0.1 (+https://github.com/grsanudeep42-cmd/ruro)"
+  user_agent: "ruro-probe/0.1"
   follow_redirects: true
 
 render:
@@ -45,19 +50,21 @@ render:
   overview_path: OVERVIEW.md
 
 privacy:
-  # Never publish private repo names into Pages / DASHBOARD / data on a public meta-repo
+  # public_only_render — strip privates from published surfaces (recommended for public repos)
+  # full — write everything (only safe on a PRIVATE meta-repo)
   mode: public_only_render
 
 profile:
   enabled: false
-  repo: grsanudeep42-cmd/grsanudeep42-cmd
+  # When enabled, set repo + your identity (never leave blank)
+  repo: YOUR_GITHUB_LOGIN/YOUR_GITHUB_LOGIN
   readme_path: README.md
   commit_message: "chore(ruro): refresh profile portfolio truth"
   commit_author_name: ""
   commit_author_email: ""
 
 ai:
-  # Off by default. Needs Copilot CLI + credits. Never affects scores.
+  # Optional Copilot judgment — never moves scores
   enabled: false
   provider: copilot
   top_n: 5

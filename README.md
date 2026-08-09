@@ -58,8 +58,8 @@ You’re in a live session. Type `/` for the command menu.
 › /exit
 ```
 
-No token needed to explore the **committed** scorecard in this repo.  
-To score **your** GitHub account, see [Make it yours](#make-it-yours).
+No token needed to explore the **committed demo** scorecard in this repo.  
+To run Ruro on **your** GitHub account (not this demo), see [Make it yours](#make-it-yours).
 
 ---
 
@@ -180,26 +180,36 @@ Every score point has a **named contribution** — `why <repo>` explains the mat
 
 ## Make it yours
 
-Point Ruro at **any** GitHub user or org.
+Clone is a **demo** of one public fleet. To operate **your** account:
 
-### 1. Configure
+### 1. Config from the template
 
-Edit [`ruro.yml`](./ruro.yml):
+```bash
+cp ruro.example.yml ruro.yml
+```
+
+Edit [`ruro.yml`](./ruro.yml) — set **your** login:
 
 ```yaml
-owner: YOUR_GITHUB_LOGIN   # required
+owner: YOUR_GITHUB_LOGIN   # ← change this (required)
 
 scan:
-  include_private: false   # true only if your token can see privates
+  include_private: false   # true only with a private meta-repo + repo token
   include_forks: false
   include_archived: true
   exclude_repos:
     - ruro
     - ".github"
 
+privacy:
+  mode: public_only_render # or full on a PRIVATE meta-repo
+
 thresholds:
   active_days: 90
 ```
+
+Starter file with comments: [`ruro.example.yml`](./ruro.example.yml).  
+Placeholder owners are rejected on purpose so you don’t keep scanning someone else’s fleet by accident.
 
 ### 2. Token
 
@@ -289,7 +299,8 @@ ruro/
 │   └── ai/              # optional Copilot cache (never scores)
 ├── docs/                # Pages “desktop”
 ├── assets/              # profile / card SVG
-├── ruro.yml             # owner + weights + thresholds
+├── ruro.yml             # this repo’s live owner config
+├── ruro.example.yml     # copy → ruro.yml for your account
 ├── DASHBOARD.md         # full markdown scorecard
 ├── OVERVIEW.md          # living fleet snapshot
 └── BIBLE.md             # product canon (deeper reading)

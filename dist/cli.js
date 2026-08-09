@@ -295,6 +295,29 @@ var ConfigSchema = z.object({
     timeout_ms: 18e4
   })
 });
+var PLACEHOLDER_OWNERS = /* @__PURE__ */ new Set([
+  "your_github_login",
+  "your_github_username",
+  "your-username",
+  "changeme",
+  "owner",
+  "username"
+]);
+function assertOwnerConfigured(config) {
+  const owner = config.owner.trim();
+  if (!owner || PLACEHOLDER_OWNERS.has(owner.toLowerCase())) {
+    throw new Error(
+      [
+        `ruro.yml owner is still a placeholder (\u201C${config.owner}\u201D).`,
+        "Fix:",
+        "  cp ruro.example.yml ruro.yml",
+        "  # set owner: YOUR_GITHUB_LOGIN",
+        "  export GITHUB_TOKEN=\u2026   # or GH_TOKEN",
+        "  npm run ruro -- scan"
+      ].join("\n")
+    );
+  }
+}
 function loadConfig(path, ownerOverride) {
   const abs = resolve(path);
   if (!existsSync(abs)) {
@@ -302,10 +325,9 @@ function loadConfig(path, ownerOverride) {
   }
   const raw = yaml.load(readFileSync(abs, "utf8"));
   const parsed = ConfigSchema.parse(raw);
-  if (ownerOverride?.trim()) {
-    return { ...parsed, owner: ownerOverride.trim() };
-  }
-  return parsed;
+  const config = ownerOverride?.trim() ? { ...parsed, owner: ownerOverride.trim() } : parsed;
+  assertOwnerConfigured(config);
+  return config;
 }
 function defaultConfig(owner) {
   return ConfigSchema.parse({
@@ -3494,6 +3516,15 @@ async function startRepl(opts) {
   const repoNames = report.repos.map((r) => r.signals.name);
   printBoot({ owner: report.owner, repos: report.included_count });
   agent(`Online. Type / for the menu. Tab completes. Enter runs.`);
+  if (report.owner.toLowerCase() !== config.owner.toLowerCase()) {
+    agent(
+      [
+        `Heads-up: scorecard on disk is for \u201C${report.owner}\u201D, but ruro.yml owner is \u201C${config.owner}\u201D.`,
+        `Copy the template, set your login, then /scan:`,
+        `  cp ruro.example.yml ruro.yml`
+      ].join("\n")
+    );
+  }
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,

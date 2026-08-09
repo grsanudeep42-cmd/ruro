@@ -71,6 +71,15 @@ export async function startRepl(opts: {
 
   printBoot({ owner: report.owner, repos: report.included_count });
   agent(`Online. Type / for the menu. Tab completes. Enter runs.`);
+  if (report.owner.toLowerCase() !== config.owner.toLowerCase()) {
+    agent(
+      [
+        `Heads-up: scorecard on disk is for “${report.owner}”, but ruro.yml owner is “${config.owner}”.`,
+        `Copy the template, set your login, then /scan:`,
+        `  cp ruro.example.yml ruro.yml`,
+      ].join("\n"),
+    );
+  }
 
   const rl = readline.createInterface({
     input: process.stdin,
