@@ -65,7 +65,7 @@ export function printSlashMenu(
   }
   console.log("");
   console.log(
-    c("mute", "  type / then a name · tab completes · enter runs"),
+    c("mute", "  type / for menu (live) · tab completes · enter runs"),
   );
   console.log("");
 }
@@ -154,7 +154,7 @@ export function printBoot(meta?: { owner?: string; repos?: number }): void {
   console.log(
     c(
       "mute",
-      "  /brief /diff /next /view /why /status · type / for menu · /exit",
+      "  type / for menu (opens live) · tab · enter · /exit",
     ),
   );
   console.log(bar);

@@ -62,7 +62,7 @@ export async function startRepl(opts: {
   const repoNames = report.repos.map((r) => r.signals.name);
 
   printBoot({ owner: report.owner, repos: report.included_count });
-  agent(`Online. Type / for the command menu — or a repo name.`);
+  agent(`Online. Type / — menu opens instantly. Tab completes. Enter runs.`);
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -71,6 +71,36 @@ export async function startRepl(opts: {
     terminal: true,
     completer: completer(repoNames),
   });
+
+  // Cursor-style: show/filter slash menu as you type "/", no Enter needed
+  let slashMenuShownFor = "";
+  readline.emitKeypressEvents(process.stdin, rl);
+  const onKeypress = (_str: string, key: readline.Key): void => {
+    if (!key || key.ctrl || key.meta) return;
+    // Defer until readline has updated rl.line
+    setImmediate(() => {
+      const line = rl.line ?? "";
+      if (!line.startsWith("/")) {
+        slashMenuShownFor = "";
+        return;
+      }
+      // Only while composing a slash command (no args yet)
+      if (line.includes(" ", 1)) return;
+      const partial = line.slice(1).toLowerCase();
+      const filtered = filterSlashCommands(partial);
+      const list = filtered.length ? filtered : SLASH_COMMANDS;
+      const signature = list.map((x) => x.cmd).join(",");
+      if (signature === slashMenuShownFor) return;
+      slashMenuShownFor = signature;
+      // Clear a bit of space then draw menu under the prompt
+      printSlashMenu(
+        list,
+        partial || "menu",
+      );
+      rl.prompt(true);
+    });
+  };
+  process.stdin.on("keypress", onKeypress);
 
   const reload = (): void => {
     report = loadLatestReport(config, cwd);
@@ -101,8 +131,9 @@ export async function startRepl(opts: {
           return "continue";
         case "menu": {
           const filtered = filterSlashCommands(intent.arg ?? "");
+          const list = filtered.length ? filtered : SLASH_COMMANDS;
           printSlashMenu(
-            filtered.length ? filtered : SLASH_COMMANDS,
+            list,
             filtered.length && intent.arg ? intent.arg : "menu",
           );
           return "continue";
@@ -247,10 +278,12 @@ export async function startRepl(opts: {
   for await (const line of rl) {
     const next = await handle(line);
     if (next === "exit") {
+      process.stdin.off("keypress", onKeypress);
       process.off("SIGINT", onSigInt);
       rl.close();
       break;
     }
+    slashMenuShownFor = "";
     rl.prompt();
   }
 }

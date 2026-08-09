@@ -814,7 +814,7 @@ function printSlashMenu(commands, title = "commands") {
   }
   console.log("");
   console.log(
-    c("mute", "  type / then a name \xB7 tab completes \xB7 enter runs")
+    c("mute", "  type / for menu (live) \xB7 tab completes \xB7 enter runs")
   );
   console.log("");
 }
@@ -890,7 +890,7 @@ function printBoot(meta) {
   console.log(
     c(
       "mute",
-      "  /brief /diff /next /view /why /status \xB7 type / for menu \xB7 /exit"
+      "  type / for menu (opens live) \xB7 tab \xB7 enter \xB7 /exit"
     )
   );
   console.log(bar);
@@ -3309,7 +3309,7 @@ async function startRepl(opts) {
   let abort = null;
   const repoNames = report.repos.map((r) => r.signals.name);
   printBoot({ owner: report.owner, repos: report.included_count });
-  agent(`Online. Type / for the command menu \u2014 or a repo name.`);
+  agent(`Online. Type / \u2014 menu opens instantly. Tab completes. Enter runs.`);
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -3317,6 +3317,31 @@ async function startRepl(opts) {
     terminal: true,
     completer: completer(repoNames)
   });
+  let slashMenuShownFor = "";
+  readline.emitKeypressEvents(process.stdin, rl);
+  const onKeypress = (_str, key) => {
+    if (!key || key.ctrl || key.meta) return;
+    setImmediate(() => {
+      const line = rl.line ?? "";
+      if (!line.startsWith("/")) {
+        slashMenuShownFor = "";
+        return;
+      }
+      if (line.includes(" ", 1)) return;
+      const partial = line.slice(1).toLowerCase();
+      const filtered = filterSlashCommands(partial);
+      const list = filtered.length ? filtered : SLASH_COMMANDS;
+      const signature = list.map((x) => x.cmd).join(",");
+      if (signature === slashMenuShownFor) return;
+      slashMenuShownFor = signature;
+      printSlashMenu(
+        list,
+        partial || "menu"
+      );
+      rl.prompt(true);
+    });
+  };
+  process.stdin.on("keypress", onKeypress);
   const reload = () => {
     report = loadLatestReport(config, cwd);
     repoNames.splice(
@@ -3344,8 +3369,9 @@ async function startRepl(opts) {
           return "continue";
         case "menu": {
           const filtered = filterSlashCommands(intent.arg ?? "");
+          const list = filtered.length ? filtered : SLASH_COMMANDS;
           printSlashMenu(
-            filtered.length ? filtered : SLASH_COMMANDS,
+            list,
             filtered.length && intent.arg ? intent.arg : "menu"
           );
           return "continue";
@@ -3487,10 +3513,12 @@ async function startRepl(opts) {
   for await (const line of rl) {
     const next = await handle(line);
     if (next === "exit") {
+      process.stdin.off("keypress", onKeypress);
       process.off("SIGINT", onSigInt);
       rl.close();
       break;
     }
+    slashMenuShownFor = "";
     rl.prompt();
   }
 }
