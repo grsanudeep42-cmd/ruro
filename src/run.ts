@@ -8,6 +8,7 @@ import { probeAll } from "./probes/demo.js";
 import { syncProfileReadme } from "./profile/sync.js";
 import { buildReport, renderDashboard } from "./render/dashboard.js";
 import {
+  renderOverview,
   renderProfileSnippet,
   renderProfileSvg,
 } from "./render/profile.js";
@@ -78,6 +79,7 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
   const dashboardMarkdown = renderDashboard(report, options.config);
   const profileSnippet = renderProfileSnippet(report, options.config);
   const profileSvg = renderProfileSvg(report, options.config);
+  const overviewMarkdown = renderOverview(report, options.config);
   const webHtml = renderWebDashboard(report, options.config);
 
   const dashboardPath = resolve(cwd, options.config.render.dashboard_path);
@@ -86,6 +88,7 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
     options.config.render.profile_snippet_path,
   );
   const profileSvgPath = resolve(cwd, options.config.render.profile_svg_path);
+  const overviewPath = resolve(cwd, options.config.render.overview_path);
   const webPath = resolve(cwd, options.config.render.web_path);
 
   let profileSynced = false;
@@ -96,11 +99,13 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
     mkdirSync(dirname(dataPath), { recursive: true });
     mkdirSync(dirname(profileSnippetPath), { recursive: true });
     mkdirSync(dirname(profileSvgPath), { recursive: true });
+    mkdirSync(dirname(overviewPath), { recursive: true });
     mkdirSync(dirname(webPath), { recursive: true });
     writeFileSync(dashboardPath, dashboardMarkdown, "utf8");
     writeFileSync(dataPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
     writeFileSync(profileSnippetPath, profileSnippet, "utf8");
     writeFileSync(profileSvgPath, profileSvg, "utf8");
+    writeFileSync(overviewPath, overviewMarkdown, "utf8");
     writeFileSync(webPath, webHtml, "utf8");
 
     if (options.config.render.history) {

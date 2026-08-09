@@ -45,6 +45,7 @@ const ConfigSchema = z.object({
     profile_svg_path: z.string().default("assets/ruro-card.svg"),
     profile_top_n: z.number().int().positive().default(5),
     web_path: z.string().default("docs/index.html"),
+    overview_path: z.string().default("OVERVIEW.md"),
   }),
   privacy: z
     .object({
@@ -127,6 +128,7 @@ export function defaultConfig(owner: string): RuroConfig {
       profile_svg_path: "assets/ruro-card.svg",
       profile_top_n: 5,
       web_path: "docs/index.html",
+      overview_path: "OVERVIEW.md",
     },
     privacy: { mode: "full" },
     profile: {

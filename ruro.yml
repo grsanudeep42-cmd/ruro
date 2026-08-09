@@ -37,6 +37,7 @@ render:
   profile_svg_path: assets/ruro-card.svg
   profile_top_n: 5
   web_path: docs/index.html
+  overview_path: OVERVIEW.md
 
 privacy:
   # full = write every scanned repo into DASHBOARD.md (use a private meta-repo for private repos)

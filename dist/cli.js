@@ -202,7 +202,8 @@ var ConfigSchema = z.object({
     profile_snippet_path: z.string().default("PROFILE_SNIPPET.md"),
     profile_svg_path: z.string().default("assets/ruro-card.svg"),
     profile_top_n: z.number().int().positive().default(5),
-    web_path: z.string().default("docs/index.html")
+    web_path: z.string().default("docs/index.html"),
+    overview_path: z.string().default("OVERVIEW.md")
   }),
   privacy: z.object({
     mode: z.enum(["full", "public_only_render"]).default("full")
@@ -272,7 +273,8 @@ function defaultConfig(owner) {
       profile_snippet_path: "PROFILE_SNIPPET.md",
       profile_svg_path: "assets/ruro-card.svg",
       profile_top_n: 5,
-      web_path: "docs/index.html"
+      web_path: "docs/index.html",
+      overview_path: "OVERVIEW.md"
     },
     privacy: { mode: "full" },
     profile: {
@@ -1537,6 +1539,47 @@ ${lines.join("\n")}
 </svg>
 `;
 }
+function renderOverview(report, config) {
+  const top = report.repos.slice(0, config.render.profile_top_n);
+  const live = report.repos.filter((r) => r.signals.demo.verified).length;
+  const svgRel = config.render.profile_svg_path;
+  const osUrl = `https://${config.owner}.github.io/ruro/`;
+  const rows = top.map((r) => {
+    const demo = r.signals.demo.verified ? "verified" : r.signals.demo.status === "NONE" ? "none" : "unproven";
+    return `| **[${r.signals.name}](${r.signals.url})** | \`${r.status}\` | **${r.score}** | ${r.signals.primaryLanguage ?? "\u2014"} | ${demo} |`;
+  }).join("\n");
+  return `# Overview
+
+GitHub OS for \`${config.owner}\` \u2014 automatic truth, verified deploys, optional Copilot judgment.
+
+<div align="center">
+
+<a href="${osUrl}"><img src="./${svgRel}" width="600" alt="Ruro CLI terminal" /></a>
+
+</div>
+
+\`\`\`text
+$ ruro view
+  ${report.included_count} fleet \xB7 ${live} verified live \xB7 ${report.generated_at.slice(0, 16).replace("T", " ")} UTC
+\`\`\`
+
+| Project | Status | Score | Stack | Deploy |
+|---|---|---:|---|---|
+${rows}
+
+**Surfaces**
+
+| File | Role |
+| --- | --- |
+| [README.md](./README.md) | Product + CLI |
+| [OVERVIEW.md](./OVERVIEW.md) | This living fleet snapshot |
+| [LICENSE](./LICENSE) | MIT |
+| [docs/](./docs/) | Pages OS |
+| [DASHBOARD.md](./DASHBOARD.md) | Full markdown scorecard |
+
+<sub>Generated ${report.generated_at} \xB7 [Open OS](${osUrl})</sub>
+`;
+}
 function renderProfileSnippet(report, config) {
   const top = report.repos.slice(0, config.render.profile_top_n);
   const svgPath = config.render.profile_svg_path;
@@ -2347,6 +2390,7 @@ async function runRuro(options) {
   const dashboardMarkdown = renderDashboard(report, options.config);
   const profileSnippet = renderProfileSnippet(report, options.config);
   const profileSvg = renderProfileSvg(report, options.config);
+  const overviewMarkdown = renderOverview(report, options.config);
   const webHtml = renderWebDashboard(report, options.config);
   const dashboardPath = resolve5(cwd, options.config.render.dashboard_path);
   const profileSnippetPath = resolve5(
@@ -2354,6 +2398,7 @@ async function runRuro(options) {
     options.config.render.profile_snippet_path
   );
   const profileSvgPath = resolve5(cwd, options.config.render.profile_svg_path);
+  const overviewPath = resolve5(cwd, options.config.render.overview_path);
   const webPath = resolve5(cwd, options.config.render.web_path);
   let profileSynced = false;
   let aiAnnotated = 0;
@@ -2362,12 +2407,14 @@ async function runRuro(options) {
     mkdirSync2(dirname(dataPath), { recursive: true });
     mkdirSync2(dirname(profileSnippetPath), { recursive: true });
     mkdirSync2(dirname(profileSvgPath), { recursive: true });
+    mkdirSync2(dirname(overviewPath), { recursive: true });
     mkdirSync2(dirname(webPath), { recursive: true });
     writeFileSync2(dashboardPath, dashboardMarkdown, "utf8");
     writeFileSync2(dataPath, `${JSON.stringify(report, null, 2)}
 `, "utf8");
     writeFileSync2(profileSnippetPath, profileSnippet, "utf8");
     writeFileSync2(profileSvgPath, profileSvg, "utf8");
+    writeFileSync2(overviewPath, overviewMarkdown, "utf8");
     writeFileSync2(webPath, webHtml, "utf8");
     if (options.config.render.history) {
       const day = report.generated_at.slice(0, 10);

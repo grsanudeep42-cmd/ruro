@@ -63,6 +63,59 @@ ${lines.join("\n")}
 `;
 }
 
+export function renderOverview(
+  report: RuroReport,
+  config: RuroConfig,
+): string {
+  const top = report.repos.slice(0, config.render.profile_top_n);
+  const live = report.repos.filter((r) => r.signals.demo.verified).length;
+  const svgRel = config.render.profile_svg_path;
+  const osUrl = `https://${config.owner}.github.io/ruro/`;
+
+  const rows = top
+    .map((r: ScoredRepo) => {
+      const demo = r.signals.demo.verified
+        ? "verified"
+        : r.signals.demo.status === "NONE"
+          ? "none"
+          : "unproven";
+      return `| **[${r.signals.name}](${r.signals.url})** | \`${r.status}\` | **${r.score}** | ${r.signals.primaryLanguage ?? "—"} | ${demo} |`;
+    })
+    .join("\n");
+
+  return `# Overview
+
+GitHub OS for \`${config.owner}\` — automatic truth, verified deploys, optional Copilot judgment.
+
+<div align="center">
+
+<a href="${osUrl}"><img src="./${svgRel}" width="600" alt="Ruro CLI terminal" /></a>
+
+</div>
+
+\`\`\`text
+$ ruro view
+  ${report.included_count} fleet · ${live} verified live · ${report.generated_at.slice(0, 16).replace("T", " ")} UTC
+\`\`\`
+
+| Project | Status | Score | Stack | Deploy |
+|---|---|---:|---|---|
+${rows}
+
+**Surfaces**
+
+| File | Role |
+| --- | --- |
+| [README.md](./README.md) | Product + CLI |
+| [OVERVIEW.md](./OVERVIEW.md) | This living fleet snapshot |
+| [LICENSE](./LICENSE) | MIT |
+| [docs/](./docs/) | Pages OS |
+| [DASHBOARD.md](./DASHBOARD.md) | Full markdown scorecard |
+
+<sub>Generated ${report.generated_at} · [Open OS](${osUrl})</sub>
+`;
+}
+
 export function renderProfileSnippet(
   report: RuroReport,
   config: RuroConfig,
