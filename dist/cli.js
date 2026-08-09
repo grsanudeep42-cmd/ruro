@@ -299,11 +299,13 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync as readFileSync2,
+  readdirSync,
   rmSync,
+  statSync,
   writeFileSync
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve as resolve2 } from "node:path";
+import { join, relative, resolve as resolve2 } from "node:path";
 import { spawnSync } from "node:child_process";
 async function annotateWithCopilot(opts) {
   const { report, config, cwd, token } = opts;
@@ -341,7 +343,7 @@ async function annotateWithCopilot(opts) {
     generated_at: (/* @__PURE__ */ new Date()).toISOString(),
     provider: "copilot",
     status: ok.length ? "reviewed" : "partial",
-    note: "Scores stay signal-based. Copilot only annotates showability + code review.",
+    note: "Scores stay signal-based. Audit uses an embedded source dossier (no sandbox file dependency).",
     repos: reviews
   };
   writeJson(join(cacheDir, "latest.json"), payload);
@@ -399,19 +401,24 @@ async function reviewOneRepo(opts) {
     const repoDir = join(work, "repo");
     const dossier = buildRepoDossier(repoDir, repo);
     writeFileSync(join(repoDir, "RURO_DOSSIER.md"), dossier, "utf8");
+    const embedded = dossier.slice(0, 28e3);
     const prompt = [
-      "You MUST read RURO_DOSSIER.md first, then open at least three real source files from this working tree.",
-      "Do not invent files. In ## Code review cite concrete paths like src/app.ts or package.json.",
-      "If you cannot read files, reply only: REVIEW_FAILED: cannot read source",
-      "Judge whether this is a real functional product vs thin glue.",
-      "Use signals in the dossier (demo verified?, fitness, blockers) but verify against code.",
-      "Reply in markdown with exactly these sections:",
+      "You are auditing a GitHub repo for portfolio truth.",
+      "The SOURCE DOSSIER below was extracted from a fresh shallow clone. Treat it as ground truth.",
+      "Do NOT claim permission errors. Do NOT say you cannot read the repo.",
+      "Cite at least three concrete paths that appear in the dossier (e.g. package.json, src/...).",
+      "Judge: real functional product vs thin glue; tests/CI; demo honesty; risks.",
+      "Reply in markdown with exactly:",
       "## Why showable",
       "## Strengths",
       "## Weaknesses",
       "## Code review",
-      "Be blunt. Keep under 450 words."
-    ].join(" ");
+      "Be blunt. Under 450 words.",
+      "",
+      "===== SOURCE DOSSIER =====",
+      embedded,
+      "===== END DOSSIER ====="
+    ].join("\n");
     const env = {
       ...process.env,
       COPILOT_GITHUB_TOKEN: token,
@@ -420,13 +427,7 @@ async function reviewOneRepo(opts) {
     };
     const result = spawnSync(
       "copilot",
-      [
-        "-p",
-        prompt,
-        "-s",
-        "--no-ask-user",
-        "--allow-all-tools"
-      ],
+      ["-p", prompt, "-s", "--no-ask-user"],
       {
         cwd: repoDir,
         encoding: "utf8",
@@ -436,14 +437,14 @@ async function reviewOneRepo(opts) {
       }
     );
     const text = (result.stdout || "").trim() || (result.stderr || "").trim();
-    if (!text || /REVIEW_FAILED|couldn't read the repo|permission errors/i.test(text)) {
+    if (!text) {
       throw new Error(
-        text.slice(0, 500) || `copilot exited ${result.status ?? "null"} without a readable review`
+        `copilot exited ${result.status ?? "null"} with no output`
       );
     }
-    if (result.status !== 0 && text.length < 80) {
+    if (/REVIEW_FAILED:\s*cannot read source/i.test(text)) {
       throw new Error(
-        text.slice(0, 400) || `copilot exited ${result.status ?? "null"} with no output`
+        "copilot still refused to use the embedded dossier \u2014 check Copilot auth/credits"
       );
     }
     const cited = extractCitedPaths(text);
@@ -453,7 +454,7 @@ async function reviewOneRepo(opts) {
     );
     if (hits.length < 2) {
       throw new Error(
-        `audit rejected: need \u22652 real file citations from the clone (got ${hits.length}: ${hits.join(", ") || "none"}). Raw head: ${text.slice(0, 240)}`
+        `audit rejected: need \u22652 dossier path citations (got ${hits.length}: ${hits.join(", ") || "none"}). Head: ${text.slice(0, 280)}`
       );
     }
     const parsed = parseReviewMarkdown(text, repo);
@@ -494,9 +495,101 @@ _Cited:_ ${hits.slice(0, 12).join(", ")}`
     }
   }
 }
+function collectSourceFiles(root, limit = 10) {
+  const out = [];
+  const stack = [root];
+  const skip = /* @__PURE__ */ new Set([
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    ".next",
+    "coverage",
+    "vendor",
+    "target"
+  ]);
+  while (stack.length && out.length < limit) {
+    const dir = stack.pop();
+    let entries = [];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const name of entries) {
+      if (skip.has(name)) continue;
+      const abs = join(dir, name);
+      let st;
+      try {
+        st = statSync(abs);
+      } catch {
+        continue;
+      }
+      if (st.isDirectory()) {
+        stack.push(abs);
+        continue;
+      }
+      if (/\.(ts|tsx|js|jsx|py|go|rs|swift)$/i.test(name) && !/\.(test|spec)\./i.test(name)) {
+        out.push(abs);
+        if (out.length >= limit) break;
+      }
+    }
+  }
+  return out;
+}
+function buildRepoDossier(repoDir, repo) {
+  const lines = [
+    `# Ruro dossier for ${repo.signals.fullName}`,
+    "",
+    `Status ${repo.status} \xB7 score ${repo.score}`,
+    `Demo ${repo.signals.demo.status}${repo.signals.demo.verified ? " verified" : ""} url=${repo.signals.demo.url ?? "\u2014"}`,
+    `Fitness ${repo.signals.fitness.score} (${repo.signals.fitness.sourceFiles} src / ${repo.signals.fitness.testFiles} tests)`,
+    `Drivers: ${repo.drivers.join(", ")}`,
+    `Blockers: ${repo.blockers.join(", ")}`,
+    "",
+    "## Tree (truncated)"
+  ];
+  const tree = spawnSync(
+    "bash",
+    [
+      "-lc",
+      "find . -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o -name '*.md' -o -name 'package.json' -o -name 'pyproject.toml' -o -name 'Cargo.toml' -o -name 'go.mod' \\) ! -path './.git/*' ! -path './node_modules/*' ! -path './dist/*' ! -path './.next/*' | head -n 160"
+    ],
+    { cwd: repoDir, encoding: "utf8", timeout: 15e3 }
+  );
+  lines.push((tree.stdout || "").trim() || "(no files listed)");
+  lines.push("", "## Key file previews");
+  const candidates = [
+    "README.md",
+    "readme.md",
+    "package.json",
+    "pyproject.toml",
+    "Cargo.toml",
+    "go.mod"
+  ];
+  for (const rel of candidates) {
+    const abs = join(repoDir, rel);
+    if (!existsSync2(abs)) continue;
+    try {
+      const raw = readFileSync2(abs, "utf8").slice(0, 2200);
+      lines.push("", `### ${rel}`, "```", raw, "```");
+    } catch {
+    }
+  }
+  for (const abs of collectSourceFiles(repoDir, 8)) {
+    const rel = relative(repoDir, abs);
+    try {
+      const raw = readFileSync2(abs, "utf8").slice(0, 1600);
+      lines.push("", `### ${rel}`, "```", raw, "```");
+    } catch {
+    }
+  }
+  return `${lines.join("\n")}
+`;
+}
 function extractCitedPaths(text) {
   const found = /* @__PURE__ */ new Set();
-  const re = /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)+[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"''),]|$)/gim;
+  const re = /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"'),]|$)/gim;
   let m;
   while ((m = re.exec(text)) !== null) {
     found.add(m[1].replace(/^\.\//, ""));
@@ -515,50 +608,6 @@ function listKnownPaths(dossier) {
     if (t.startsWith("### ")) paths.push(t.slice(4).trim());
   }
   return paths;
-}
-function buildRepoDossier(repoDir, repo) {
-  const lines = [
-    `# Ruro dossier for ${repo.signals.fullName}`,
-    "",
-    `Status ${repo.status} \xB7 score ${repo.score}`,
-    `Demo ${repo.signals.demo.status}${repo.signals.demo.verified ? " verified" : ""}`,
-    `Fitness ${repo.signals.fitness.score} (${repo.signals.fitness.sourceFiles} src / ${repo.signals.fitness.testFiles} tests)`,
-    "",
-    "## Tree (truncated)"
-  ];
-  const tree = spawnSync(
-    "bash",
-    [
-      "-lc",
-      "find . -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o -name '*.md' -o -name 'package.json' -o -name 'pyproject.toml' -o -name 'Cargo.toml' -o -name 'go.mod' \\) ! -path './.git/*' ! -path './node_modules/*' ! -path './dist/*' ! -path './.next/*' | head -n 120"
-    ],
-    { cwd: repoDir, encoding: "utf8", timeout: 15e3 }
-  );
-  lines.push((tree.stdout || "").trim() || "(no files listed)");
-  lines.push("", "## Key file previews");
-  const candidates = [
-    "README.md",
-    "readme.md",
-    "package.json",
-    "pyproject.toml",
-    "Cargo.toml",
-    "go.mod",
-    "src/main.ts",
-    "src/index.ts",
-    "src/App.tsx",
-    "app/page.tsx"
-  ];
-  for (const rel of candidates) {
-    const abs = join(repoDir, rel);
-    if (!existsSync2(abs)) continue;
-    try {
-      const raw = readFileSync2(abs, "utf8").slice(0, 2500);
-      lines.push("", `### ${rel}`, "```", raw, "```");
-    } catch {
-    }
-  }
-  return `${lines.join("\n")}
-`;
 }
 function parseReviewMarkdown(text, repo) {
   const why = section(text, "Why showable") || section(text, "Why Showable") || signalWhy(repo);
@@ -586,7 +635,7 @@ function signalFallbackReview(repo) {
   return [
     `Signal-only fallback (Copilot review unavailable).`,
     `Blockers: ${repo.blockers.slice(0, 5).join(", ") || "\u2014"}.`,
-    `Demo: ${repo.signals.demo.status}.`
+    `Demo: ${repo.signals.demo.status}${repo.signals.demo.verified ? " verified" : ""}.`
   ].join(" ");
 }
 function formatReviewMd(r) {
@@ -644,6 +693,51 @@ function readAiCache(cwd, cacheDir) {
   } catch {
     return null;
   }
+}
+
+// src/cli/banner.ts
+var C = {
+  reset: "\x1B[0m",
+  dim: "\x1B[2m",
+  bold: "\x1B[1m",
+  lime: "\x1B[38;2;214;255;60m",
+  sand: "\x1B[38;2;196;184;160m",
+  mute: "\x1B[38;2;138;134;124m",
+  red: "\x1B[38;2;255;92;77m",
+  ink: "\x1B[38;2;244;241;234m"
+};
+function color(kind, text) {
+  if (!process.stdout.isTTY) return text;
+  return `${C[kind]}${text}${C.reset}`;
+}
+function ruriArt() {
+  const L = (s) => color("lime", s);
+  const M = (s) => color("mute", s);
+  const S = (s) => color("sand", s);
+  return [
+    L("        .--.      "),
+    L("       |o_o |     ") + M("  RURI"),
+    L("       |:_/ |     ") + S("  ruro fleet operator"),
+    L("      //   \\ \\    ") + M("  github os \xB7 no vibes"),
+    L("     (|     | )   "),
+    L("    /'\\_   _/`\\   "),
+    L("    \\___)=(___/   ")
+  ].join("\n");
+}
+function printBanner(cmd) {
+  const bar = color("mute", "\u2550".repeat(64));
+  console.log(bar);
+  console.log(ruriArt());
+  console.log(
+    `${color("bold", color("ink", "  RURO"))} ${color("mute", "v0.1.0")}  ${color("lime", "\u25B8")} ${color("sand", cmd)}`
+  );
+  console.log(
+    color(
+      "mute",
+      "  scan \xB7 view \xB7 top \xB7 status \xB7 why \xB7 review    truth stays on github"
+    )
+  );
+  console.log(bar);
 }
 
 // src/cli/view.ts
@@ -805,13 +899,13 @@ function printView(report) {
   report.repos.forEach((repo, i) => {
     const rank = String(i + 1).padStart(2, " ");
     const name = repo.signals.name.padEnd(24, " ").slice(0, 24);
-    const st = repo.status.padEnd(8, " ");
+    const stCell = repo.status.padEnd(8, " ").slice(0, 8);
     const sc = String(repo.score).padStart(3, " ");
     const fit = String(repo.signals.fitness?.score ?? 0).padStart(3, " ");
     const dep = (repo.signals.demo.verified ? "VERIFIED" : repo.signals.demo.status).padEnd(12, " ").slice(0, 12);
     const stack = (repo.signals.primaryLanguage ?? "\u2014").padEnd(8, " ").slice(0, 8);
     console.log(
-      `\u2502 ${rank}   ${name} ${st} ${sc}  ${fit}  ${dep} ${stack} \u2502`
+      `\u2502 ${rank}   ${name} ${stCell} ${sc}  ${fit}  ${dep} ${stack} \u2502`
     );
   });
   section2("HINT");
@@ -2686,8 +2780,8 @@ async function runRuro(options) {
 
 // src/cli.ts
 function usage() {
-  console.log(`RURO \u2014 GitHub OS CLI
-
+  printBanner("help");
+  console.log(`
   ruro scan [--config ruro.yml] [--owner LOGIN] [--token TOKEN] [--dry-run]
   ruro view [--config ruro.yml]
   ruro top [n] [--config ruro.yml]
@@ -2696,13 +2790,13 @@ function usage() {
   ruro review [repo] [--config ruro.yml] [--token TOKEN]
 
 Correct flow:
-  1) scan     collect signals + verify deploys + tree fitness \u2192 data/latest.json
-  2) view     fleet table (offline)
-  3) status   full dossier for one repo
-  4) why      exact score math + explained drivers/blockers
-  5) review   Copilot reads cloned source (optional; never moves scores)
+  1) scan     signals + verified deploys + fitness \u2192 data/
+  2) view     fleet board
+  3) status   full dossier
+  4) why      score math + explained codes
+  5) review   Copilot audit from embedded source dossier (never moves scores)
 
-Env: GITHUB_TOKEN or GH_TOKEN for scan/review. Copilot CLI on PATH for review.
+Env: GITHUB_TOKEN / GH_TOKEN \xB7 Copilot CLI for review
 `);
   process.exit(1);
 }
@@ -2750,6 +2844,7 @@ async function runScan(args) {
     process.exit(1);
   }
   console.log("[ruro] scan starting (github + probes + fitness)\u2026");
+  printBanner("scan");
   const config = loadCfg(configPath, owner);
   const result = await runRuro({ token, config, dryRun, syncProfile });
   console.log(
@@ -2798,8 +2893,9 @@ async function runReview(args) {
   };
   const scoped = query ? { ...report, repos: [findRepo(report, query)] } : { ...report, repos: report.repos.slice(0, config.ai.top_n) };
   console.log(
-    `[ruro] review ${scoped.repos.map((r) => r.signals.name).join(", ")} (clone + Copilot)\u2026`
+    `[ruro] review ${scoped.repos.map((r) => r.signals.name).join(", ")} (clone + embedded dossier + Copilot)\u2026`
   );
+  printBanner(`review ${query ?? "top"}`);
   const result = await annotateWithCopilot({
     report: scoped,
     config: aiConfig,
@@ -2837,6 +2933,7 @@ async function main() {
   const config = loadCfg(configPath);
   const report = loadLatestReport(config);
   if (cmd === "view") {
+    printBanner("view");
     printView(report);
     return;
   }
@@ -2846,6 +2943,7 @@ async function main() {
       console.error("top expects a positive integer");
       process.exit(1);
     }
+    printBanner(`top ${n}`);
     printTop(report, n);
     return;
   }
@@ -2855,6 +2953,7 @@ async function main() {
       console.error("status expects a repo name");
       process.exit(1);
     }
+    printBanner(`status ${query}`);
     printStatus(report, query);
     printReviews(readAiCache(process.cwd(), config.ai.cache_dir), query);
     return;
@@ -2865,6 +2964,7 @@ async function main() {
       console.error("why expects a repo name");
       process.exit(1);
     }
+    printBanner(`why ${query}`);
     printWhy(report, config, query);
   }
 }

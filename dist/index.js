@@ -260,11 +260,13 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync as readFileSync2,
+  readdirSync,
   rmSync,
+  statSync,
   writeFileSync
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve as resolve2 } from "node:path";
+import { join, relative, resolve as resolve2 } from "node:path";
 import { spawnSync } from "node:child_process";
 async function annotateWithCopilot(opts) {
   const { report, config, cwd, token } = opts;
@@ -302,7 +304,7 @@ async function annotateWithCopilot(opts) {
     generated_at: (/* @__PURE__ */ new Date()).toISOString(),
     provider: "copilot",
     status: ok.length ? "reviewed" : "partial",
-    note: "Scores stay signal-based. Copilot only annotates showability + code review.",
+    note: "Scores stay signal-based. Audit uses an embedded source dossier (no sandbox file dependency).",
     repos: reviews
   };
   writeJson(join(cacheDir, "latest.json"), payload);
@@ -360,19 +362,24 @@ async function reviewOneRepo(opts) {
     const repoDir = join(work, "repo");
     const dossier = buildRepoDossier(repoDir, repo);
     writeFileSync(join(repoDir, "RURO_DOSSIER.md"), dossier, "utf8");
+    const embedded = dossier.slice(0, 28e3);
     const prompt = [
-      "You MUST read RURO_DOSSIER.md first, then open at least three real source files from this working tree.",
-      "Do not invent files. In ## Code review cite concrete paths like src/app.ts or package.json.",
-      "If you cannot read files, reply only: REVIEW_FAILED: cannot read source",
-      "Judge whether this is a real functional product vs thin glue.",
-      "Use signals in the dossier (demo verified?, fitness, blockers) but verify against code.",
-      "Reply in markdown with exactly these sections:",
+      "You are auditing a GitHub repo for portfolio truth.",
+      "The SOURCE DOSSIER below was extracted from a fresh shallow clone. Treat it as ground truth.",
+      "Do NOT claim permission errors. Do NOT say you cannot read the repo.",
+      "Cite at least three concrete paths that appear in the dossier (e.g. package.json, src/...).",
+      "Judge: real functional product vs thin glue; tests/CI; demo honesty; risks.",
+      "Reply in markdown with exactly:",
       "## Why showable",
       "## Strengths",
       "## Weaknesses",
       "## Code review",
-      "Be blunt. Keep under 450 words."
-    ].join(" ");
+      "Be blunt. Under 450 words.",
+      "",
+      "===== SOURCE DOSSIER =====",
+      embedded,
+      "===== END DOSSIER ====="
+    ].join("\n");
     const env = {
       ...process.env,
       COPILOT_GITHUB_TOKEN: token,
@@ -381,13 +388,7 @@ async function reviewOneRepo(opts) {
     };
     const result = spawnSync(
       "copilot",
-      [
-        "-p",
-        prompt,
-        "-s",
-        "--no-ask-user",
-        "--allow-all-tools"
-      ],
+      ["-p", prompt, "-s", "--no-ask-user"],
       {
         cwd: repoDir,
         encoding: "utf8",
@@ -397,14 +398,14 @@ async function reviewOneRepo(opts) {
       }
     );
     const text = (result.stdout || "").trim() || (result.stderr || "").trim();
-    if (!text || /REVIEW_FAILED|couldn't read the repo|permission errors/i.test(text)) {
+    if (!text) {
       throw new Error(
-        text.slice(0, 500) || `copilot exited ${result.status ?? "null"} without a readable review`
+        `copilot exited ${result.status ?? "null"} with no output`
       );
     }
-    if (result.status !== 0 && text.length < 80) {
+    if (/REVIEW_FAILED:\s*cannot read source/i.test(text)) {
       throw new Error(
-        text.slice(0, 400) || `copilot exited ${result.status ?? "null"} with no output`
+        "copilot still refused to use the embedded dossier \u2014 check Copilot auth/credits"
       );
     }
     const cited = extractCitedPaths(text);
@@ -414,7 +415,7 @@ async function reviewOneRepo(opts) {
     );
     if (hits.length < 2) {
       throw new Error(
-        `audit rejected: need \u22652 real file citations from the clone (got ${hits.length}: ${hits.join(", ") || "none"}). Raw head: ${text.slice(0, 240)}`
+        `audit rejected: need \u22652 dossier path citations (got ${hits.length}: ${hits.join(", ") || "none"}). Head: ${text.slice(0, 280)}`
       );
     }
     const parsed = parseReviewMarkdown(text, repo);
@@ -455,9 +456,101 @@ _Cited:_ ${hits.slice(0, 12).join(", ")}`
     }
   }
 }
+function collectSourceFiles(root, limit = 10) {
+  const out = [];
+  const stack = [root];
+  const skip = /* @__PURE__ */ new Set([
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    ".next",
+    "coverage",
+    "vendor",
+    "target"
+  ]);
+  while (stack.length && out.length < limit) {
+    const dir = stack.pop();
+    let entries = [];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const name of entries) {
+      if (skip.has(name)) continue;
+      const abs = join(dir, name);
+      let st;
+      try {
+        st = statSync(abs);
+      } catch {
+        continue;
+      }
+      if (st.isDirectory()) {
+        stack.push(abs);
+        continue;
+      }
+      if (/\.(ts|tsx|js|jsx|py|go|rs|swift)$/i.test(name) && !/\.(test|spec)\./i.test(name)) {
+        out.push(abs);
+        if (out.length >= limit) break;
+      }
+    }
+  }
+  return out;
+}
+function buildRepoDossier(repoDir, repo) {
+  const lines = [
+    `# Ruro dossier for ${repo.signals.fullName}`,
+    "",
+    `Status ${repo.status} \xB7 score ${repo.score}`,
+    `Demo ${repo.signals.demo.status}${repo.signals.demo.verified ? " verified" : ""} url=${repo.signals.demo.url ?? "\u2014"}`,
+    `Fitness ${repo.signals.fitness.score} (${repo.signals.fitness.sourceFiles} src / ${repo.signals.fitness.testFiles} tests)`,
+    `Drivers: ${repo.drivers.join(", ")}`,
+    `Blockers: ${repo.blockers.join(", ")}`,
+    "",
+    "## Tree (truncated)"
+  ];
+  const tree = spawnSync(
+    "bash",
+    [
+      "-lc",
+      "find . -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o -name '*.md' -o -name 'package.json' -o -name 'pyproject.toml' -o -name 'Cargo.toml' -o -name 'go.mod' \\) ! -path './.git/*' ! -path './node_modules/*' ! -path './dist/*' ! -path './.next/*' | head -n 160"
+    ],
+    { cwd: repoDir, encoding: "utf8", timeout: 15e3 }
+  );
+  lines.push((tree.stdout || "").trim() || "(no files listed)");
+  lines.push("", "## Key file previews");
+  const candidates = [
+    "README.md",
+    "readme.md",
+    "package.json",
+    "pyproject.toml",
+    "Cargo.toml",
+    "go.mod"
+  ];
+  for (const rel of candidates) {
+    const abs = join(repoDir, rel);
+    if (!existsSync2(abs)) continue;
+    try {
+      const raw = readFileSync2(abs, "utf8").slice(0, 2200);
+      lines.push("", `### ${rel}`, "```", raw, "```");
+    } catch {
+    }
+  }
+  for (const abs of collectSourceFiles(repoDir, 8)) {
+    const rel = relative(repoDir, abs);
+    try {
+      const raw = readFileSync2(abs, "utf8").slice(0, 1600);
+      lines.push("", `### ${rel}`, "```", raw, "```");
+    } catch {
+    }
+  }
+  return `${lines.join("\n")}
+`;
+}
 function extractCitedPaths(text) {
   const found = /* @__PURE__ */ new Set();
-  const re = /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)+[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"''),]|$)/gim;
+  const re = /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"'),]|$)/gim;
   let m;
   while ((m = re.exec(text)) !== null) {
     found.add(m[1].replace(/^\.\//, ""));
@@ -476,50 +569,6 @@ function listKnownPaths(dossier) {
     if (t.startsWith("### ")) paths.push(t.slice(4).trim());
   }
   return paths;
-}
-function buildRepoDossier(repoDir, repo) {
-  const lines = [
-    `# Ruro dossier for ${repo.signals.fullName}`,
-    "",
-    `Status ${repo.status} \xB7 score ${repo.score}`,
-    `Demo ${repo.signals.demo.status}${repo.signals.demo.verified ? " verified" : ""}`,
-    `Fitness ${repo.signals.fitness.score} (${repo.signals.fitness.sourceFiles} src / ${repo.signals.fitness.testFiles} tests)`,
-    "",
-    "## Tree (truncated)"
-  ];
-  const tree = spawnSync(
-    "bash",
-    [
-      "-lc",
-      "find . -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o -name '*.md' -o -name 'package.json' -o -name 'pyproject.toml' -o -name 'Cargo.toml' -o -name 'go.mod' \\) ! -path './.git/*' ! -path './node_modules/*' ! -path './dist/*' ! -path './.next/*' | head -n 120"
-    ],
-    { cwd: repoDir, encoding: "utf8", timeout: 15e3 }
-  );
-  lines.push((tree.stdout || "").trim() || "(no files listed)");
-  lines.push("", "## Key file previews");
-  const candidates = [
-    "README.md",
-    "readme.md",
-    "package.json",
-    "pyproject.toml",
-    "Cargo.toml",
-    "go.mod",
-    "src/main.ts",
-    "src/index.ts",
-    "src/App.tsx",
-    "app/page.tsx"
-  ];
-  for (const rel of candidates) {
-    const abs = join(repoDir, rel);
-    if (!existsSync2(abs)) continue;
-    try {
-      const raw = readFileSync2(abs, "utf8").slice(0, 2500);
-      lines.push("", `### ${rel}`, "```", raw, "```");
-    } catch {
-    }
-  }
-  return `${lines.join("\n")}
-`;
 }
 function parseReviewMarkdown(text, repo) {
   const why = section(text, "Why showable") || section(text, "Why Showable") || signalWhy(repo);
@@ -547,7 +596,7 @@ function signalFallbackReview(repo) {
   return [
     `Signal-only fallback (Copilot review unavailable).`,
     `Blockers: ${repo.blockers.slice(0, 5).join(", ") || "\u2014"}.`,
-    `Demo: ${repo.signals.demo.status}.`
+    `Demo: ${repo.signals.demo.status}${repo.signals.demo.verified ? " verified" : ""}.`
   ].join(" ");
 }
 function formatReviewMd(r) {

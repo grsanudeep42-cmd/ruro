@@ -6,6 +6,7 @@ import type { RuroReport, ScoredRepo } from "../types.js";
 
 const W = 72;
 
+
 function line(ch = "─"): string {
   return ch.repeat(W);
 }
@@ -106,7 +107,7 @@ export function printView(report: RuroReport): void {
   report.repos.forEach((repo, i) => {
     const rank = String(i + 1).padStart(2, " ");
     const name = repo.signals.name.padEnd(24, " ").slice(0, 24);
-    const st = repo.status.padEnd(8, " ");
+    const stCell = repo.status.padEnd(8, " ").slice(0, 8);
     const sc = String(repo.score).padStart(3, " ");
     const fit = String(repo.signals.fitness?.score ?? 0).padStart(3, " ");
     const dep = (repo.signals.demo.verified
@@ -119,7 +120,7 @@ export function printView(report: RuroReport): void {
       .padEnd(8, " ")
       .slice(0, 8);
     console.log(
-      `│ ${rank}   ${name} ${st} ${sc}  ${fit}  ${dep} ${stack} │`,
+      `│ ${rank}   ${name} ${stCell} ${sc}  ${fit}  ${dep} ${stack} │`,
     );
   });
   section("HINT");

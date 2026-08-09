@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { loadConfig, defaultConfig } from "./config.js";
 import { annotateWithCopilot, readAiCache } from "./ai/copilot.js";
+import { printBanner } from "./cli/banner.js";
 import {
   findRepo,
   loadLatestReport,
@@ -13,8 +14,8 @@ import {
 import { runRuro } from "./run.js";
 
 function usage(): never {
-  console.log(`RURO — GitHub OS CLI
-
+  printBanner("help");
+  console.log(`
   ruro scan [--config ruro.yml] [--owner LOGIN] [--token TOKEN] [--dry-run]
   ruro view [--config ruro.yml]
   ruro top [n] [--config ruro.yml]
@@ -23,13 +24,13 @@ function usage(): never {
   ruro review [repo] [--config ruro.yml] [--token TOKEN]
 
 Correct flow:
-  1) scan     collect signals + verify deploys + tree fitness → data/latest.json
-  2) view     fleet table (offline)
-  3) status   full dossier for one repo
-  4) why      exact score math + explained drivers/blockers
-  5) review   Copilot reads cloned source (optional; never moves scores)
+  1) scan     signals + verified deploys + fitness → data/
+  2) view     fleet board
+  3) status   full dossier
+  4) why      score math + explained codes
+  5) review   Copilot audit from embedded source dossier (never moves scores)
 
-Env: GITHUB_TOKEN or GH_TOKEN for scan/review. Copilot CLI on PATH for review.
+Env: GITHUB_TOKEN / GH_TOKEN · Copilot CLI for review
 `);
   process.exit(1);
 }
@@ -83,6 +84,7 @@ async function runScan(args: string[]): Promise<void> {
   }
 
   console.log("[ruro] scan starting (github + probes + fitness)…");
+  printBanner("scan");
   const config = loadCfg(configPath, owner);
   const result = await runRuro({ token, config, dryRun, syncProfile });
   console.log(
@@ -138,8 +140,9 @@ async function runReview(args: string[]): Promise<void> {
     : { ...report, repos: report.repos.slice(0, config.ai.top_n) };
 
   console.log(
-    `[ruro] review ${scoped.repos.map((r) => r.signals.name).join(", ")} (clone + Copilot)…`,
+    `[ruro] review ${scoped.repos.map((r) => r.signals.name).join(", ")} (clone + embedded dossier + Copilot)…`,
   );
+  printBanner(`review ${query ?? "top"}`);
   const result = await annotateWithCopilot({
     report: scoped,
     config: aiConfig,
@@ -185,6 +188,7 @@ async function main(): Promise<void> {
   const report = loadLatestReport(config);
 
   if (cmd === "view") {
+    printBanner("view");
     printView(report);
     return;
   }
@@ -194,6 +198,7 @@ async function main(): Promise<void> {
       console.error("top expects a positive integer");
       process.exit(1);
     }
+    printBanner(`top ${n}`);
     printTop(report, n);
     return;
   }
@@ -203,6 +208,7 @@ async function main(): Promise<void> {
       console.error("status expects a repo name");
       process.exit(1);
     }
+    printBanner(`status ${query}`);
     printStatus(report, query);
     printReviews(readAiCache(process.cwd(), config.ai.cache_dir), query);
     return;
@@ -213,6 +219,7 @@ async function main(): Promise<void> {
       console.error("why expects a repo name");
       process.exit(1);
     }
+    printBanner(`why ${query}`);
     printWhy(report, config, query);
   }
 }
