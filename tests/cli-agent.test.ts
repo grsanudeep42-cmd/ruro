@@ -27,6 +27,9 @@ describe("parseIntent", () => {
       arg: "alpha",
     });
     expect(parseIntent("/exit").kind).toBe("exit");
+    expect(parseIntent("status")).toEqual({ kind: "status" });
+    expect(parseIntent("why")).toEqual({ kind: "why" });
+    expect(parseIntent("review")).toEqual({ kind: "review" });
   });
 });
 

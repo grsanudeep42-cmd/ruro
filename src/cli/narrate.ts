@@ -276,6 +276,12 @@ export function parseIntent(line: string): {
     return { kind: "top", n: topM[1] ? Number.parseInt(topM[1], 10) : 5 };
   }
 
+  // Bare commands (no arg) — ask which repo; never treat as a repo name
+  if (/^(status|inspect)$/i.test(raw)) return { kind: "status" };
+  if (/^(full|detail|dossier)$/i.test(raw)) return { kind: "full" };
+  if (/^(why|explain)$/i.test(raw)) return { kind: "why" };
+  if (/^(review|audit)$/i.test(raw)) return { kind: "review" };
+
   const fullM = raw.match(/^(?:full|detail|dossier)\s+(.+)$/i);
   if (fullM) return { kind: "full", arg: fullM[1].trim() };
 
@@ -290,8 +296,14 @@ export function parseIntent(line: string): {
   const reviewM = raw.match(/^(?:review|audit)\s+(.+)$/i);
   if (reviewM) return { kind: "review", arg: reviewM[1].trim() };
 
-  // bare repo name → short status
-  if (/^[\w.-]+$/.test(raw) && raw.length > 1) {
+  // bare repo name → short status (exclude reserved command words)
+  if (
+    /^[\w.-]+$/.test(raw) &&
+    raw.length > 1 &&
+    !/^(status|why|review|full|view|top|scan|help|exit|quit|reload|clear|audit|explain|inspect|dossier|detail)$/i.test(
+      raw,
+    )
+  ) {
     return { kind: "status", arg: raw };
   }
 
