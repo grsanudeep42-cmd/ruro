@@ -400,17 +400,17 @@ async function reviewOneRepo(opts) {
     const dossier = buildRepoDossier(repoDir, repo);
     writeFileSync(join(repoDir, "RURO_DOSSIER.md"), dossier, "utf8");
     const prompt = [
-      "You MUST read RURO_DOSSIER.md and open real source files in this working directory before judging.",
-      "Do not invent files. Cite paths you actually opened.",
+      "You MUST read RURO_DOSSIER.md first, then open at least three real source files from this working tree.",
+      "Do not invent files. In ## Code review cite concrete paths like src/app.ts or package.json.",
       "If you cannot read files, reply only: REVIEW_FAILED: cannot read source",
-      "Review this repository as portfolio evidence for interviews.",
-      "Focus on: whether this is a real functional product vs thin glue, correctness risks, tests/CI, demo readiness, README honesty.",
+      "Judge whether this is a real functional product vs thin glue.",
+      "Use signals in the dossier (demo verified?, fitness, blockers) but verify against code.",
       "Reply in markdown with exactly these sections:",
       "## Why showable",
       "## Strengths",
       "## Weaknesses",
       "## Code review",
-      "Be blunt. Name concrete files. Keep under 450 words."
+      "Be blunt. Keep under 450 words."
     ].join(" ");
     const env = {
       ...process.env,
@@ -446,6 +446,16 @@ async function reviewOneRepo(opts) {
         text.slice(0, 400) || `copilot exited ${result.status ?? "null"} with no output`
       );
     }
+    const cited = extractCitedPaths(text);
+    const known = listKnownPaths(dossier);
+    const hits = cited.filter(
+      (p) => known.some((k) => k.endsWith(p) || k.includes(`/${p}`) || k === p)
+    );
+    if (hits.length < 2) {
+      throw new Error(
+        `audit rejected: need \u22652 real file citations from the clone (got ${hits.length}: ${hits.join(", ") || "none"}). Raw head: ${text.slice(0, 240)}`
+      );
+    }
     const parsed = parseReviewMarkdown(text, repo);
     const out = {
       ...base,
@@ -453,7 +463,9 @@ async function reviewOneRepo(opts) {
       why_showable: parsed.why_showable,
       strengths: parsed.strengths.length ? parsed.strengths : base.strengths,
       weaknesses: parsed.weaknesses.length ? parsed.weaknesses : base.weaknesses,
-      review: parsed.review || text
+      review: `${parsed.review || text}
+
+_Cited:_ ${hits.slice(0, 12).join(", ")}`
     };
     writeFileSync(join(cacheDir, `${safe}.md`), formatReviewMd(out), "utf8");
     writeJson(join(cacheDir, `${safe}.json`), out);
@@ -481,6 +493,28 @@ async function reviewOneRepo(opts) {
       }
     }
   }
+}
+function extractCitedPaths(text) {
+  const found = /* @__PURE__ */ new Set();
+  const re = /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)+[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"''),]|$)/gim;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    found.add(m[1].replace(/^\.\//, ""));
+  }
+  const bare = /\b(README\.md|package\.json|pyproject\.toml|Cargo\.toml|go\.mod|Dockerfile)\b/gi;
+  while ((m = bare.exec(text)) !== null) found.add(m[1]);
+  return [...found];
+}
+function listKnownPaths(dossier) {
+  const paths = [];
+  for (const line2 of dossier.split("\n")) {
+    const t = line2.trim();
+    if (t.startsWith("./") || /^[\w./-]+\.(ts|tsx|js|jsx|py|go|rs|md|json|toml)$/.test(t)) {
+      paths.push(t.replace(/^\.\//, ""));
+    }
+    if (t.startsWith("### ")) paths.push(t.slice(4).trim());
+  }
+  return paths;
 }
 function buildRepoDossier(repoDir, repo) {
   const lines = [
@@ -615,56 +649,127 @@ function readAiCache(cwd, cacheDir) {
 // src/cli/view.ts
 import { existsSync as existsSync3, readFileSync as readFileSync3 } from "node:fs";
 import { resolve as resolve3 } from "node:path";
+
+// src/score/explain.ts
+var SIGNAL_EXPLAIN = {
+  manifest: "Package/manifest file present (package.json, pyproject, go.mod, Cargo.toml, \u2026).",
+  substantial_code: "Repo disk usage suggests more than a stub (\u2265200KB).",
+  code_fitness_high: "Tree scan found nontrivial source + healthy test signal (fitness \u226570).",
+  code_fitness_ok: "Tree scan found real source files (fitness \u226545).",
+  no_source_files: "Tree scan found almost no source files \u2014 looks empty or docs-only.",
+  tiny_tree: "Very few files in the tree \u2014 likely incomplete or placeholder.",
+  test_files_in_tree: "Test files detected in the git tree (not just a script name).",
+  god_file: "At least one huge non-binary blob \u2014 possible generated dump or unmaintainable file.",
+  src_layout: "Has a src/ directory.",
+  containerized: "Dockerfile/Containerfile present.",
+  tests_present: "Tests heuristically detected (dirs, configs, or test scripts).",
+  test_script: "package.json/pyproject declares a runnable test script/tool.",
+  no_tests_detected: "No tests/dirs/scripts detected \u2014 quality pillar takes a hit.",
+  ci_workflows: ".github/workflows YAML present.",
+  no_ci: "No CI workflows found.",
+  ci_green: "Latest workflow run on default branch concluded success.",
+  ci_failing: "Latest workflow run failed.",
+  lint_config: "Lint/format config detected (eslint, ruff, prettier, \u2026).",
+  dependabot: "Dependabot config present.",
+  lockfile: "Dependency lockfile present.",
+  codeowners: "CODEOWNERS present.",
+  stub_sized: "Tiny disk usage + no tests \u2014 treated as stub risk.",
+  no_language: "No primary language and very small disk \u2014 weak signal of real code.",
+  demo_verified: "Homepage answered HTTP with proof (SPA shell or real body) \u2014 not github.com/repo.",
+  demo_unproven: "Homepage claimed but probe failed or was not verified.",
+  homepage_unproven: "Homepage URL set but not verified live.",
+  parking_or_soft_404: "Response looked like parking/soft-404 (or empty non-SPA HTML).",
+  homepage_is_github_repo_not_deploy: "Homepage points at github.com/owner/repo \u2014 not a product deploy.",
+  redirected_to_github_repo: "Homepage redirected to the GitHub repo page.",
+  empty_or_tiny_response: "HTTP ok but body too small to count as a real page.",
+  pushed_2w: "Pushed within the last 14 days.",
+  pushed_active_window: "Pushed within the active window (config active_days).",
+  high_cadence_30d: "\u22655 commits in last 30 days.",
+  cadence_30d: "\u22651 commit in last 30 days.",
+  quiet_long: "Quiet past stale threshold.",
+  very_quiet: "Quiet past dormant threshold.",
+  never_pushed: "No push timestamp.",
+  has_releases: "At least one GitHub release.",
+  recent_release: "Release within ~180 days.",
+  ci_fresh: "Successful workflow within last 30 days.",
+  description: "Description \u226520 chars.",
+  weak_description: "Missing/short description.",
+  readme_substance: "README \u2265800 bytes.",
+  readme_basic: "README \u2265200 bytes.",
+  thin_readme: "README missing or very thin.",
+  license: "LICENSE file or SPDX license detected.",
+  no_license: "No license signal.",
+  topics: "\u22653 topics set.",
+  no_topics: "No topics.",
+  homepage_verified: "Homepage URL verified by probe.",
+  fork: "Repository is a fork \u2014 structure penalty."
+};
+function explainCode(code) {
+  if (SIGNAL_EXPLAIN[code]) return SIGNAL_EXPLAIN[code];
+  if (SIGNAL_EXPLAIN[code.replace(/_/g, "_")]) {
+    return SIGNAL_EXPLAIN[code];
+  }
+  return `Signal code \`${code}\` (see BIBLE / score module).`;
+}
+function explainScoreLine(score, pillars, weights) {
+  const q = weights.quality * pillars.quality;
+  const a = weights.alive * pillars.alive;
+  const s = weights.structure * pillars.structure;
+  return [
+    `showability = ${weights.quality}*quality + ${weights.alive}*alive + ${weights.structure}*structure`,
+    `           = ${weights.quality}*${pillars.quality} + ${weights.alive}*${pillars.alive} + ${weights.structure}*${pillars.structure}`,
+    `           \u2248 ${q.toFixed(1)} + ${a.toFixed(1)} + ${s.toFixed(1)} \u2192 ${score}`
+  ];
+}
+
+// src/cli/view.ts
+var W = 72;
+function line(ch = "\u2500") {
+  return ch.repeat(W);
+}
+function boxTitle(title) {
+  console.log(`\u250C${line("\u2500")}\u2510`);
+  const pad = Math.max(0, W - title.length - 2);
+  console.log(`\u2502 ${title}${" ".repeat(pad)}\u2502`);
+  console.log(`\u251C${line("\u2500")}\u2524`);
+}
+function boxEnd() {
+  console.log(`\u2514${line("\u2500")}\u2518`);
+}
+function row(label, value) {
+  const l = label.padEnd(14, " ");
+  const max = W - 18;
+  const v = value.length > max ? `${value.slice(0, max - 1)}\u2026` : value;
+  console.log(`\u2502 ${l} ${v.padEnd(max, " ")} \u2502`);
+}
+function section2(title) {
+  console.log(`\u2502 ${title.padEnd(W - 2, " ")}\u2502`);
+  console.log(`\u251C${line("\u2500")}\u2524`);
+}
+function wrapBlock(text, prefix = "\u2502   ") {
+  const width = W - prefix.length - 1;
+  const words = text.split(/\s+/);
+  let cur = "";
+  for (const w of words) {
+    if (!cur) cur = w;
+    else if ((cur + " " + w).length <= width) cur += ` ${w}`;
+    else {
+      console.log(`${prefix}${cur.padEnd(width, " ")}\u2502`);
+      cur = w;
+    }
+  }
+  if (cur) console.log(`${prefix}${cur.padEnd(width, " ")}\u2502`);
+}
 function loadLatestReport(config, cwd = process.cwd()) {
   const path = resolve3(cwd, config.render.data_path);
   if (!existsSync3(path)) {
-    throw new Error(
-      `No scorecard data at ${path}. Run \`ruro scan\` first.`
-    );
+    throw new Error(`No scorecard data at ${path}. Run \`ruro scan\` first.`);
   }
   const parsed = JSON.parse(readFileSync3(path, "utf8"));
   if (parsed?.schema_version !== 1 || !Array.isArray(parsed.repos)) {
     throw new Error(`Invalid scorecard data at ${path}`);
   }
   return parsed;
-}
-function pad(text, width) {
-  if (text.length >= width) return text.slice(0, width - 1) + "\u2026";
-  return text + " ".repeat(width - text.length);
-}
-function formatRow(repo, rank) {
-  const name = pad(repo.signals.name, 22);
-  const status = pad(repo.status, 9);
-  const score = String(repo.score).padStart(3, " ");
-  const lang = pad(repo.signals.primaryLanguage ?? "\u2014", 12);
-  const demo = pad(repo.signals.demo.status, 6);
-  return `${String(rank).padStart(2, " ")}  ${name}  ${status}  ${score}  ${lang}  ${demo}`;
-}
-function printView(report) {
-  const mix = Object.entries(report.status_counts).filter(([, n]) => n > 0).map(([k, n]) => `${k}:${n}`).join("  ");
-  console.log(`Ruro \xB7 ${report.owner} \xB7 ${report.generated_at}`);
-  console.log(
-    `included ${report.included_count}/${report.repo_count}  excluded ${report.excluded_count}`
-  );
-  console.log(mix || "no statuses");
-  console.log("");
-  console.log(" #  repo                    status     sc   stack         demo");
-  console.log("--  ----------------------  ---------  ---  ------------  ------");
-  report.repos.forEach((repo, i) => {
-    console.log(formatRow(repo, i + 1));
-  });
-}
-function printTop(report, n) {
-  const top = report.repos.slice(0, Math.max(1, n));
-  console.log(`Top ${top.length} \xB7 ${report.owner}`);
-  top.forEach((repo, i) => {
-    console.log(
-      `${i + 1}. ${repo.signals.fullName}  [${repo.status}]  score ${repo.score}`
-    );
-    console.log(
-      `   drivers: ${repo.drivers.join(", ") || "\u2014"}`
-    );
-  });
 }
 function findRepo(report, query) {
   const q = query.toLowerCase();
@@ -676,51 +781,172 @@ function findRepo(report, query) {
   }
   return repo;
 }
+function deployLabel(repo) {
+  const d = repo.signals.demo;
+  if (d.verified) return `VERIFIED ${d.latencyMs ?? "\u2014"}ms`;
+  if (d.status === "NONE") return "NONE";
+  return `${d.status}${d.error ? ` (${d.error})` : ""}`;
+}
+function printView(report) {
+  boxTitle(`RURO FLEET  \xB7  ${report.owner}  \xB7  ${report.generated_at.slice(0, 19)}`);
+  row(
+    "inventory",
+    `${report.included_count}/${report.repo_count} included \xB7 ${report.excluded_count} excluded`
+  );
+  row(
+    "mix",
+    Object.entries(report.status_counts).filter(([, n]) => n > 0).map(([k, n]) => `${k}:${n}`).join(" ") || "\u2014"
+  );
+  row(
+    "verified",
+    String(report.repos.filter((r) => r.signals.demo.verified).length)
+  );
+  section2("RANK  REPO                      ST       SC  FIT  DEPLOY       STACK");
+  report.repos.forEach((repo, i) => {
+    const rank = String(i + 1).padStart(2, " ");
+    const name = repo.signals.name.padEnd(24, " ").slice(0, 24);
+    const st = repo.status.padEnd(8, " ");
+    const sc = String(repo.score).padStart(3, " ");
+    const fit = String(repo.signals.fitness?.score ?? 0).padStart(3, " ");
+    const dep = (repo.signals.demo.verified ? "VERIFIED" : repo.signals.demo.status).padEnd(12, " ").slice(0, 12);
+    const stack = (repo.signals.primaryLanguage ?? "\u2014").padEnd(8, " ").slice(0, 8);
+    console.log(
+      `\u2502 ${rank}   ${name} ${st} ${sc}  ${fit}  ${dep} ${stack} \u2502`
+    );
+  });
+  section2("HINT");
+  wrapBlock(
+    "ruro status <repo>  \u2014 full dossier   \xB7  ruro why <repo> \u2014 score math   \xB7  ruro review <repo> \u2014 Copilot code audit"
+  );
+  boxEnd();
+}
+function printTop(report, n) {
+  const top = report.repos.slice(0, Math.max(1, n));
+  boxTitle(`RURO TOP ${top.length}  \xB7  ${report.owner}`);
+  top.forEach((repo, i) => {
+    section2(`${i + 1}. ${repo.signals.fullName}`);
+    row("status", `${repo.status} \xB7 score ${repo.score}`);
+    row("pillars", `Q${repo.pillars.quality} A${repo.pillars.alive} S${repo.pillars.structure}`);
+    row("deploy", deployLabel(repo));
+    row(
+      "fitness",
+      `${repo.signals.fitness.score} \xB7 ${repo.signals.fitness.sourceFiles} src \xB7 ${repo.signals.fitness.testFiles} test \xB7 flags ${repo.signals.fitness.flags.join(",") || "\u2014"}`
+    );
+    row("drivers", repo.drivers.join(", ") || "\u2014");
+    row("blockers", repo.blockers.join(", ") || "\u2014");
+  });
+  boxEnd();
+}
 function printStatus(report, query) {
   const repo = findRepo(report, query);
-  console.log(repo.signals.fullName);
-  console.log(`url        ${repo.signals.url}`);
-  console.log(`status     ${repo.status}`);
-  console.log(`score      ${repo.score}`);
-  console.log(
-    `pillars    quality=${repo.pillars.quality} alive=${repo.pillars.alive} structure=${repo.pillars.structure}`
+  const s = repo.signals;
+  boxTitle(`RURO STATUS  \xB7  ${repo.signals.fullName}`);
+  row("url", s.url);
+  row("private", String(s.isPrivate));
+  row("status", repo.status);
+  row("score", String(repo.score));
+  row(
+    "pillars",
+    `quality=${repo.pillars.quality}  alive=${repo.pillars.alive}  structure=${repo.pillars.structure}`
   );
-  console.log(
-    `demo       ${repo.signals.demo.status}${repo.signals.demo.verified ? " VERIFIED" : ""}${repo.signals.demo.url ? ` (${repo.signals.demo.url})` : ""}`
+  section2("DEPLOY PROBE");
+  row("status", s.demo.status);
+  row("verified", String(s.demo.verified));
+  row("url", s.demo.url ?? "\u2014");
+  row("final", s.demo.finalUrl ?? "\u2014");
+  row("http", String(s.demo.httpStatus ?? "\u2014"));
+  row("latency", s.demo.latencyMs != null ? `${s.demo.latencyMs}ms` : "\u2014");
+  row("bytes", String(s.demo.proofBytes ?? "\u2014"));
+  row("type", s.demo.contentType ?? "\u2014");
+  row("error", s.demo.error ?? "\u2014");
+  section2("CODE FITNESS (no AI)");
+  row("score", String(s.fitness.score));
+  row("source", String(s.fitness.sourceFiles));
+  row("tests", String(s.fitness.testFiles));
+  row("other", String(s.fitness.otherFiles));
+  row("max_blob", String(s.fitness.maxBlobBytes));
+  row("flags", s.fitness.flags.join(", ") || "\u2014");
+  section2("PLATFORM SIGNALS");
+  row("language", s.primaryLanguage ?? "\u2014");
+  row("languages", s.languages.join(", ") || "\u2014");
+  row("topics", s.topics.join(", ") || "\u2014");
+  row("license", s.licenseSpdx ?? (s.hasLicenseFile ? "file" : "\u2014"));
+  row("readme_b", String(s.readmeBytes ?? "\u2014"));
+  row("disk_kb", String(s.diskUsageKb));
+  row("pushed", s.pushedAt ?? "\u2014");
+  row("commits30", String(s.commitsLast30Days));
+  row("commits90", String(s.commitsLast90Days));
+  row("tests?", `${s.hasTestsHeuristic}/${s.hasTestScript}`);
+  row("ci", `${s.hasWorkflows} \xB7 last=${s.recentWorkflowConclusion ?? "\u2014"} age=${s.recentWorkflowAgeDays ?? "\u2014"}d`);
+  row("manifest", String(s.hasPackageManifest));
+  row("lockfile", String(s.hasLockfile));
+  row("lint", String(s.hasLintConfigHeuristic));
+  row("src/", String(s.hasSrcLayout));
+  row("container", String(s.hasContainerfile));
+  row("releases", String(s.releasesCount));
+  section2("DRIVERS");
+  for (const d of repo.drivers) {
+    wrapBlock(`+ ${d} \u2014 ${explainCode(d)}`);
+  }
+  section2("BLOCKERS");
+  if (!repo.blockers.length) wrapBlock("(none)");
+  for (const b of repo.blockers) {
+    wrapBlock(`- ${b} \u2014 ${explainCode(b)}`);
+  }
+  boxEnd();
+}
+function printWhy(report, config, query) {
+  const repo = findRepo(report, query);
+  boxTitle(`RURO WHY  \xB7  ${repo.signals.fullName}`);
+  section2("FORMULA");
+  for (const l of explainScoreLine(repo.score, repo.pillars, config.weights)) {
+    wrapBlock(l);
+  }
+  section2("STATUS RULE");
+  wrapBlock(
+    "LIVE requires a verified deploy probe (SPA shells count; github.com/repo does not). ACTIVE = recent push without verified deploy. STALE/DORMANT/DEAD by push age. ARCHIVED if archived."
   );
-  console.log(
-    `fitness    ${repo.signals.fitness.score} (${repo.signals.fitness.sourceFiles} src / ${repo.signals.fitness.testFiles} test)`
+  wrapBlock(`derived_status=${repo.status}`);
+  section2("WHAT RAISED THE SCORE");
+  for (const d of repo.drivers) wrapBlock(`+ ${d}: ${explainCode(d)}`);
+  section2("WHAT HURT THE SCORE");
+  if (!repo.blockers.length) wrapBlock("(none)");
+  for (const b of repo.blockers) wrapBlock(`- ${b}: ${explainCode(b)}`);
+  section2("HONEST LIMIT");
+  wrapBlock(
+    "Scores are deterministic signals \u2014 not a human judgment of product quality. Use `ruro review` for Copilot code audit (optional, never moves the score)."
   );
-  console.log(`language   ${repo.signals.primaryLanguage ?? "\u2014"}`);
-  console.log(`drivers    ${repo.drivers.join(", ") || "\u2014"}`);
-  console.log(`blockers   ${repo.blockers.join(", ") || "\u2014"}`);
+  boxEnd();
 }
 function printReviews(cache, filter) {
   if (!cache || !cache.repos.length) {
-    console.log(
-      "No Copilot reviews yet. Enable ai in ruro.yml and run `ruro review` (needs Copilot CLI)."
+    boxTitle("RURO REVIEW");
+    wrapBlock(
+      "No Copilot audits cached. Run: GITHUB_TOKEN=$(gh auth token) ruro review <repo>"
     );
+    boxEnd();
     return;
   }
-  console.log(`Copilot reviews \xB7 ${cache.status}`);
-  if (cache.note) console.log(cache.note);
-  console.log("");
   const q = filter?.toLowerCase();
   const items = q ? cache.repos.filter(
     (r) => r.fullName.toLowerCase().includes(q) || r.fullName.toLowerCase().endsWith(`/${q}`)
   ) : cache.repos;
-  if (!items.length) {
-    throw new Error(`No review for: ${filter}`);
-  }
+  if (!items.length) throw new Error(`No review for: ${filter}`);
+  boxTitle(`RURO REVIEW CACHE  \xB7  ${cache.status}`);
+  if (cache.note) wrapBlock(cache.note);
   for (const r of items) {
-    console.log(`## ${r.fullName} [${r.status}]`);
-    console.log(`why: ${r.why_showable || "\u2014"}`);
-    console.log(`strengths: ${r.strengths.join(", ") || "\u2014"}`);
-    console.log(`weaknesses: ${r.weaknesses.join(", ") || "\u2014"}`);
-    console.log(r.review || "\u2014");
-    if (r.error) console.log(`error: ${r.error}`);
-    console.log("");
+    section2(r.fullName);
+    row("audit", r.status);
+    wrapBlock(`why: ${r.why_showable || "\u2014"}`);
+    wrapBlock(`strengths: ${r.strengths.join(" | ") || "\u2014"}`);
+    wrapBlock(`weaknesses: ${r.weaknesses.join(" | ") || "\u2014"}`);
+    console.log(`\u2502${" ".repeat(W)}\u2502`);
+    for (const line2 of (r.review || "\u2014").split("\n")) {
+      wrapBlock(line2);
+    }
+    if (r.error) wrapBlock(`error: ${r.error}`);
   }
+  boxEnd();
 }
 
 // src/run.ts
@@ -2460,18 +2686,23 @@ async function runRuro(options) {
 
 // src/cli.ts
 function usage() {
-  console.log(`Ruro \u2014 portfolio Jarvis for GitHub (core: zero AI)
+  console.log(`RURO \u2014 GitHub OS CLI
 
-Usage:
-  ruro [scan] [--config ruro.yml] [--owner LOGIN] [--token TOKEN] [--dry-run] [--sync-profile]
+  ruro scan [--config ruro.yml] [--owner LOGIN] [--token TOKEN] [--dry-run]
   ruro view [--config ruro.yml]
   ruro top [n] [--config ruro.yml]
   ruro status <repo> [--config ruro.yml]
-  ruro review [repo] [--config ruro.yml] [--token TOKEN] [--force]
+  ruro why <repo> [--config ruro.yml]
+  ruro review [repo] [--config ruro.yml] [--token TOKEN]
 
-Env:
-  GITHUB_TOKEN / GH_TOKEN   required for scan/review unless --token is set
-  Copilot CLI               required for review (copilot on PATH)
+Correct flow:
+  1) scan     collect signals + verify deploys + tree fitness \u2192 data/latest.json
+  2) view     fleet table (offline)
+  3) status   full dossier for one repo
+  4) why      exact score math + explained drivers/blockers
+  5) review   Copilot reads cloned source (optional; never moves scores)
+
+Env: GITHUB_TOKEN or GH_TOKEN for scan/review. Copilot CLI on PATH for review.
 `);
   process.exit(1);
 }
@@ -2479,11 +2710,8 @@ function parseConfigPath(args) {
   let configPath = "ruro.yml";
   const rest = [];
   for (let i = 0; i < args.length; i += 1) {
-    if (args[i] === "--config") {
-      configPath = args[++i];
-    } else {
-      rest.push(args[i]);
-    }
+    if (args[i] === "--config") configPath = args[++i];
+    else rest.push(args[i]);
   }
   return { configPath, rest };
 }
@@ -2521,43 +2749,37 @@ async function runScan(args) {
     console.error("Missing token. Set GITHUB_TOKEN or pass --token.");
     process.exit(1);
   }
+  console.log("[ruro] scan starting (github + probes + fitness)\u2026");
   const config = loadCfg(configPath, owner);
   const result = await runRuro({ token, config, dryRun, syncProfile });
   console.log(
-    `Ruro: ${result.report.included_count} repos scored. Dashboard \u2192 ${result.dashboardPath}`
+    `[ruro] scored ${result.report.included_count} \u2192 ${result.dashboardPath}`
   );
-  console.log(`Web \u2192 ${result.webPath}`);
+  console.log(`[ruro] web \u2192 ${result.webPath}`);
+  console.log(`[ruro] overview \u2192 ${config.render.overview_path}`);
   if (result.report.repos[0]) {
     const top = result.report.repos[0];
     console.log(
-      `Top: ${top.signals.fullName} (${top.status}, score ${top.score})`
-    );
-  }
-  if (result.profileSynced) {
-    console.log(
-      `Profile synced \u2192 ${config.profile.repo}/${config.profile.readme_path}`
+      `[ruro] lead ${top.signals.fullName} [${top.status}] score=${top.score}`
     );
   }
   if (result.aiAnnotated > 0) {
-    console.log(`AI reviews \u2192 ${result.aiAnnotated} repos`);
+    console.log(`[ruro] ai audits \u2192 ${result.aiAnnotated}`);
   }
 }
 async function runReview(args) {
   let configPath = "ruro.yml";
   let token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || void 0;
-  let force = false;
   let query;
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i];
     if (a === "--config") configPath = args[++i];
     else if (a === "--token") token = args[++i];
-    else if (a === "--force") force = true;
+    else if (a === "--force") continue;
     else if (a.startsWith("-")) {
       console.error(`Unknown arg: ${a}`);
       usage();
-    } else {
-      query = a;
-    }
+    } else query = a;
   }
   if (!token) {
     console.error("Missing token. Set GITHUB_TOKEN or pass --token.");
@@ -2575,11 +2797,9 @@ async function runReview(args) {
     }
   };
   const scoped = query ? { ...report, repos: [findRepo(report, query)] } : { ...report, repos: report.repos.slice(0, config.ai.top_n) };
-  if (!force && !config.ai.enabled) {
-    console.log(
-      "Running one-shot Copilot review (config ai.enabled is still false for scans)."
-    );
-  }
+  console.log(
+    `[ruro] review ${scoped.repos.map((r) => r.signals.name).join(", ")} (clone + Copilot)\u2026`
+  );
   const result = await annotateWithCopilot({
     report: scoped,
     config: aiConfig,
@@ -2587,15 +2807,19 @@ async function runReview(args) {
     token
   });
   console.log(
-    result.skipped ? `Review skipped: ${result.reason ?? "unknown"}` : `Reviewed ${result.annotated} repo(s) \u2192 ${config.ai.cache_dir}`
+    result.skipped ? `[ruro] review skipped: ${result.reason ?? "unknown"}` : `[ruro] audited ${result.annotated} \u2192 ${config.ai.cache_dir}`
   );
   printReviews(readAiCache(process.cwd(), config.ai.cache_dir), query);
 }
 async function main() {
   const argv = process.argv.slice(2);
-  if (argv.includes("-h") || argv.includes("--help")) usage();
+  if (argv.includes("-h") || argv.includes("--help") || argv.length === 0) {
+    usage();
+  }
   const cmd = argv[0];
-  const isSub = cmd === "scan" || cmd === "view" || cmd === "top" || cmd === "status" || cmd === "review";
+  const isSub = ["scan", "view", "top", "status", "why", "review", "explain"].includes(
+    cmd
+  );
   if (!isSub) {
     await runScan(argv);
     return;
@@ -2633,6 +2857,15 @@ async function main() {
     }
     printStatus(report, query);
     printReviews(readAiCache(process.cwd(), config.ai.cache_dir), query);
+    return;
+  }
+  if (cmd === "why" || cmd === "explain") {
+    const query = rest[0];
+    if (!query) {
+      console.error("why expects a repo name");
+      process.exit(1);
+    }
+    printWhy(report, config, query);
   }
 }
 main().catch((err) => {

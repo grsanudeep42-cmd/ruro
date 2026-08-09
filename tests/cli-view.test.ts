@@ -8,6 +8,7 @@ import {
   printStatus,
   printTop,
   printView,
+  printWhy,
 } from "../src/cli/view.js";
 import { buildReport } from "../src/render/dashboard.js";
 import { scoreRepo } from "../src/score/score.js";
@@ -18,7 +19,7 @@ describe("cli view helpers", () => {
     vi.restoreAllMocks();
   });
 
-  it("loads latest.json and prints view/top/status", () => {
+  it("loads latest.json and prints view/top/status/why", () => {
     const config = defaultConfig("acme");
     const signal = baseSignals({
       homepageUrl: null,
@@ -27,9 +28,8 @@ describe("cli view helpers", () => {
     });
     const report = buildReport(config, [scoreRepo(signal, config)], 0);
     const root = mkdtempSync(join(tmpdir(), "ruro-cli-"));
-    const dataPath = join(root, "data", "latest.json");
     mkdirSync(join(root, "data"), { recursive: true });
-    writeFileSync(dataPath, JSON.stringify(report), "utf8");
+    writeFileSync(join(root, "data", "latest.json"), JSON.stringify(report), "utf8");
 
     const cfg = {
       ...config,
@@ -42,7 +42,11 @@ describe("cli view helpers", () => {
     printView(loaded);
     printTop(loaded, 1);
     printStatus(loaded, "alpha");
-    expect(log.mock.calls.flat().join("\n")).toContain("alpha");
-    expect(log.mock.calls.flat().join("\n")).toContain("pillars");
+    printWhy(loaded, cfg, "alpha");
+    const out = log.mock.calls.flat().join("\n");
+    expect(out).toContain("RURO FLEET");
+    expect(out).toContain("alpha");
+    expect(out).toContain("RURO WHY");
+    expect(out).toContain("showability");
   });
 });

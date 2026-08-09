@@ -151,17 +151,17 @@ async function reviewOneRepo(opts: {
     writeFileSync(join(repoDir, "RURO_DOSSIER.md"), dossier, "utf8");
 
     const prompt = [
-      "You MUST read RURO_DOSSIER.md and open real source files in this working directory before judging.",
-      "Do not invent files. Cite paths you actually opened.",
+      "You MUST read RURO_DOSSIER.md first, then open at least three real source files from this working tree.",
+      "Do not invent files. In ## Code review cite concrete paths like src/app.ts or package.json.",
       "If you cannot read files, reply only: REVIEW_FAILED: cannot read source",
-      "Review this repository as portfolio evidence for interviews.",
-      "Focus on: whether this is a real functional product vs thin glue, correctness risks, tests/CI, demo readiness, README honesty.",
+      "Judge whether this is a real functional product vs thin glue.",
+      "Use signals in the dossier (demo verified?, fitness, blockers) but verify against code.",
       "Reply in markdown with exactly these sections:",
       "## Why showable",
       "## Strengths",
       "## Weaknesses",
       "## Code review",
-      "Be blunt. Name concrete files. Keep under 450 words.",
+      "Be blunt. Keep under 450 words.",
     ].join(" ");
 
     const env = {
@@ -206,6 +206,17 @@ async function reviewOneRepo(opts: {
       );
     }
 
+    const cited = extractCitedPaths(text);
+    const known = listKnownPaths(dossier);
+    const hits = cited.filter((p) =>
+      known.some((k) => k.endsWith(p) || k.includes(`/${p}`) || k === p),
+    );
+    if (hits.length < 2) {
+      throw new Error(
+        `audit rejected: need ≥2 real file citations from the clone (got ${hits.length}: ${hits.join(", ") || "none"}). Raw head: ${text.slice(0, 240)}`,
+      );
+    }
+
     const parsed = parseReviewMarkdown(text, repo);
     const out: RepoReview = {
       ...base,
@@ -213,7 +224,7 @@ async function reviewOneRepo(opts: {
       why_showable: parsed.why_showable,
       strengths: parsed.strengths.length ? parsed.strengths : base.strengths,
       weaknesses: parsed.weaknesses.length ? parsed.weaknesses : base.weaknesses,
-      review: parsed.review || text,
+      review: `${parsed.review || text}\n\n_Cited:_ ${hits.slice(0, 12).join(", ")}`,
     };
 
     writeFileSync(join(cacheDir, `${safe}.md`), formatReviewMd(out), "utf8");
@@ -243,6 +254,33 @@ async function reviewOneRepo(opts: {
       }
     }
   }
+}
+
+function extractCitedPaths(text: string): string[] {
+  const found = new Set<string>();
+  const re =
+    /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)+[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"''),]|$)/gim;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    found.add(m[1].replace(/^\.\//, ""));
+  }
+  // also bare filenames from dossier previews
+  const bare =
+    /\b(README\.md|package\.json|pyproject\.toml|Cargo\.toml|go\.mod|Dockerfile)\b/gi;
+  while ((m = bare.exec(text)) !== null) found.add(m[1]);
+  return [...found];
+}
+
+function listKnownPaths(dossier: string): string[] {
+  const paths: string[] = [];
+  for (const line of dossier.split("\n")) {
+    const t = line.trim();
+    if (t.startsWith("./") || /^[\w./-]+\.(ts|tsx|js|jsx|py|go|rs|md|json|toml)$/.test(t)) {
+      paths.push(t.replace(/^\.\//, ""));
+    }
+    if (t.startsWith("### ")) paths.push(t.slice(4).trim());
+  }
+  return paths;
 }
 
 function buildRepoDossier(repoDir: string, repo: ScoredRepo): string {

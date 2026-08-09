@@ -1,7 +1,53 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { RuroConfig } from "../config.js";
+import { explainCode, explainScoreLine } from "../score/explain.js";
 import type { RuroReport, ScoredRepo } from "../types.js";
+
+const W = 72;
+
+function line(ch = "─"): string {
+  return ch.repeat(W);
+}
+
+function boxTitle(title: string): void {
+  console.log(`┌${line("─")}┐`);
+  const pad = Math.max(0, W - title.length - 2);
+  console.log(`│ ${title}${" ".repeat(pad)}│`);
+  console.log(`├${line("─")}┤`);
+}
+
+function boxEnd(): void {
+  console.log(`└${line("─")}┘`);
+}
+
+function row(label: string, value: string): void {
+  const l = label.padEnd(14, " ");
+  const max = W - 18;
+  const v =
+    value.length > max ? `${value.slice(0, max - 1)}…` : value;
+  console.log(`│ ${l} ${v.padEnd(max, " ")} │`);
+}
+
+function section(title: string): void {
+  console.log(`│ ${title.padEnd(W - 2, " ")}│`);
+  console.log(`├${line("─")}┤`);
+}
+
+function wrapBlock(text: string, prefix = "│   "): void {
+  const width = W - prefix.length - 1;
+  const words = text.split(/\s+/);
+  let cur = "";
+  for (const w of words) {
+    if (!cur) cur = w;
+    else if ((cur + " " + w).length <= width) cur += ` ${w}`;
+    else {
+      console.log(`${prefix}${cur.padEnd(width, " ")}│`);
+      cur = w;
+    }
+  }
+  if (cur) console.log(`${prefix}${cur.padEnd(width, " ")}│`);
+}
 
 export function loadLatestReport(
   config: RuroConfig,
@@ -9,60 +55,13 @@ export function loadLatestReport(
 ): RuroReport {
   const path = resolve(cwd, config.render.data_path);
   if (!existsSync(path)) {
-    throw new Error(
-      `No scorecard data at ${path}. Run \`ruro scan\` first.`,
-    );
+    throw new Error(`No scorecard data at ${path}. Run \`ruro scan\` first.`);
   }
   const parsed = JSON.parse(readFileSync(path, "utf8")) as RuroReport;
   if (parsed?.schema_version !== 1 || !Array.isArray(parsed.repos)) {
     throw new Error(`Invalid scorecard data at ${path}`);
   }
   return parsed;
-}
-
-function pad(text: string, width: number): string {
-  if (text.length >= width) return text.slice(0, width - 1) + "…";
-  return text + " ".repeat(width - text.length);
-}
-
-function formatRow(repo: ScoredRepo, rank: number): string {
-  const name = pad(repo.signals.name, 22);
-  const status = pad(repo.status, 9);
-  const score = String(repo.score).padStart(3, " ");
-  const lang = pad(repo.signals.primaryLanguage ?? "—", 12);
-  const demo = pad(repo.signals.demo.status, 6);
-  return `${String(rank).padStart(2, " ")}  ${name}  ${status}  ${score}  ${lang}  ${demo}`;
-}
-
-export function printView(report: RuroReport): void {
-  const mix = Object.entries(report.status_counts)
-    .filter(([, n]) => n > 0)
-    .map(([k, n]) => `${k}:${n}`)
-    .join("  ");
-  console.log(`Ruro · ${report.owner} · ${report.generated_at}`);
-  console.log(
-    `included ${report.included_count}/${report.repo_count}  excluded ${report.excluded_count}`,
-  );
-  console.log(mix || "no statuses");
-  console.log("");
-  console.log(" #  repo                    status     sc   stack         demo");
-  console.log("--  ----------------------  ---------  ---  ------------  ------");
-  report.repos.forEach((repo, i) => {
-    console.log(formatRow(repo, i + 1));
-  });
-}
-
-export function printTop(report: RuroReport, n: number): void {
-  const top = report.repos.slice(0, Math.max(1, n));
-  console.log(`Top ${top.length} · ${report.owner}`);
-  top.forEach((repo, i) => {
-    console.log(
-      `${i + 1}. ${repo.signals.fullName}  [${repo.status}]  score ${repo.score}`,
-    );
-    console.log(
-      `   drivers: ${repo.drivers.join(", ") || "—"}`,
-    );
-  });
 }
 
 export function findRepo(report: RuroReport, query: string): ScoredRepo {
@@ -79,24 +78,160 @@ export function findRepo(report: RuroReport, query: string): ScoredRepo {
   return repo;
 }
 
+function deployLabel(repo: ScoredRepo): string {
+  const d = repo.signals.demo;
+  if (d.verified) return `VERIFIED ${d.latencyMs ?? "—"}ms`;
+  if (d.status === "NONE") return "NONE";
+  return `${d.status}${d.error ? ` (${d.error})` : ""}`;
+}
+
+export function printView(report: RuroReport): void {
+  boxTitle(`RURO FLEET  ·  ${report.owner}  ·  ${report.generated_at.slice(0, 19)}`);
+  row(
+    "inventory",
+    `${report.included_count}/${report.repo_count} included · ${report.excluded_count} excluded`,
+  );
+  row(
+    "mix",
+    Object.entries(report.status_counts)
+      .filter(([, n]) => n > 0)
+      .map(([k, n]) => `${k}:${n}`)
+      .join(" ") || "—",
+  );
+  row(
+    "verified",
+    String(report.repos.filter((r) => r.signals.demo.verified).length),
+  );
+  section("RANK  REPO                      ST       SC  FIT  DEPLOY       STACK");
+  report.repos.forEach((repo, i) => {
+    const rank = String(i + 1).padStart(2, " ");
+    const name = repo.signals.name.padEnd(24, " ").slice(0, 24);
+    const st = repo.status.padEnd(8, " ");
+    const sc = String(repo.score).padStart(3, " ");
+    const fit = String(repo.signals.fitness?.score ?? 0).padStart(3, " ");
+    const dep = (repo.signals.demo.verified
+      ? "VERIFIED"
+      : repo.signals.demo.status
+    )
+      .padEnd(12, " ")
+      .slice(0, 12);
+    const stack = (repo.signals.primaryLanguage ?? "—")
+      .padEnd(8, " ")
+      .slice(0, 8);
+    console.log(
+      `│ ${rank}   ${name} ${st} ${sc}  ${fit}  ${dep} ${stack} │`,
+    );
+  });
+  section("HINT");
+  wrapBlock(
+    "ruro status <repo>  — full dossier   ·  ruro why <repo> — score math   ·  ruro review <repo> — Copilot code audit",
+  );
+  boxEnd();
+}
+
+export function printTop(report: RuroReport, n: number): void {
+  const top = report.repos.slice(0, Math.max(1, n));
+  boxTitle(`RURO TOP ${top.length}  ·  ${report.owner}`);
+  top.forEach((repo, i) => {
+    section(`${i + 1}. ${repo.signals.fullName}`);
+    row("status", `${repo.status} · score ${repo.score}`);
+    row("pillars", `Q${repo.pillars.quality} A${repo.pillars.alive} S${repo.pillars.structure}`);
+    row("deploy", deployLabel(repo));
+    row(
+      "fitness",
+      `${repo.signals.fitness.score} · ${repo.signals.fitness.sourceFiles} src · ${repo.signals.fitness.testFiles} test · flags ${repo.signals.fitness.flags.join(",") || "—"}`,
+    );
+    row("drivers", repo.drivers.join(", ") || "—");
+    row("blockers", repo.blockers.join(", ") || "—");
+  });
+  boxEnd();
+}
+
 export function printStatus(report: RuroReport, query: string): void {
   const repo = findRepo(report, query);
-  console.log(repo.signals.fullName);
-  console.log(`url        ${repo.signals.url}`);
-  console.log(`status     ${repo.status}`);
-  console.log(`score      ${repo.score}`);
-  console.log(
-    `pillars    quality=${repo.pillars.quality} alive=${repo.pillars.alive} structure=${repo.pillars.structure}`,
+  const s = repo.signals;
+  boxTitle(`RURO STATUS  ·  ${repo.signals.fullName}`);
+  row("url", s.url);
+  row("private", String(s.isPrivate));
+  row("status", repo.status);
+  row("score", String(repo.score));
+  row(
+    "pillars",
+    `quality=${repo.pillars.quality}  alive=${repo.pillars.alive}  structure=${repo.pillars.structure}`,
   );
-  console.log(
-    `demo       ${repo.signals.demo.status}${repo.signals.demo.verified ? " VERIFIED" : ""}${repo.signals.demo.url ? ` (${repo.signals.demo.url})` : ""}`,
+  section("DEPLOY PROBE");
+  row("status", s.demo.status);
+  row("verified", String(s.demo.verified));
+  row("url", s.demo.url ?? "—");
+  row("final", s.demo.finalUrl ?? "—");
+  row("http", String(s.demo.httpStatus ?? "—"));
+  row("latency", s.demo.latencyMs != null ? `${s.demo.latencyMs}ms` : "—");
+  row("bytes", String(s.demo.proofBytes ?? "—"));
+  row("type", s.demo.contentType ?? "—");
+  row("error", s.demo.error ?? "—");
+  section("CODE FITNESS (no AI)");
+  row("score", String(s.fitness.score));
+  row("source", String(s.fitness.sourceFiles));
+  row("tests", String(s.fitness.testFiles));
+  row("other", String(s.fitness.otherFiles));
+  row("max_blob", String(s.fitness.maxBlobBytes));
+  row("flags", s.fitness.flags.join(", ") || "—");
+  section("PLATFORM SIGNALS");
+  row("language", s.primaryLanguage ?? "—");
+  row("languages", s.languages.join(", ") || "—");
+  row("topics", s.topics.join(", ") || "—");
+  row("license", s.licenseSpdx ?? (s.hasLicenseFile ? "file" : "—"));
+  row("readme_b", String(s.readmeBytes ?? "—"));
+  row("disk_kb", String(s.diskUsageKb));
+  row("pushed", s.pushedAt ?? "—");
+  row("commits30", String(s.commitsLast30Days));
+  row("commits90", String(s.commitsLast90Days));
+  row("tests?", `${s.hasTestsHeuristic}/${s.hasTestScript}`);
+  row("ci", `${s.hasWorkflows} · last=${s.recentWorkflowConclusion ?? "—"} age=${s.recentWorkflowAgeDays ?? "—"}d`);
+  row("manifest", String(s.hasPackageManifest));
+  row("lockfile", String(s.hasLockfile));
+  row("lint", String(s.hasLintConfigHeuristic));
+  row("src/", String(s.hasSrcLayout));
+  row("container", String(s.hasContainerfile));
+  row("releases", String(s.releasesCount));
+  section("DRIVERS");
+  for (const d of repo.drivers) {
+    wrapBlock(`+ ${d} — ${explainCode(d)}`);
+  }
+  section("BLOCKERS");
+  if (!repo.blockers.length) wrapBlock("(none)");
+  for (const b of repo.blockers) {
+    wrapBlock(`- ${b} — ${explainCode(b)}`);
+  }
+  boxEnd();
+}
+
+export function printWhy(
+  report: RuroReport,
+  config: RuroConfig,
+  query: string,
+): void {
+  const repo = findRepo(report, query);
+  boxTitle(`RURO WHY  ·  ${repo.signals.fullName}`);
+  section("FORMULA");
+  for (const l of explainScoreLine(repo.score, repo.pillars, config.weights)) {
+    wrapBlock(l);
+  }
+  section("STATUS RULE");
+  wrapBlock(
+    "LIVE requires a verified deploy probe (SPA shells count; github.com/repo does not). ACTIVE = recent push without verified deploy. STALE/DORMANT/DEAD by push age. ARCHIVED if archived.",
   );
-  console.log(
-    `fitness    ${repo.signals.fitness.score} (${repo.signals.fitness.sourceFiles} src / ${repo.signals.fitness.testFiles} test)`,
+  wrapBlock(`derived_status=${repo.status}`);
+  section("WHAT RAISED THE SCORE");
+  for (const d of repo.drivers) wrapBlock(`+ ${d}: ${explainCode(d)}`);
+  section("WHAT HURT THE SCORE");
+  if (!repo.blockers.length) wrapBlock("(none)");
+  for (const b of repo.blockers) wrapBlock(`- ${b}: ${explainCode(b)}`);
+  section("HONEST LIMIT");
+  wrapBlock(
+    "Scores are deterministic signals — not a human judgment of product quality. Use `ruro review` for Copilot code audit (optional, never moves the score).",
   );
-  console.log(`language   ${repo.signals.primaryLanguage ?? "—"}`);
-  console.log(`drivers    ${repo.drivers.join(", ") || "—"}`);
-  console.log(`blockers   ${repo.blockers.join(", ") || "—"}`);
+  boxEnd();
 }
 
 export function printReviews(
@@ -116,14 +251,13 @@ export function printReviews(
   filter?: string,
 ): void {
   if (!cache || !cache.repos.length) {
-    console.log(
-      "No Copilot reviews yet. Enable ai in ruro.yml and run `ruro review` (needs Copilot CLI).",
+    boxTitle("RURO REVIEW");
+    wrapBlock(
+      "No Copilot audits cached. Run: GITHUB_TOKEN=$(gh auth token) ruro review <repo>",
     );
+    boxEnd();
     return;
   }
-  console.log(`Copilot reviews · ${cache.status}`);
-  if (cache.note) console.log(cache.note);
-  console.log("");
   const q = filter?.toLowerCase();
   const items = q
     ? cache.repos.filter(
@@ -132,16 +266,21 @@ export function printReviews(
           r.fullName.toLowerCase().endsWith(`/${q}`),
       )
     : cache.repos;
-  if (!items.length) {
-    throw new Error(`No review for: ${filter}`);
-  }
+  if (!items.length) throw new Error(`No review for: ${filter}`);
+
+  boxTitle(`RURO REVIEW CACHE  ·  ${cache.status}`);
+  if (cache.note) wrapBlock(cache.note);
   for (const r of items) {
-    console.log(`## ${r.fullName} [${r.status}]`);
-    console.log(`why: ${r.why_showable || "—"}`);
-    console.log(`strengths: ${r.strengths.join(", ") || "—"}`);
-    console.log(`weaknesses: ${r.weaknesses.join(", ") || "—"}`);
-    console.log(r.review || "—");
-    if (r.error) console.log(`error: ${r.error}`);
-    console.log("");
+    section(r.fullName);
+    row("audit", r.status);
+    wrapBlock(`why: ${r.why_showable || "—"}`);
+    wrapBlock(`strengths: ${r.strengths.join(" | ") || "—"}`);
+    wrapBlock(`weaknesses: ${r.weaknesses.join(" | ") || "—"}`);
+    console.log(`│${" ".repeat(W)}│`);
+    for (const line of (r.review || "—").split("\n")) {
+      wrapBlock(line);
+    }
+    if (r.error) wrapBlock(`error: ${r.error}`);
   }
+  boxEnd();
 }
