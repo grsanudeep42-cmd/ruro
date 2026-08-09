@@ -6,9 +6,9 @@
 
 Deterministic scores. Operator briefings. Live CLI with Ruri. Optional Copilot garnish.
 
-<a href="https://grsanudeep42-cmd.github.io/ruro/"><img src="./assets/ruro-card.svg" width="640" alt="Ruro — fleet operator card" /></a>
+<img src="./assets/ruro-card.svg" width="640" alt="Ruro — fleet operator card" />
 
-[Live OS (Pages)](https://grsanudeep42-cmd.github.io/ruro/) · [OVERVIEW](./OVERVIEW.md) · [BIBLE](./BIBLE.md) · [MIT](./LICENSE)
+[BIBLE](./BIBLE.md) · [MIT](./LICENSE) · [Example Pages](https://grsanudeep42-cmd.github.io/ruro/)
 
 </div>
 
@@ -16,7 +16,7 @@ Deterministic scores. Operator briefings. Live CLI with Ruri. Optional Copilot g
 
 ## What this is
 
-Ruro is a **personal GitHub operating system** for your repos:
+Ruro is an open-source **personal GitHub operating system**. Point it at any GitHub user or org you can access — it becomes **their** fleet OS.
 
 1. **Collect** truth from GitHub (repos, tree, CI, cadence)
 2. **Probe** homepages for real deploys (HTTP proof, body hash, SPA detection)
@@ -36,30 +36,35 @@ Copilot review is optional commentary and **never** moves scores.
 
 ---
 
-## Quick start (try it in 60 seconds)
+## Quick start
 
-**Requirements:** Node.js **≥ 20**, npm.
+**Requirements:** Node.js **≥ 20**, npm, a GitHub token.
 
 ```bash
 git clone https://github.com/grsanudeep42-cmd/ruro.git
 cd ruro
 npm ci
+
+cp ruro.example.yml ruro.yml
+# edit ruro.yml → set owner: YOUR_GITHUB_LOGIN
+
+export GITHUB_TOKEN=ghp_…   # or GH_TOKEN
+npm run ruro -- scan
 npm run ruro
 ```
 
-You’re in a live session. Type `/` for the command menu.
+You’re in a live session on **your** fleet. Type `/` for the command menu.
 
 ```text
-› /                 # Cursor-style slash menu (filters as you type)
+› /                 # slash menu (filters as you type)
 › brief             # show path + regressions + next fixes
-› why phantom       # score math + playbook
-› status explainmycode
+› why <repo>        # score math + playbook
+› status <repo>     # dossier + deploy proof
 › /br               # unique prefix → runs /brief
 › /exit
 ```
 
-No token needed to explore the **committed demo** scorecard in this repo.  
-To run Ruro on **your** GitHub account (not this demo), see [Make it yours](#make-it-yours).
+**Privacy:** Ruro runs locally with **your** token. It cannot read other people’s private repos. Public GitHub data is public (same as github.com). For private fleets, use a **private** meta-repo — see [Private repos](#private-repos).
 
 ---
 
@@ -77,7 +82,7 @@ npm run ruro
 | `/` | Open / filter the slash menu |
 | `/br`, `/st` … | Unique prefix runs that command |
 | `brief`, `next`, `diff` | Natural language also works |
-| `phantom` | Bare repo name → short status |
+| `<repo>` | Bare repo name → short status |
 | `Esc` | Clear the slash menu |
 | Tab | Complete commands / repo names |
 
@@ -89,22 +94,19 @@ npm run ruro -- next
 npm run ruro -- diff
 npm run ruro -- view
 npm run ruro -- top 10
-npm run ruro -- status phantom
-npm run ruro -- full phantom
-npm run ruro -- why phantom
+npm run ruro -- status <repo>
+npm run ruro -- full <repo>
+npm run ruro -- why <repo>
 npm run ruro -- help
 ```
 
 ### Machine-readable JSON
 
-Build once, then pipe clean JSON (avoids `npm run` banner noise):
-
 ```bash
 npm run build
 node dist/cli.js --json view
 node dist/cli.js --json brief
-node dist/cli.js --json why phantom
-node dist/cli.js --json status explainmycode
+node dist/cli.js --json why <repo>
 ```
 
 Or: `npm run --silent ruro -- --json view`
@@ -113,7 +115,7 @@ Or: `npm run --silent ruro -- --json view`
 
 ## Command reference
 
-### Operator surfaces (the “wow”)
+### Operator surfaces
 
 | Command | What it does |
 | --- | --- |
@@ -155,46 +157,47 @@ Or: `npm run --silent ruro -- --json view`
 Showability = 0.40 × Quality + 0.35 × Alive + 0.25 × Structure
 ```
 
-Weights live in [`ruro.yml`](./ruro.yml).
+Weights live in `ruro.yml` (from [`ruro.example.yml`](./ruro.example.yml)).
 
-| Pillar | Signals (examples) |
-| --- | --- |
-| **Quality** | Tests, CI / workflow matrix, lint, lockfile, tree fitness, owner commit share |
-| **Alive** | Push cadence, **verified deploy**, releases, fresh CI |
-| **Structure** | README, license, description, topics, real homepage |
+| Pillar | Weight | Signals (examples) |
+| --- | --- | --- |
+| **Quality** | 40% | Tests, CI / workflow matrix, lint, lockfile, tree fitness, owner commit share |
+| **Alive** | 35% | Push cadence, **verified deploy**, releases, fresh CI |
+| **Structure** | 25% | README, license, description, topics, homepage verified |
 
-**Status meaning**
+Not deploy-only: a strong codebase can score well without a live demo.  
+**LIVE** status is stricter: verified deploy **and** push within `active_days`.
 
 | Status | Meaning |
 | --- | --- |
-| **LIVE** | Verified deploy **and** push within `active_days` |
+| **LIVE** | Verified deploy **and** recent push |
 | **ACTIVE** | Recent push, deploy not verified (or none) |
 | **STALE** / **DORMANT** / **ARCHIVED** | Age / archive rules from config thresholds |
 
 **Deployed ≠ “has a homepage URL.”**  
-Ruro probes the URL: HTTP proof, body bytes, hash, redirect chain, SPA shell detection. Proof artifacts land under `data/proofs/`.
+Ruro probes the URL: HTTP proof, body bytes, hash, redirect chain, SPA shell detection. Proofs land under `data/proofs/`.
 
 Every score point has a **named contribution** — `why <repo>` explains the math.
 
 ---
 
-## Make it yours
-
-Clone is a **demo** of one public fleet. To operate **your** account:
-
-### 1. Config from the template
+## Configuration
 
 ```bash
 cp ruro.example.yml ruro.yml
 ```
 
-Edit [`ruro.yml`](./ruro.yml) — set **your** login:
+Minimum edit:
 
 ```yaml
-owner: YOUR_GITHUB_LOGIN   # ← change this (required)
+owner: YOUR_GITHUB_LOGIN   # required — your login or org
+```
 
+Useful knobs:
+
+```yaml
 scan:
-  include_private: false   # true only with a private meta-repo + repo token
+  include_private: false
   include_forks: false
   include_archived: true
   exclude_repos:
@@ -202,70 +205,36 @@ scan:
     - ".github"
 
 privacy:
-  mode: public_only_render # or full on a PRIVATE meta-repo
+  mode: public_only_render   # or full on a PRIVATE meta-repo
 
 thresholds:
   active_days: 90
 ```
 
-Starter file with comments: [`ruro.example.yml`](./ruro.example.yml).  
-Placeholder owners are rejected on purpose so you don’t keep scanning someone else’s fleet by accident.
+Placeholder owners (`YOUR_GITHUB_LOGIN`, etc.) are rejected so you always configure a real target.
 
-### 2. Token
-
-Create a classic or fine-grained PAT with at least:
-
-- `repo` (or public-repo read) for the accounts you scan  
-- `workflow` / Actions read if you want CI signals  
-
-```bash
-export GITHUB_TOKEN=ghp_…   # or GH_TOKEN
-npm run ruro -- scan
-```
-
-After a successful scan you’ll have fresh:
-
-- `data/latest.json` — scorecard  
-- `data/history/YYYY-MM-DD.json` — day memory  
-- `data/proofs/` — deploy proof blobs  
-- `DASHBOARD.md` / `OVERVIEW.md` / `docs/index.html` — rendered surfaces  
-
-Then open the operator again:
-
-```bash
-npm run ruro
-› brief
-```
-
-### Private repos (important)
-
-Ruro can score private repos — but **do not publish them on a public meta-repo**.
+### Private repos
 
 | Goal | Config |
 | --- | --- |
-| Public Pages / public GitHub OS (default) | `include_private: false` + `privacy.mode: public_only_render` |
-| Full private fleet (local or **private** meta-repo) | `include_private: true` + `privacy.mode: full` + token with `repo` scope |
+| Public Pages / public meta-repo | `include_private: false` + `privacy.mode: public_only_render` |
+| Full private fleet | `include_private: true` + `privacy.mode: full` + `repo`-scoped token on a **private** meta-repo |
 
 ```yaml
-# Private OS — use a PRIVATE GitHub repo (or keep data/ unpushed)
 scan:
   include_private: true
 privacy:
   mode: full
 ```
 
-`public_only_render` strips private repos from the published report (DASHBOARD / Pages / committed `data/`).  
-`full` writes everything — only safe when the meta-repo itself is private.
-
-### 3. Optional Copilot review
+### Optional Copilot review
 
 Scores never depend on this.
 
 ```bash
-# requires GitHub Copilot CLI available in PATH + credits
-npm run ruro -- review phantom
-# or inside the live session:
-› /review phantom
+npm run ruro -- review <repo>
+# or in the live session:
+› /review <repo>
 ```
 
 Judgment caches under `data/ai/`.
@@ -274,16 +243,16 @@ Judgment caches under `data/ai/`.
 
 ## Automate on GitHub Actions
 
-This repo ships [`.github/workflows/ruro.yml`](./.github/workflows/ruro.yml) — daily scorecard refresh.
+Workflow: [`.github/workflows/ruro.yml`](./.github/workflows/ruro.yml)
 
-1. Fork or clone into **your** meta-repo  
-2. Set `owner` in `ruro.yml`  
-3. Add repository secret **`RURO_TOKEN`** (PAT that can push commits as **you**, not `github-actions[bot]`)  
-4. Adjust the commit author block in the workflow to **your** name/email  
-5. Run **Actions → Ruro Scorecard → Run workflow**  
-6. Enable **Pages** from `main` / `/docs` for the web OS  
+1. Fork or use this repo as your meta-repo  
+2. `cp ruro.example.yml ruro.yml` and set `owner`  
+3. Secret **`RURO_TOKEN`** (PAT that can push as **you**, not `github-actions[bot]`)  
+4. Set the workflow commit author to **your** name/email  
+5. **Actions → Ruro Scorecard → Run workflow**  
+6. Optional: Pages from `main` / `/docs`  
 
-CI for the toolchain itself is [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (typecheck, tests, build, JSON smoke).
+Toolchain CI: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml).
 
 ---
 
@@ -292,18 +261,12 @@ CI for the toolchain itself is [`.github/workflows/ci.yml`](./.github/workflows/
 ```text
 ruro/
 ├── src/                 # CLI, collect, probe, score, render
-├── data/
-│   ├── latest.json      # current scorecard
-│   ├── history/         # daily snapshots (diff / regressions)
-│   ├── proofs/          # deploy probe artifacts
-│   └── ai/              # optional Copilot cache (never scores)
-├── docs/                # Pages “desktop”
-├── assets/              # profile / card SVG
-├── ruro.yml             # this repo’s live owner config
-├── ruro.example.yml     # copy → ruro.yml for your account
-├── DASHBOARD.md         # full markdown scorecard
-├── OVERVIEW.md          # living fleet snapshot
-└── BIBLE.md             # product canon (deeper reading)
+├── data/                # scorecard, history, proofs (after scan)
+├── docs/                # Pages “desktop” (after scan)
+├── ruro.example.yml     # copy → ruro.yml
+├── ruro.yml             # your config (create from example)
+├── BIBLE.md             # product canon
+└── LICENSE              # MIT
 ```
 
 ---
@@ -318,38 +281,26 @@ ruro/
 | `npm test` | Vitest suite |
 | `npm run typecheck` | `tsc --noEmit` |
 
-Binary after build: `node dist/cli.js` (also package bin `ruro`).
+Binary after build: `node dist/cli.js` (package bin `ruro`).
 
 ---
 
 ## FAQ
 
-**Do I need a token to try Ruro?**  
-No. Clone and `npm run ruro` — you operate on the scorecard already in the repo. Token is only for `scan` / `review` and for scoring **your** fleet.
+**Whose GitHub does it score?**  
+Whoever you set as `owner` in `ruro.yml`, using **your** token. Configure once → scan → it’s that account’s OS.
 
-**Will scores match if I re-scan?**  
-Yes for the deterministic core (same GitHub + probe inputs ⇒ same scores). Live probe latency/hash can change if the site changed.
+**Can it see other people’s private repos?**  
+No. Only what your token can already access.
 
 **Is Copilot required?**  
 No. Core path is zero-AI. Review is garnish.
 
-**Can someone else use my clone?**  
-Yes — MIT. They should set their own `owner`, token, and (for Actions) commit identity. Public clone ≠ write access to this GitHub repo.
+**Will scores match if I re-scan?**  
+Yes for the deterministic core (same GitHub + probe inputs ⇒ same scores). Live probe latency/hash can change if the site changed.
 
-**Why did `status` need a loader normalize?**  
-Older scorecards may omit newer fields (`ciConclusions`, etc.). The CLI fills safe defaults so dossiers never crash.
-
----
-
-## Docs map
-
-| Doc | Role |
-| --- | --- |
-| [README.md](./README.md) | You are here — product + how to run |
-| [OVERVIEW.md](./OVERVIEW.md) | Current fleet snapshot |
-| [BIBLE.md](./BIBLE.md) | Canon: mission, constraints, scoring |
-| [DASHBOARD.md](./DASHBOARD.md) | Full scorecard tables |
-| [Pages](https://grsanudeep42-cmd.github.io/ruro/) | Web OS |
+**License?**  
+MIT — use it, fork it, run it on any account you control.
 
 ---
 

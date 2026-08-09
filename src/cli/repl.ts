@@ -74,9 +74,8 @@ export async function startRepl(opts: {
   if (report.owner.toLowerCase() !== config.owner.toLowerCase()) {
     agent(
       [
-        `Heads-up: scorecard on disk is for “${report.owner}”, but ruro.yml owner is “${config.owner}”.`,
-        `Copy the template, set your login, then /scan:`,
-        `  cp ruro.example.yml ruro.yml`,
+        `Scorecard on disk is for “${report.owner}”, but ruro.yml owner is “${config.owner}”.`,
+        `Set owner in ruro.yml (from ruro.example.yml), then /scan with your token.`,
       ].join("\n"),
     );
   }

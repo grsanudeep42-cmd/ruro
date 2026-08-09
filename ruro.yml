@@ -1,7 +1,5 @@
-# Ruro — THIS repo's live scorecard config (grsanudeep42-cmd public OS).
-# New users: do NOT keep this owner. Copy the template instead:
-#   cp ruro.example.yml ruro.yml
-# then set owner to YOUR login and run `npm run ruro -- scan`.
+# Ruro config for this checkout.
+# New installs: prefer `cp ruro.example.yml ruro.yml` and set your own owner.
 #
 schema_version: 1
 
