@@ -58,7 +58,7 @@ describe("profile renderers", () => {
   it("renders an SVG card with top projects", () => {
     const svg = renderProfileSvg(report, config);
     expect(svg).toContain("<svg");
-    expect(svg).toContain("RURO");
+    expect(svg).toContain("ruro view");
     expect(svg).toContain("alpha");
     expect(svg).toContain("88");
   });
@@ -67,7 +67,7 @@ describe("profile renderers", () => {
     const md = renderProfileSnippet(report, config);
     expect(md).toContain("<!-- RURO:START -->");
     expect(md).toContain("<!-- RURO:END -->");
-    expect(md).toContain("PORTFOLIO TRUTH");
+    expect(md).toContain("## ░ RURO");
     expect(md).toContain("alpha");
   });
 });

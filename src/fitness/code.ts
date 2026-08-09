@@ -8,6 +8,8 @@ const TEST_HINT =
   /(^|\/)(tests?|__tests__|spec)(\/|$)|[._-](test|spec)\.[^.]+$/i;
 const SKIP =
   /(^|\/)(node_modules|dist|build|\.git|vendor|coverage|\.next|target)(\/|$)/i;
+const BINARYish =
+  /\.(png|jpe?g|gif|webp|ico|mp4|mov|wav|mp3|pdf|zip|gz|tgz|wasm|woff2?|ttf|eot|psd|ai)$/i;
 
 function emptyFitness(): CodeFitness {
   return {
@@ -33,7 +35,7 @@ export function analyzeTreeEntries(
     if (e.type !== "blob" || !e.path) continue;
     if (SKIP.test(e.path)) continue;
     const size = e.size ?? 0;
-    if (size > maxBlobBytes) maxBlobBytes = size;
+    if (!BINARYish.test(e.path) && size > maxBlobBytes) maxBlobBytes = size;
 
     if (SOURCE_EXT.test(e.path)) {
       if (TEST_HINT.test(e.path)) testFiles += 1;

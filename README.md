@@ -1,39 +1,42 @@
 # Ruro
 
-**GitHub OS** for your engineering truth — automatic, portable, GitHub-native.  
-Not a scoreboard. A living operating surface (Pages + CLI) that proves what is alive, deployed, and worth showing.
-
-Core is **zero AI**. Copilot is optional judgment. Deployed means **verified by probe**.
-
-## Surfaces
-
-| Surface | What |
-| --- | --- |
-| **Web OS** | `docs/index.html` — Attention, verified deploys, showables, fleet |
-| **CLI** | `ruro view` / `top` / `status` / `review` |
-| **Memory** | `data/latest.json` + history + optional `data/ai/` |
-
-## Quick start
-
-1. Set `owner` in `ruro.yml`.
-2. Secret **`RURO_TOKEN`** (classic PAT, `repo` scope).
-3. Run **Actions → Ruro Scorecard**.
-4. Pages: **Settings → Pages → branch `main` → `/docs`**.
+**GitHub OS** you run from the terminal — and show on Pages.
 
 ```bash
-npm ci && npm test && npm run build
+git clone https://github.com/grsanudeep42-cmd/ruro.git
+cd ruro && npm ci && npm run build
 GITHUB_TOKEN=$(gh auth token) npm run ruro -- scan
 npm run ruro -- view
+npm run ruro -- top 5
+npm run ruro -- status phantom
 GITHUB_TOKEN=$(gh auth token) npm run ruro -- review aryanbloodbank
 ```
 
-## Score model
+Point `owner` in `ruro.yml` at any GitHub login → their fleet boots.
 
-```
-Showability = 0.40*Quality + 0.35*Alive + 0.25*Structure
-```
+## What it is
 
-`LIVE` only if deployment probe is **verified** (not github.com/repo, not parking pages).
+Not a vanity board. An operating surface for engineering truth:
+
+- **CLI** — daily driver (`view` / `top` / `status` / `review`)
+- **Pages OS** — https://grsanudeep42-cmd.github.io/ruro/
+- **Kernel** — Actions cron + hardened deploy probes + without-AI tree fitness
+- **Judgment** — optional Copilot that must read real source (never moves scores)
+
+Deployed means **verified**. SPA shells count. Parking pages and github.com/repo links do not.
+
+## Setup
+
+1. Copy/use this repo · set `owner` in `ruro.yml`
+2. Secret `RURO_TOKEN` (classic PAT, `repo`)
+3. Actions → Ruro Scorecard
+4. Pages → `main` / `/docs`
+
+Commits stay under **your** account via `RURO_TOKEN` — never `github-actions[bot]`.
+
+## Profile trailer
+
+`PROFILE_SNIPPET.md` + `assets/ruro-card.svg` are a fake terminal for your profile README (GitHub cannot host a real shell there). Paste the snippet into `username/username` when you want the trailer.
 
 ## License
 

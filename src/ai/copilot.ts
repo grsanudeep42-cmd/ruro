@@ -147,15 +147,21 @@ async function reviewOneRepo(opts: {
     }
 
     const repoDir = join(work, "repo");
+    const dossier = buildRepoDossier(repoDir, repo);
+    writeFileSync(join(repoDir, "RURO_DOSSIER.md"), dossier, "utf8");
+
     const prompt = [
-      "/review this repository as portfolio evidence for interviews.",
-      "Focus on: correctness risks, missing tests/CI, demo readiness, README honesty, and what would make a recruiter trust or distrust it.",
+      "You MUST read RURO_DOSSIER.md and open real source files in this working directory before judging.",
+      "Do not invent files. Cite paths you actually opened.",
+      "If you cannot read files, reply only: REVIEW_FAILED: cannot read source",
+      "Review this repository as portfolio evidence for interviews.",
+      "Focus on: whether this is a real functional product vs thin glue, correctness risks, tests/CI, demo readiness, README honesty.",
       "Reply in markdown with exactly these sections:",
       "## Why showable",
       "## Strengths",
       "## Weaknesses",
       "## Code review",
-      "Keep total under 400 words. Be blunt.",
+      "Be blunt. Name concrete files. Keep under 450 words.",
     ].join(" ");
 
     const env = {
@@ -172,19 +178,28 @@ async function reviewOneRepo(opts: {
         prompt,
         "-s",
         "--no-ask-user",
-        "--allow-tool=shell(git:*),shell(find:*),shell(ls:*),shell(rg:*),shell(cat:*),shell(head:*),read",
+        "--allow-all-tools",
       ],
       {
         cwd: repoDir,
         encoding: "utf8",
         timeout: config.ai.timeout_ms,
         env,
-        maxBuffer: 2 * 1024 * 1024,
+        maxBuffer: 4 * 1024 * 1024,
       },
     );
 
     const text = (result.stdout || "").trim() || (result.stderr || "").trim();
-    if (!text || result.status !== 0) {
+    if (
+      !text ||
+      /REVIEW_FAILED|couldn't read the repo|permission errors/i.test(text)
+    ) {
+      throw new Error(
+        text.slice(0, 500) ||
+          `copilot exited ${result.status ?? "null"} without a readable review`,
+      );
+    }
+    if (result.status !== 0 && text.length < 80) {
       throw new Error(
         text.slice(0, 400) ||
           `copilot exited ${result.status ?? "null"} with no output`,
@@ -228,6 +243,53 @@ async function reviewOneRepo(opts: {
       }
     }
   }
+}
+
+function buildRepoDossier(repoDir: string, repo: ScoredRepo): string {
+  const lines: string[] = [
+    `# Ruro dossier for ${repo.signals.fullName}`,
+    "",
+    `Status ${repo.status} · score ${repo.score}`,
+    `Demo ${repo.signals.demo.status}${repo.signals.demo.verified ? " verified" : ""}`,
+    `Fitness ${repo.signals.fitness.score} (${repo.signals.fitness.sourceFiles} src / ${repo.signals.fitness.testFiles} tests)`,
+    "",
+    "## Tree (truncated)",
+  ];
+
+  const tree = spawnSync(
+    "bash",
+    [
+      "-lc",
+      "find . -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o -name '*.md' -o -name 'package.json' -o -name 'pyproject.toml' -o -name 'Cargo.toml' -o -name 'go.mod' \\) ! -path './.git/*' ! -path './node_modules/*' ! -path './dist/*' ! -path './.next/*' | head -n 120",
+    ],
+    { cwd: repoDir, encoding: "utf8", timeout: 15_000 },
+  );
+  lines.push((tree.stdout || "").trim() || "(no files listed)");
+  lines.push("", "## Key file previews");
+
+  const candidates = [
+    "README.md",
+    "readme.md",
+    "package.json",
+    "pyproject.toml",
+    "Cargo.toml",
+    "go.mod",
+    "src/main.ts",
+    "src/index.ts",
+    "src/App.tsx",
+    "app/page.tsx",
+  ];
+  for (const rel of candidates) {
+    const abs = join(repoDir, rel);
+    if (!existsSync(abs)) continue;
+    try {
+      const raw = readFileSync(abs, "utf8").slice(0, 2500);
+      lines.push("", `### ${rel}`, "```", raw, "```");
+    } catch {
+      /* skip */
+    }
+  }
+  return `${lines.join("\n")}\n`;
 }
 
 function parseReviewMarkdown(

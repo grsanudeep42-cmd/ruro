@@ -69,9 +69,33 @@ function isGithubRepoUrl(candidate: string, ctx: ProbeContext): boolean {
   }
 }
 
+function isSpaShell(body: string): boolean {
+  const lower = body.toLowerCase();
+  const hasMount =
+    /id=["']root["']/.test(lower) ||
+    /id=["']app["']/.test(lower) ||
+    /id=["']__next["']/.test(lower) ||
+    /data-reactroot/.test(lower);
+  const hasBundles =
+    /type=["']module["']/.test(lower) ||
+    /\/assets\/[^"']+\.js/.test(lower) ||
+    /_next\/static/.test(lower) ||
+    /vite\.svg/.test(lower);
+  const title = lower.match(/<title[^>]*>([^<]{3,120})<\/title>/);
+  const hasTitle = Boolean(title?.[1]?.trim() && !/document/i.test(title[1]));
+  return hasMount && hasBundles && hasTitle;
+}
+
+/** Exported for tests — SPA shells are live apps, not empty parking pages. */
+export function isLiveSpaShell(body: string): boolean {
+  return isSpaShell(body);
+}
+
 function looksParkedOrFake(body: string, contentType: string | null): boolean {
   const lower = body.slice(0, 80_000).toLowerCase();
   if (PARKING_MARKERS.some((m) => lower.includes(m))) return true;
+  // SPA shells often ship almost no visible text in the first HTML document.
+  if (isSpaShell(body)) return false;
   const isHtml =
     !contentType ||
     contentType.includes("text/html") ||

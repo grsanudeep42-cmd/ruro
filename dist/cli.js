@@ -63,7 +63,7 @@ function analyzeTreeEntries(entries) {
     if (e.type !== "blob" || !e.path) continue;
     if (SKIP.test(e.path)) continue;
     const size = e.size ?? 0;
-    if (size > maxBlobBytes) maxBlobBytes = size;
+    if (!BINARYish.test(e.path) && size > maxBlobBytes) maxBlobBytes = size;
     if (SOURCE_EXT.test(e.path)) {
       if (TEST_HINT.test(e.path)) testFiles += 1;
       else sourceFiles += 1;
@@ -147,7 +147,7 @@ async function enrichCodeFitness(clients, repos) {
     }
   }
 }
-var SOURCE_EXT, TEST_HINT, SKIP;
+var SOURCE_EXT, TEST_HINT, SKIP, BINARYish;
 var init_code = __esm({
   "src/fitness/code.ts"() {
     "use strict";
@@ -155,6 +155,7 @@ var init_code = __esm({
     SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|kts|swift|c|cc|cpp|h|hpp|cs|rb|php|vue|svelte|scala|dart)$/i;
     TEST_HINT = /(^|\/)(tests?|__tests__|spec)(\/|$)|[._-](test|spec)\.[^.]+$/i;
     SKIP = /(^|\/)(node_modules|dist|build|\.git|vendor|coverage|\.next|target)(\/|$)/i;
+    BINARYish = /\.(png|jpe?g|gif|webp|ico|mp4|mov|wav|mp3|pdf|zip|gz|tgz|wasm|woff2?|ttf|eot|psd|ai)$/i;
   }
 });
 
@@ -394,15 +395,20 @@ async function reviewOneRepo(opts) {
       );
     }
     const repoDir = join(work, "repo");
+    const dossier = buildRepoDossier(repoDir, repo);
+    writeFileSync(join(repoDir, "RURO_DOSSIER.md"), dossier, "utf8");
     const prompt = [
-      "/review this repository as portfolio evidence for interviews.",
-      "Focus on: correctness risks, missing tests/CI, demo readiness, README honesty, and what would make a recruiter trust or distrust it.",
+      "You MUST read RURO_DOSSIER.md and open real source files in this working directory before judging.",
+      "Do not invent files. Cite paths you actually opened.",
+      "If you cannot read files, reply only: REVIEW_FAILED: cannot read source",
+      "Review this repository as portfolio evidence for interviews.",
+      "Focus on: whether this is a real functional product vs thin glue, correctness risks, tests/CI, demo readiness, README honesty.",
       "Reply in markdown with exactly these sections:",
       "## Why showable",
       "## Strengths",
       "## Weaknesses",
       "## Code review",
-      "Keep total under 400 words. Be blunt."
+      "Be blunt. Name concrete files. Keep under 450 words."
     ].join(" ");
     const env = {
       ...process.env,
@@ -417,18 +423,23 @@ async function reviewOneRepo(opts) {
         prompt,
         "-s",
         "--no-ask-user",
-        "--allow-tool=shell(git:*),shell(find:*),shell(ls:*),shell(rg:*),shell(cat:*),shell(head:*),read"
+        "--allow-all-tools"
       ],
       {
         cwd: repoDir,
         encoding: "utf8",
         timeout: config.ai.timeout_ms,
         env,
-        maxBuffer: 2 * 1024 * 1024
+        maxBuffer: 4 * 1024 * 1024
       }
     );
     const text = (result.stdout || "").trim() || (result.stderr || "").trim();
-    if (!text || result.status !== 0) {
+    if (!text || /REVIEW_FAILED|couldn't read the repo|permission errors/i.test(text)) {
+      throw new Error(
+        text.slice(0, 500) || `copilot exited ${result.status ?? "null"} without a readable review`
+      );
+    }
+    if (result.status !== 0 && text.length < 80) {
       throw new Error(
         text.slice(0, 400) || `copilot exited ${result.status ?? "null"} with no output`
       );
@@ -468,6 +479,50 @@ async function reviewOneRepo(opts) {
       }
     }
   }
+}
+function buildRepoDossier(repoDir, repo) {
+  const lines = [
+    `# Ruro dossier for ${repo.signals.fullName}`,
+    "",
+    `Status ${repo.status} \xB7 score ${repo.score}`,
+    `Demo ${repo.signals.demo.status}${repo.signals.demo.verified ? " verified" : ""}`,
+    `Fitness ${repo.signals.fitness.score} (${repo.signals.fitness.sourceFiles} src / ${repo.signals.fitness.testFiles} tests)`,
+    "",
+    "## Tree (truncated)"
+  ];
+  const tree = spawnSync(
+    "bash",
+    [
+      "-lc",
+      "find . -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o -name '*.md' -o -name 'package.json' -o -name 'pyproject.toml' -o -name 'Cargo.toml' -o -name 'go.mod' \\) ! -path './.git/*' ! -path './node_modules/*' ! -path './dist/*' ! -path './.next/*' | head -n 120"
+    ],
+    { cwd: repoDir, encoding: "utf8", timeout: 15e3 }
+  );
+  lines.push((tree.stdout || "").trim() || "(no files listed)");
+  lines.push("", "## Key file previews");
+  const candidates = [
+    "README.md",
+    "readme.md",
+    "package.json",
+    "pyproject.toml",
+    "Cargo.toml",
+    "go.mod",
+    "src/main.ts",
+    "src/index.ts",
+    "src/App.tsx",
+    "app/page.tsx"
+  ];
+  for (const rel of candidates) {
+    const abs = join(repoDir, rel);
+    if (!existsSync2(abs)) continue;
+    try {
+      const raw = readFileSync2(abs, "utf8").slice(0, 2500);
+      lines.push("", `### ${rel}`, "```", raw, "```");
+    } catch {
+    }
+  }
+  return `${lines.join("\n")}
+`;
 }
 function parseReviewMarkdown(text, repo) {
   const why = section(text, "Why showable") || section(text, "Why Showable") || signalWhy(repo);
@@ -1064,9 +1119,18 @@ function isGithubRepoUrl(candidate, ctx) {
     return false;
   }
 }
+function isSpaShell(body) {
+  const lower = body.toLowerCase();
+  const hasMount = /id=["']root["']/.test(lower) || /id=["']app["']/.test(lower) || /id=["']__next["']/.test(lower) || /data-reactroot/.test(lower);
+  const hasBundles = /type=["']module["']/.test(lower) || /\/assets\/[^"']+\.js/.test(lower) || /_next\/static/.test(lower) || /vite\.svg/.test(lower);
+  const title = lower.match(/<title[^>]*>([^<]{3,120})<\/title>/);
+  const hasTitle = Boolean(title?.[1]?.trim() && !/document/i.test(title[1]));
+  return hasMount && hasBundles && hasTitle;
+}
 function looksParkedOrFake(body, contentType) {
   const lower = body.slice(0, 8e4).toLowerCase();
   if (PARKING_MARKERS.some((m) => lower.includes(m))) return true;
+  if (isSpaShell(body)) return false;
   const isHtml = !contentType || contentType.includes("text/html") || contentType.includes("application/xhtml");
   if (isHtml) {
     const textish = lower.replace(/<script[\s\S]*?<\/script>/g, " ");
@@ -1431,60 +1495,45 @@ function renderDashboard(report, config) {
 function escXml(text) {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-function statusTone(status) {
-  switch (status) {
-    case "LIVE":
-      return "#b6ff3b";
-    case "ACTIVE":
-      return "#7dd3fc";
-    case "STALE":
-      return "#fbbf24";
-    case "DORMANT":
-      return "#fb923c";
-    case "DEAD":
-      return "#f87171";
-    case "ARCHIVED":
-      return "#94a3b8";
-    default:
-      return "#e2e8f0";
-  }
-}
-function barWidth(score, max = 120) {
-  return Math.max(4, Math.round(Math.min(100, Math.max(0, score)) / 100 * max));
-}
 function renderProfileSvg(report, config) {
-  const top = report.repos.slice(0, config.render.profile_top_n);
-  const generated = report.generated_at.slice(0, 10);
-  const rows = top.map((repo, i) => {
-    const y = 118 + i * 44;
-    const tone = statusTone(repo.status);
-    const w = barWidth(repo.score);
+  const top = report.repos.slice(0, Math.min(4, config.render.profile_top_n));
+  const generated = report.generated_at.slice(0, 16).replace("T", " ");
+  const live = report.repos.filter((r) => r.signals.demo.verified).length;
+  const lines = top.map((repo, i) => {
+    const deploy = repo.signals.demo.verified ? "verified" : repo.signals.demo.status.toLowerCase();
+    const y = 118 + i * 28;
+    const delay = (0.6 + i * 0.35).toFixed(2);
     return `
-  <text x="28" y="${y}" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${i + 1}</text>
-  <text x="48" y="${y}" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${escXml(repo.signals.name)}</text>
-  <text x="48" y="${y + 16}" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${escXml(repo.signals.primaryLanguage ?? "\u2014")} \xB7 ${escXml(repo.status)}</text>
-  <rect x="430" y="${y - 10}" width="120" height="8" rx="4" fill="#1e293b"/>
-  <rect x="430" y="${y - 10}" width="${w}" height="8" rx="4" fill="${tone}"/>
-  <text x="560" y="${y}" fill="${tone}" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">${repo.score}</text>`;
-  }).join("\n");
-  const height = 130 + top.length * 44 + 36;
+  <text class="fade" style="animation-delay:${delay}s" x="28" y="${y}" fill="#d6ff3c" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${i + 1}. ${escXml(repo.signals.name)}</text>
+  <text class="fade" style="animation-delay:${delay}s" x="572" y="${y}" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">${escXml(repo.status)} ${repo.score} \xB7 ${escXml(deploy)}</text>`;
+  });
+  const height = 150 + top.length * 28 + 56;
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="600" height="${height}" viewBox="0 0 600 ${height}" role="img" aria-label="Ruro portfolio scorecard">
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="${height}" viewBox="0 0 600 ${height}" role="img" aria-label="Ruro CLI terminal">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#07090d"/>
-      <stop offset="100%" stop-color="#111827"/>
+      <stop offset="0%" stop-color="#030303"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
     </linearGradient>
+    <style>
+      @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+      @keyframes fadein { from{opacity:0} to{opacity:1} }
+      .cursor { animation: blink 1.1s step-end infinite; }
+      .fade { opacity:0; animation: fadein 0.45s ease forwards; }
+    </style>
   </defs>
-  <rect width="600" height="${height}" rx="18" fill="url(#bg)"/>
-  <rect x="1" y="1" width="598" height="${height - 2}" rx="17" fill="none" stroke="#1f2937"/>
-  <text x="28" y="42" fill="#b6ff3b" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="2">RURO</text>
-  <text x="28" y="68" fill="#f8fafc" font-size="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">portfolio truth</text>
-  <text x="572" y="42" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">${escXml(generated)}</text>
-  <text x="28" y="92" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${report.included_count} scored \xB7 LIVE ${report.status_counts.LIVE} \xB7 ACTIVE ${report.status_counts.ACTIVE} \xB7 STALE ${report.status_counts.STALE}</text>
-  <line x1="28" y1="104" x2="572" y2="104" stroke="#1f2937"/>
-${rows}
-  <text x="28" y="${height - 16}" fill="#475569" font-size="10" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">deterministic \xB7 zero AI \xB7 github-native</text>
+  <rect width="600" height="${height}" rx="14" fill="url(#bg)"/>
+  <rect x="1" y="1" width="598" height="${height - 2}" rx="13" fill="none" stroke="#222"/>
+  <circle cx="28" cy="28" r="5" fill="#ff5c4d"/>
+  <circle cx="46" cy="28" r="5" fill="#ffc14d"/>
+  <circle cx="64" cy="28" r="5" fill="#d6ff3c"/>
+  <text x="90" y="32" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">ruro \u2014 github os</text>
+  <text class="fade" style="animation-delay:0.1s" x="28" y="68" fill="#8a867c" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">$</text>
+  <text class="fade" style="animation-delay:0.1s" x="44" y="68" fill="#f4f1ea" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">ruro view</text>
+  <rect class="cursor" x="128" y="56" width="8" height="16" fill="#d6ff3c"/>
+  <text class="fade" style="animation-delay:0.35s" x="28" y="92" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${report.included_count} fleet \xB7 ${live} verified live \xB7 ${escXml(generated)} UTC</text>
+${lines.join("\n")}
+  <text class="fade" style="animation-delay:2s" x="28" y="${height - 20}" fill="#8a867c" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">$ ruro review &lt;repo&gt;   \xB7   npx \xB7 pages \xB7 deterministic core</text>
 </svg>
 `;
 }
@@ -1492,24 +1541,31 @@ function renderProfileSnippet(report, config) {
   const top = report.repos.slice(0, config.render.profile_top_n);
   const svgPath = config.render.profile_svg_path;
   const cardUrl = `https://raw.githubusercontent.com/${config.owner}/ruro/main/${svgPath}`;
+  const osUrl = `https://${config.owner}.github.io/ruro/`;
   const rows = top.map((r) => {
-    const demo = r.signals.demo.status === "UP" ? "live demo" : r.signals.demo.status === "NONE" ? "no demo" : "demo down";
+    const demo = r.signals.demo.verified ? "verified" : r.signals.demo.status === "NONE" ? "none" : "unproven";
     return `| **[${r.signals.name}](${r.signals.url})** | \`${r.status}\` | **${r.score}** | ${r.signals.primaryLanguage ?? "\u2014"} | ${demo} |`;
   }).join("\n");
   return `<!-- RURO:START -->
-## \u2591 PORTFOLIO TRUTH
+## \u2591 RURO
+
+GitHub OS for my repos \u2014 automatic truth, verified deploys, optional Copilot judgment.
 
 <div align="center">
 
-<img src="${cardUrl}" width="600" alt="Ruro portfolio scorecard" />
+<a href="${osUrl}"><img src="${cardUrl}" width="600" alt="Ruro CLI terminal" /></a>
 
 </div>
 
-| Project | Status | Score | Stack | Demo |
+\`\`\`bash
+npx --yes tsx github.com/${config.owner}/ruro  # or clone + npm run ruro -- view
+\`\`\`
+
+| Project | Status | Score | Stack | Deploy |
 |---|---|---:|---|---|
 ${rows}
 
-<sub>Auto-maintained by [Ruro](https://github.com/${config.owner}/ruro) \xB7 ${report.generated_at.slice(0, 10)} \xB7 zero AI</sub>
+<sub>[Open OS](${osUrl}) \xB7 [Ruro](https://github.com/${config.owner}/ruro) \xB7 ${report.generated_at.slice(0, 10)}</sub>
 <!-- RURO:END -->
 `;
 }

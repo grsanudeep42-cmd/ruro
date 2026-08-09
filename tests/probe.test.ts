@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultConfig } from "../src/config.js";
-import { probeDemoUrl } from "../src/probes/demo.js";
+import { isLiveSpaShell, probeDemoUrl } from "../src/probes/demo.js";
 
 describe("probeDemoUrl", () => {
   const config = defaultConfig("acme");
@@ -29,5 +29,13 @@ describe("probeDemoUrl", () => {
     });
     expect(result.url).toMatch(/^https:\/\/example\.com\/?$/);
     expect(["UP", "DOWN", "ERROR"]).toContain(result.status);
+  });
+
+  it("recognizes Vite/React SPA shells as live", () => {
+    const html = `<!doctype html><html><head><title>Blood Bank – Community</title>
+      <script type="module" src="/assets/index-abc.js"></script>
+      <link rel="icon" href="/vite.svg" />
+      </head><body><div id="root"></div></body></html>`;
+    expect(isLiveSpaShell(html)).toBe(true);
   });
 });

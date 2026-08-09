@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-09T07:15:56.437Z",
+  "generated_at": "2026-08-09T15:19:27.889Z",
   "owner": "grsanudeep42-cmd",
   "repo_count": 26,
   "included_count": 24,
   "excluded_count": 2,
   "status_counts": {
-    "LIVE": 3,
-    "ACTIVE": 13,
+    "LIVE": 4,
+    "ACTIVE": 12,
     "STALE": 7,
     "DORMANT": 0,
     "DEAD": 0,
@@ -19,6 +19,109 @@
     "structure": 0.25
   },
   "repos": [
+    {
+      "signals": {
+        "name": "aryanbloodbank",
+        "fullName": "grsanudeep42-cmd/aryanbloodbank",
+        "url": "https://github.com/grsanudeep42-cmd/aryanbloodbank",
+        "description": null,
+        "homepageUrl": "https://www.aryanbloodbank.org/",
+        "primaryLanguage": "TypeScript",
+        "languages": [
+          "TypeScript",
+          "PLpgSQL",
+          "JavaScript",
+          "CSS",
+          "Swift"
+        ],
+        "topics": [],
+        "isPrivate": true,
+        "isFork": false,
+        "isArchived": false,
+        "isTemplate": false,
+        "licenseSpdx": null,
+        "createdAt": "2026-08-07T14:21:57Z",
+        "updatedAt": "2026-08-08T19:52:04Z",
+        "pushedAt": "2026-08-07T14:23:22Z",
+        "stars": 0,
+        "forks": 0,
+        "openIssues": 0,
+        "hasIssuesEnabled": true,
+        "defaultBranch": "main",
+        "diskUsageKb": 13213,
+        "readmeBytes": null,
+        "hasLicenseFile": false,
+        "hasWorkflows": false,
+        "hasDependabotConfig": false,
+        "hasCodeowners": false,
+        "hasTestsHeuristic": true,
+        "hasTestScript": true,
+        "hasLintConfigHeuristic": false,
+        "hasLockfile": false,
+        "hasPackageManifest": true,
+        "substantialCodebase": true,
+        "hasSrcLayout": false,
+        "hasContainerfile": false,
+        "recentWorkflowConclusion": null,
+        "recentWorkflowAgeDays": null,
+        "commitsLast30Days": 8,
+        "commitsLast90Days": 8,
+        "commitsLast365Days": 8,
+        "releasesCount": 0,
+        "latestReleaseAt": null,
+        "demo": {
+          "status": "UP",
+          "url": "https://www.aryanbloodbank.org/",
+          "finalUrl": "https://www.aryanbloodbank.org/",
+          "httpStatus": 200,
+          "latencyMs": 199,
+          "error": null,
+          "proofBytes": 2202,
+          "contentType": "text/html; charset=utf-8",
+          "verified": true
+        },
+        "fitness": {
+          "sourceFiles": 249,
+          "testFiles": 1,
+          "otherFiles": 190,
+          "maxBlobBytes": 8939122,
+          "score": 63,
+          "flags": [
+            "has_source",
+            "has_test_files",
+            "nontrivial_tree",
+            "god_file"
+          ]
+        }
+      },
+      "score": 63,
+      "pillars": {
+        "quality": 68,
+        "alive": 80,
+        "structure": 33
+      },
+      "status": "LIVE",
+      "drivers": [
+        "demo_verified",
+        "pushed_2w",
+        "high_cadence_30d",
+        "manifest",
+        "substantial_code",
+        "code_fitness_ok",
+        "test_files_in_tree",
+        "tests_present",
+        "test_script",
+        "homepage_verified"
+      ],
+      "blockers": [
+        "god_file",
+        "no_ci",
+        "weak_description",
+        "thin_readme",
+        "no_license",
+        "no_topics"
+      ]
+    },
     {
       "signals": {
         "name": "phantom",
@@ -519,110 +622,6 @@
         "no_tests_detected",
         "no_ci",
         "no_license"
-      ]
-    },
-    {
-      "signals": {
-        "name": "aryanbloodbank",
-        "fullName": "grsanudeep42-cmd/aryanbloodbank",
-        "url": "https://github.com/grsanudeep42-cmd/aryanbloodbank",
-        "description": null,
-        "homepageUrl": "https://www.aryanbloodbank.org/",
-        "primaryLanguage": "TypeScript",
-        "languages": [
-          "TypeScript",
-          "PLpgSQL",
-          "JavaScript",
-          "CSS",
-          "Swift"
-        ],
-        "topics": [],
-        "isPrivate": true,
-        "isFork": false,
-        "isArchived": false,
-        "isTemplate": false,
-        "licenseSpdx": null,
-        "createdAt": "2026-08-07T14:21:57Z",
-        "updatedAt": "2026-08-08T19:52:04Z",
-        "pushedAt": "2026-08-07T14:23:22Z",
-        "stars": 0,
-        "forks": 0,
-        "openIssues": 0,
-        "hasIssuesEnabled": true,
-        "defaultBranch": "main",
-        "diskUsageKb": 13213,
-        "readmeBytes": null,
-        "hasLicenseFile": false,
-        "hasWorkflows": false,
-        "hasDependabotConfig": false,
-        "hasCodeowners": false,
-        "hasTestsHeuristic": true,
-        "hasTestScript": true,
-        "hasLintConfigHeuristic": false,
-        "hasLockfile": false,
-        "hasPackageManifest": true,
-        "substantialCodebase": true,
-        "hasSrcLayout": false,
-        "hasContainerfile": false,
-        "recentWorkflowConclusion": null,
-        "recentWorkflowAgeDays": null,
-        "commitsLast30Days": 8,
-        "commitsLast90Days": 8,
-        "commitsLast365Days": 8,
-        "releasesCount": 0,
-        "latestReleaseAt": null,
-        "demo": {
-          "status": "DOWN",
-          "url": "https://www.aryanbloodbank.org/",
-          "finalUrl": "https://www.aryanbloodbank.org/",
-          "httpStatus": 200,
-          "latencyMs": 182,
-          "error": "parking_or_soft_404",
-          "proofBytes": 2202,
-          "contentType": "text/html; charset=utf-8",
-          "verified": false
-        },
-        "fitness": {
-          "sourceFiles": 249,
-          "testFiles": 1,
-          "otherFiles": 190,
-          "maxBlobBytes": 8939122,
-          "score": 63,
-          "flags": [
-            "has_source",
-            "has_test_files",
-            "nontrivial_tree",
-            "god_file"
-          ]
-        }
-      },
-      "score": 45,
-      "pillars": {
-        "quality": 68,
-        "alive": 35,
-        "structure": 23
-      },
-      "status": "ACTIVE",
-      "drivers": [
-        "pushed_2w",
-        "high_cadence_30d",
-        "manifest",
-        "substantial_code",
-        "code_fitness_ok",
-        "test_files_in_tree",
-        "tests_present",
-        "test_script"
-      ],
-      "blockers": [
-        "demo_unproven",
-        "parking_or_soft_404",
-        "god_file",
-        "no_ci",
-        "weak_description",
-        "thin_readme",
-        "no_license",
-        "no_topics",
-        "homepage_unproven"
       ]
     },
     {

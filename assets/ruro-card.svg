@@ -1,52 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="600" height="386" viewBox="0 0 600 386" role="img" aria-label="Ruro portfolio scorecard">
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="318" viewBox="0 0 600 318" role="img" aria-label="Ruro CLI terminal">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#07090d"/>
-      <stop offset="100%" stop-color="#111827"/>
+      <stop offset="0%" stop-color="#030303"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
     </linearGradient>
+    <style>
+      @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+      @keyframes fadein { from{opacity:0} to{opacity:1} }
+      .cursor { animation: blink 1.1s step-end infinite; }
+      .fade { opacity:0; animation: fadein 0.45s ease forwards; }
+    </style>
   </defs>
-  <rect width="600" height="386" rx="18" fill="url(#bg)"/>
-  <rect x="1" y="1" width="598" height="384" rx="17" fill="none" stroke="#1f2937"/>
-  <text x="28" y="42" fill="#b6ff3b" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="2">RURO</text>
-  <text x="28" y="68" fill="#f8fafc" font-size="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">portfolio truth</text>
-  <text x="572" y="42" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">2026-08-09</text>
-  <text x="28" y="92" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">24 scored · LIVE 3 · ACTIVE 13 · STALE 7</text>
-  <line x1="28" y1="104" x2="572" y2="104" stroke="#1f2937"/>
+  <rect width="600" height="318" rx="14" fill="url(#bg)"/>
+  <rect x="1" y="1" width="598" height="316" rx="13" fill="none" stroke="#222"/>
+  <circle cx="28" cy="28" r="5" fill="#ff5c4d"/>
+  <circle cx="46" cy="28" r="5" fill="#ffc14d"/>
+  <circle cx="64" cy="28" r="5" fill="#d6ff3c"/>
+  <text x="90" y="32" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">ruro — github os</text>
+  <text class="fade" style="animation-delay:0.1s" x="28" y="68" fill="#8a867c" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">$</text>
+  <text class="fade" style="animation-delay:0.1s" x="44" y="68" fill="#f4f1ea" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">ruro view</text>
+  <rect class="cursor" x="128" y="56" width="8" height="16" fill="#d6ff3c"/>
+  <text class="fade" style="animation-delay:0.35s" x="28" y="92" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">24 fleet · 4 verified live · 2026-08-09 15:19 UTC</text>
 
-  <text x="28" y="118" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">1</text>
-  <text x="48" y="118" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">phantom</text>
-  <text x="48" y="134" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">Python · ACTIVE</text>
-  <rect x="430" y="108" width="120" height="8" rx="4" fill="#1e293b"/>
-  <rect x="430" y="108" width="71" height="8" rx="4" fill="#7dd3fc"/>
-  <text x="560" y="118" fill="#7dd3fc" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">59</text>
+  <text class="fade" style="animation-delay:0.60s" x="28" y="118" fill="#d6ff3c" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">1. aryanbloodbank</text>
+  <text class="fade" style="animation-delay:0.60s" x="572" y="118" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">LIVE 63 · verified</text>
 
-  <text x="28" y="162" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">2</text>
-  <text x="48" y="162" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">tpm-attest</text>
-  <text x="48" y="178" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">Python · ACTIVE</text>
-  <rect x="430" y="152" width="120" height="8" rx="4" fill="#1e293b"/>
-  <rect x="430" y="152" width="65" height="8" rx="4" fill="#7dd3fc"/>
-  <text x="560" y="162" fill="#7dd3fc" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">54</text>
+  <text class="fade" style="animation-delay:0.95s" x="28" y="146" fill="#d6ff3c" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">2. phantom</text>
+  <text class="fade" style="animation-delay:0.95s" x="572" y="146" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">ACTIVE 59 · none</text>
 
-  <text x="28" y="206" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">3</text>
-  <text x="48" y="206" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">synapse</text>
-  <text x="48" y="222" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">Python · ACTIVE</text>
-  <rect x="430" y="196" width="120" height="8" rx="4" fill="#1e293b"/>
-  <rect x="430" y="196" width="59" height="8" rx="4" fill="#7dd3fc"/>
-  <text x="560" y="206" fill="#7dd3fc" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">49</text>
+  <text class="fade" style="animation-delay:1.30s" x="28" y="174" fill="#d6ff3c" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">3. tpm-attest</text>
+  <text class="fade" style="animation-delay:1.30s" x="572" y="174" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">ACTIVE 54 · none</text>
 
-  <text x="28" y="250" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">4</text>
-  <text x="48" y="250" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">explainmycode</text>
-  <text x="48" y="266" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">Python · LIVE</text>
-  <rect x="430" y="240" width="120" height="8" rx="4" fill="#1e293b"/>
-  <rect x="430" y="240" width="58" height="8" rx="4" fill="#b6ff3b"/>
-  <text x="560" y="250" fill="#b6ff3b" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">48</text>
-
-  <text x="28" y="294" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">5</text>
-  <text x="48" y="294" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">railtrack-ai</text>
-  <text x="48" y="310" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">TypeScript · LIVE</text>
-  <rect x="430" y="284" width="120" height="8" rx="4" fill="#1e293b"/>
-  <rect x="430" y="284" width="58" height="8" rx="4" fill="#b6ff3b"/>
-  <text x="560" y="294" fill="#b6ff3b" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">48</text>
-  <text x="28" y="370" fill="#475569" font-size="10" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">deterministic · zero AI · github-native</text>
+  <text class="fade" style="animation-delay:1.65s" x="28" y="202" fill="#d6ff3c" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">4. synapse</text>
+  <text class="fade" style="animation-delay:1.65s" x="572" y="202" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">ACTIVE 49 · none</text>
+  <text class="fade" style="animation-delay:2s" x="28" y="298" fill="#8a867c" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">$ ruro review &lt;repo&gt;   ·   npx · pages · deterministic core</text>
 </svg>

@@ -9,69 +9,56 @@ function escXml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function statusTone(status: string): string {
-  switch (status) {
-    case "LIVE":
-      return "#b6ff3b";
-    case "ACTIVE":
-      return "#7dd3fc";
-    case "STALE":
-      return "#fbbf24";
-    case "DORMANT":
-      return "#fb923c";
-    case "DEAD":
-      return "#f87171";
-    case "ARCHIVED":
-      return "#94a3b8";
-    default:
-      return "#e2e8f0";
-  }
-}
-
-function barWidth(score: number, max = 120): number {
-  return Math.max(4, Math.round((Math.min(100, Math.max(0, score)) / 100) * max));
-}
-
+/**
+ * Animated terminal card for profile README — looks like CLI, stays SVG.
+ */
 export function renderProfileSvg(
   report: RuroReport,
   config: RuroConfig,
 ): string {
-  const top = report.repos.slice(0, config.render.profile_top_n);
-  const generated = report.generated_at.slice(0, 10);
-  const rows = top
-    .map((repo, i) => {
-      const y = 118 + i * 44;
-      const tone = statusTone(repo.status);
-      const w = barWidth(repo.score);
-      return `
-  <text x="28" y="${y}" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${i + 1}</text>
-  <text x="48" y="${y}" fill="#f8fafc" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${escXml(repo.signals.name)}</text>
-  <text x="48" y="${y + 16}" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${escXml(repo.signals.primaryLanguage ?? "—")} · ${escXml(repo.status)}</text>
-  <rect x="430" y="${y - 10}" width="120" height="8" rx="4" fill="#1e293b"/>
-  <rect x="430" y="${y - 10}" width="${w}" height="8" rx="4" fill="${tone}"/>
-  <text x="560" y="${y}" fill="${tone}" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">${repo.score}</text>`;
-    })
-    .join("\n");
+  const top = report.repos.slice(0, Math.min(4, config.render.profile_top_n));
+  const generated = report.generated_at.slice(0, 16).replace("T", " ");
+  const live = report.repos.filter((r) => r.signals.demo.verified).length;
 
-  const height = 130 + top.length * 44 + 36;
+  const lines = top.map((repo, i) => {
+    const deploy = repo.signals.demo.verified
+      ? "verified"
+      : repo.signals.demo.status.toLowerCase();
+    const y = 118 + i * 28;
+    const delay = (0.6 + i * 0.35).toFixed(2);
+    return `
+  <text class="fade" style="animation-delay:${delay}s" x="28" y="${y}" fill="#d6ff3c" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${i + 1}. ${escXml(repo.signals.name)}</text>
+  <text class="fade" style="animation-delay:${delay}s" x="572" y="${y}" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">${escXml(repo.status)} ${repo.score} · ${escXml(deploy)}</text>`;
+  });
+
+  const height = 150 + top.length * 28 + 56;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="600" height="${height}" viewBox="0 0 600 ${height}" role="img" aria-label="Ruro portfolio scorecard">
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="${height}" viewBox="0 0 600 ${height}" role="img" aria-label="Ruro CLI terminal">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#07090d"/>
-      <stop offset="100%" stop-color="#111827"/>
+      <stop offset="0%" stop-color="#030303"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
     </linearGradient>
+    <style>
+      @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+      @keyframes fadein { from{opacity:0} to{opacity:1} }
+      .cursor { animation: blink 1.1s step-end infinite; }
+      .fade { opacity:0; animation: fadein 0.45s ease forwards; }
+    </style>
   </defs>
-  <rect width="600" height="${height}" rx="18" fill="url(#bg)"/>
-  <rect x="1" y="1" width="598" height="${height - 2}" rx="17" fill="none" stroke="#1f2937"/>
-  <text x="28" y="42" fill="#b6ff3b" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="2">RURO</text>
-  <text x="28" y="68" fill="#f8fafc" font-size="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">portfolio truth</text>
-  <text x="572" y="42" fill="#64748b" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="end">${escXml(generated)}</text>
-  <text x="28" y="92" fill="#94a3b8" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${report.included_count} scored · LIVE ${report.status_counts.LIVE} · ACTIVE ${report.status_counts.ACTIVE} · STALE ${report.status_counts.STALE}</text>
-  <line x1="28" y1="104" x2="572" y2="104" stroke="#1f2937"/>
-${rows}
-  <text x="28" y="${height - 16}" fill="#475569" font-size="10" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">deterministic · zero AI · github-native</text>
+  <rect width="600" height="${height}" rx="14" fill="url(#bg)"/>
+  <rect x="1" y="1" width="598" height="${height - 2}" rx="13" fill="none" stroke="#222"/>
+  <circle cx="28" cy="28" r="5" fill="#ff5c4d"/>
+  <circle cx="46" cy="28" r="5" fill="#ffc14d"/>
+  <circle cx="64" cy="28" r="5" fill="#d6ff3c"/>
+  <text x="90" y="32" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">ruro — github os</text>
+  <text class="fade" style="animation-delay:0.1s" x="28" y="68" fill="#8a867c" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">$</text>
+  <text class="fade" style="animation-delay:0.1s" x="44" y="68" fill="#f4f1ea" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">ruro view</text>
+  <rect class="cursor" x="128" y="56" width="8" height="16" fill="#d6ff3c"/>
+  <text class="fade" style="animation-delay:0.35s" x="28" y="92" fill="#8a867c" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${report.included_count} fleet · ${live} verified live · ${escXml(generated)} UTC</text>
+${lines.join("\n")}
+  <text class="fade" style="animation-delay:2s" x="28" y="${height - 20}" fill="#8a867c" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">$ ruro review &lt;repo&gt;   ·   npx · pages · deterministic core</text>
 </svg>
 `;
 }
@@ -83,33 +70,39 @@ export function renderProfileSnippet(
   const top = report.repos.slice(0, config.render.profile_top_n);
   const svgPath = config.render.profile_svg_path;
   const cardUrl = `https://raw.githubusercontent.com/${config.owner}/ruro/main/${svgPath}`;
+  const osUrl = `https://${config.owner}.github.io/ruro/`;
 
   const rows = top
     .map((r: ScoredRepo) => {
-      const demo =
-        r.signals.demo.status === "UP"
-          ? "live demo"
-          : r.signals.demo.status === "NONE"
-            ? "no demo"
-            : "demo down";
+      const demo = r.signals.demo.verified
+        ? "verified"
+        : r.signals.demo.status === "NONE"
+          ? "none"
+          : "unproven";
       return `| **[${r.signals.name}](${r.signals.url})** | \`${r.status}\` | **${r.score}** | ${r.signals.primaryLanguage ?? "—"} | ${demo} |`;
     })
     .join("\n");
 
   return `<!-- RURO:START -->
-## ░ PORTFOLIO TRUTH
+## ░ RURO
+
+GitHub OS for my repos — automatic truth, verified deploys, optional Copilot judgment.
 
 <div align="center">
 
-<img src="${cardUrl}" width="600" alt="Ruro portfolio scorecard" />
+<a href="${osUrl}"><img src="${cardUrl}" width="600" alt="Ruro CLI terminal" /></a>
 
 </div>
 
-| Project | Status | Score | Stack | Demo |
+\`\`\`bash
+npx --yes tsx github.com/${config.owner}/ruro  # or clone + npm run ruro -- view
+\`\`\`
+
+| Project | Status | Score | Stack | Deploy |
 |---|---|---:|---|---|
 ${rows}
 
-<sub>Auto-maintained by [Ruro](https://github.com/${config.owner}/ruro) · ${report.generated_at.slice(0, 10)} · zero AI</sub>
+<sub>[Open OS](${osUrl}) · [Ruro](https://github.com/${config.owner}/ruro) · ${report.generated_at.slice(0, 10)}</sub>
 <!-- RURO:END -->
 `;
 }
