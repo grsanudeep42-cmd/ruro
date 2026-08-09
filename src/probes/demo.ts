@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { RuroConfig } from "../config.js";
 import type { DemoProbeResult } from "../types.js";
 
@@ -20,7 +21,6 @@ const PARKING_MARKERS = [
 ];
 
 export interface ProbeContext {
-  /** e.g. https://github.com/acme/alpha — rejected as a "deployment" */
   repoHtmlUrl?: string | null;
   fullName?: string | null;
 }
@@ -62,7 +62,6 @@ function isGithubRepoUrl(candidate: string, ctx: ProbeContext): boolean {
         u.pathname.replace(/\/$/, "") === repo.pathname.replace(/\/$/, "")
       );
     }
-    // Any bare github.com/owner/repo (no github.io) is not a product deploy.
     return !u.hostname.endsWith("github.io");
   } catch {
     return false;
@@ -86,7 +85,6 @@ function isSpaShell(body: string): boolean {
   return hasMount && hasBundles && hasTitle;
 }
 
-/** Exported for tests — SPA shells are live apps, not empty parking pages. */
 export function isLiveSpaShell(body: string): boolean {
   return isSpaShell(body);
 }
@@ -94,7 +92,6 @@ export function isLiveSpaShell(body: string): boolean {
 function looksParkedOrFake(body: string, contentType: string | null): boolean {
   const lower = body.slice(0, 80_000).toLowerCase();
   if (PARKING_MARKERS.some((m) => lower.includes(m))) return true;
-  // SPA shells often ship almost no visible text in the first HTML document.
   if (isSpaShell(body)) return false;
   const isHtml =
     !contentType ||
@@ -122,12 +119,51 @@ function emptyResult(
     proofBytes: null,
     contentType: null,
     verified: false,
+    redirectChain: [],
+    bodyHash: null,
+    spaShell: false,
+    probedAt: new Date().toISOString(),
+    hashStable: null,
     ...patch,
   };
 }
 
+function sha256(buf: Buffer): string {
+  return createHash("sha256").update(buf).digest("hex").slice(0, 16);
+}
+
+async function fetchOnce(
+  url: string,
+  config: RuroConfig,
+  signal: AbortSignal,
+): Promise<{
+  response: Response;
+  buf: Buffer;
+  latencyMs: number;
+  finalUrl: string;
+}> {
+  const started = Date.now();
+  const response = await fetch(url, {
+    method: "GET",
+    redirect: config.probes.follow_redirects ? "follow" : "manual",
+    signal,
+    headers: {
+      "user-agent": config.probes.user_agent,
+      accept: "text/html,application/json;q=0.9,*/*;q=0.8",
+    },
+  });
+  const buf = Buffer.from(await response.arrayBuffer());
+  return {
+    response,
+    buf,
+    latencyMs: Date.now() - started,
+    finalUrl: response.url || url,
+  };
+}
+
 /**
- * Prove a homepage is a real live deployment — not a claimed URL, not github.com/repo.
+ * Prove a homepage is a real live deployment — not github.com/repo.
+ * Stores auditable fields: hash, SPA flag, redirect final, optional stability.
  */
 export async function probeDemoUrl(
   homepageUrl: string | null | undefined,
@@ -138,43 +174,35 @@ export async function probeDemoUrl(
     return emptyResult("NONE", {
       url: homepageUrl ?? null,
       verified: false,
+      probedAt: new Date().toISOString(),
     });
   }
 
   const url = homepageUrl ? normalizeUrl(homepageUrl) : null;
-  if (!url) {
-    return emptyResult("NONE");
-  }
+  if (!url) return emptyResult("NONE");
 
   if (isGithubRepoUrl(url, ctx)) {
     return emptyResult("DOWN", {
       url,
       finalUrl: url,
       error: "homepage_is_github_repo_not_deploy",
-      verified: false,
+      redirectChain: [url],
     });
   }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.probes.timeout_ms);
-  const started = Date.now();
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: config.probes.follow_redirects ? "follow" : "manual",
-      signal: controller.signal,
-      headers: {
-        "user-agent": config.probes.user_agent,
-        accept: "text/html,application/json;q=0.9,*/*;q=0.8",
-      },
-    });
-    const latencyMs = Date.now() - started;
-    const finalUrl = response.url || url;
+    const first = await fetchOnce(url, config, controller.signal);
+    const { response, buf, latencyMs, finalUrl } = first;
     const contentType = response.headers.get("content-type");
-    const buf = Buffer.from(await response.arrayBuffer());
     const proofBytes = buf.byteLength;
     const bodyText = buf.toString("utf8");
+    const bodyHash = sha256(buf);
+    const spaShell = isSpaShell(bodyText);
+    const redirectChain =
+      finalUrl && finalUrl !== url ? [url, finalUrl] : [url];
 
     if (isGithubRepoUrl(finalUrl, ctx)) {
       return emptyResult("DOWN", {
@@ -185,7 +213,9 @@ export async function probeDemoUrl(
         error: "redirected_to_github_repo",
         proofBytes,
         contentType,
-        verified: false,
+        redirectChain,
+        bodyHash,
+        spaShell,
       });
     }
 
@@ -199,7 +229,9 @@ export async function probeDemoUrl(
         error: `HTTP ${response.status}`,
         proofBytes,
         contentType,
-        verified: false,
+        redirectChain,
+        bodyHash,
+        spaShell,
       });
     }
 
@@ -212,7 +244,9 @@ export async function probeDemoUrl(
         error: "empty_or_tiny_response",
         proofBytes,
         contentType,
-        verified: false,
+        redirectChain,
+        bodyHash,
+        spaShell,
       });
     }
 
@@ -225,8 +259,19 @@ export async function probeDemoUrl(
         error: "parking_or_soft_404",
         proofBytes,
         contentType,
-        verified: false,
+        redirectChain,
+        bodyHash,
+        spaShell,
       });
+    }
+
+    // Stability: second GET; hash match strengthens proof (soft — does not fail verify)
+    let hashStable: boolean | null = null;
+    try {
+      const second = await fetchOnce(finalUrl, config, controller.signal);
+      hashStable = sha256(second.buf) === bodyHash;
+    } catch {
+      hashStable = null;
     }
 
     return {
@@ -239,14 +284,18 @@ export async function probeDemoUrl(
       proofBytes,
       contentType,
       verified: true,
+      redirectChain,
+      bodyHash,
+      spaShell,
+      probedAt: new Date().toISOString(),
+      hashStable,
     };
   } catch (err) {
     return emptyResult("ERROR", {
       url,
       finalUrl: null,
-      latencyMs: Date.now() - started,
+      latencyMs: null,
       error: err instanceof Error ? err.message : String(err),
-      verified: false,
     });
   } finally {
     clearTimeout(timer);

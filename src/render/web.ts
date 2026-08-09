@@ -34,17 +34,25 @@ function loadAiReviews(config: RuroConfig, cwd = process.cwd()): AiReviewLite[] 
 }
 
 function attentionItems(report: RuroReport): ScoredRepo[] {
-  return report.repos
-    .filter(
-      (r) =>
-        r.blockers.some((b) =>
-          /demo_|homepage_unproven|ci_failing|no_tests|no_source|tiny_tree/.test(
-            b,
-          ),
-        ) ||
-        (r.signals.homepageUrl && !r.signals.demo.verified),
-    )
-    .slice(0, 6);
+  const byName = new Map(report.repos.map((r) => [r.signals.fullName, r]));
+  const fromRegs = (report.regressions ?? [])
+    .map((r) => byName.get(r.fullName))
+    .filter((r): r is ScoredRepo => Boolean(r));
+  const uniq = new Map(fromRegs.map((r) => [r.signals.fullName, r]));
+  for (const r of report.repos) {
+    if (uniq.size >= 6) break;
+    if (
+      r.blockers.some((b) =>
+        /demo_|homepage_unproven|ci_failing|no_tests|no_source|tiny_tree|no_ci/.test(
+          b,
+        ),
+      ) ||
+      (r.signals.homepageUrl && !r.signals.demo.verified)
+    ) {
+      uniq.set(r.signals.fullName, r);
+    }
+  }
+  return [...uniq.values()].slice(0, 6);
 }
 
 function liveVerified(report: RuroReport): ScoredRepo[] {
@@ -478,11 +486,11 @@ export function renderWebDashboard(
   <div class="wrap">
     <header class="hero">
       <h1 class="brand">RURO<em>.</em></h1>
-      <p class="headline">Your GitHub, operated.</p>
-      <p class="sub">Automatic truth for <code>${esc(report.owner)}</code>. Deployed means verified. Core is deterministic — Copilot is optional judgment. ${esc(leadLine)}</p>
+      <p class="headline">Prove. Remember. Operate.</p>
+      <p class="sub">GitHub OS for <code>${esc(report.owner)}</code>. Auditable deploys · contribution scores · regressions. Run <code>npm run ruro</code> → <code>brief</code>. ${esc(leadLine)}</p>
       <div class="cta">
-        <a class="btn" href="#proven"><span class="pulse" aria-hidden="true"></span> See proven live</a>
-        <a class="btn btn-ghost" href="#fleet">Open fleet</a>
+        <a class="btn" href="#proven"><span class="pulse" aria-hidden="true"></span> Proven deploys</a>
+        <a class="btn btn-ghost" href="#fleet">Fleet map</a>
       </div>
     </header>
 
@@ -503,13 +511,13 @@ export function renderWebDashboard(
         <div>
           <p class="sec-kicker">Attention</p>
           <h2 class="sec-title">Fix these first</h2>
-          <p class="sec-copy">Blockers the OS will not politely ignore.</p>
+          <p class="sec-copy">Regressions and blockers the OS will not politely ignore.</p>
           ${attentionHtml}
         </div>
         <div id="proven">
           <p class="sec-kicker">Proven</p>
           <h2 class="sec-title">Deployments that answered</h2>
-          <p class="sec-copy">HTTP proof with body — not a homepage string on GitHub.</p>
+          <p class="sec-copy">Auditable probe: hash, SPA shell, redirects — not a homepage string on GitHub.</p>
           ${liveHtml}
         </div>
       </div>
@@ -524,8 +532,8 @@ export function renderWebDashboard(
 
     <section aria-label="Judgment">
       <p class="sec-kicker">Judgment</p>
-      <h2 class="sec-title">Copilot depth</h2>
-      <p class="sec-copy">Optional. Never moves scores. When present, this is the blunt skim of whether the code feels real.</p>
+      <h2 class="sec-title">Optional judgment</h2>
+      <p class="sec-copy">Copilot garnish only. Never moves scores. Prefer <code>brief</code> / <code>why</code> in the CLI for truth.</p>
       ${aiHtml}
     </section>
 
@@ -548,7 +556,7 @@ export function renderWebDashboard(
 
     <footer>
       <span>Ruro · GitHub OS · ${esc(report.owner)}</span>
-      <span>Pages from /docs · CLI: <code>ruro view</code> · <code>ruro review</code></span>
+      <span>Pages from /docs · CLI: <code>ruro brief</code> · <code>ruro why</code></span>
     </footer>
   </div>
 </body>

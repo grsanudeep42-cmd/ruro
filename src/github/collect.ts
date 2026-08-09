@@ -51,7 +51,11 @@ interface GraphqlRepo {
     name: string;
     target: {
       history?: {
-        nodes: Array<{ committedDate: string }>;
+        totalCount?: number;
+        nodes: Array<{
+          committedDate: string;
+          author?: { user?: { login: string } | null } | null;
+        }>;
       };
     } | null;
   } | null;
@@ -107,7 +111,11 @@ const REPO_FIELDS = `
           target {
             ... on Commit {
               history(first: 100) {
-                nodes { committedDate }
+                totalCount
+                nodes {
+                  committedDate
+                  author { user { login } }
+                }
               }
             }
           }
@@ -168,16 +176,31 @@ function countCommitsSince(
   return dates.filter((d) => daysBetween(d, now) <= withinDays).length;
 }
 
-function mapRepo(node: GraphqlRepo, now: Date): RepoSignals {
-  const commitDates =
-    node.defaultBranchRef?.target?.history?.nodes.map((n) => n.committedDate) ??
-    [];
+function mapRepo(node: GraphqlRepo, now: Date, ownerLogin: string): RepoSignals {
+  const history = node.defaultBranchRef?.target?.history;
+  const commitDates = history?.nodes.map((n) => n.committedDate) ?? [];
   const readmeText = node.object?.text ?? null;
 
   const latestReleaseAt =
     node.releases.nodes[0]?.publishedAt ??
     node.releases.nodes[0]?.createdAt ??
     null;
+
+  const authors = history?.nodes ?? [];
+  let ownerShare: number | null = null;
+  if (authors.length > 0) {
+    const mine = authors.filter(
+      (n) => n.author?.user?.login?.toLowerCase() === ownerLogin.toLowerCase(),
+    ).length;
+    ownerShare = Math.round((mine / authors.length) * 100);
+  }
+
+  // Prefer GraphQL totalCount for 365d ballpark when available (still capped sample for 30/90)
+  const totalHint = history?.totalCount;
+  const commits365 =
+    totalHint != null && totalHint > commitDates.length
+      ? Math.min(totalHint, countCommitsSince(commitDates, now, 365) + (totalHint - commitDates.length))
+      : countCommitsSince(commitDates, now, 365);
 
   return {
     name: node.name,
@@ -218,9 +241,11 @@ function mapRepo(node: GraphqlRepo, now: Date): RepoSignals {
     hasContainerfile: false,
     recentWorkflowConclusion: null,
     recentWorkflowAgeDays: null,
+    ciConclusions: [],
+    ownerCommitShare: ownerShare,
     commitsLast30Days: countCommitsSince(commitDates, now, 30),
     commitsLast90Days: countCommitsSince(commitDates, now, 90),
-    commitsLast365Days: countCommitsSince(commitDates, now, 365),
+    commitsLast365Days: commits365,
     releasesCount: node.releases.totalCount,
     latestReleaseAt,
     demo: {
@@ -233,6 +258,11 @@ function mapRepo(node: GraphqlRepo, now: Date): RepoSignals {
       proofBytes: null,
       contentType: null,
       verified: false,
+      redirectChain: [],
+      bodyHash: null,
+      spaShell: false,
+      probedAt: null,
+      hashStable: null,
     },
     fitness: {
       sourceFiles: 0,
@@ -286,7 +316,7 @@ export async function collectRepoSignals(
         excludedCount += 1;
         continue;
       }
-      collected.push(mapRepo(node, now));
+      collected.push(mapRepo(node, now, config.owner));
     }
 
     hasNext = conn.pageInfo.hasNextPage;
@@ -314,13 +344,17 @@ async function enrichWorkflowSignals(
           clients.octokit.actions.listWorkflowRunsForRepo({
             owner,
             repo: name,
-            per_page: 1,
+            per_page: 5,
             branch: repo.defaultBranch ?? undefined,
           }),
         { attempts: 3, baseDelayMs: 250 },
       );
-      const run = data.workflow_runs[0];
-      if (!run) continue;
+      const runs = data.workflow_runs ?? [];
+      if (!runs.length) continue;
+      repo.ciConclusions = runs.map(
+        (r) => r.conclusion ?? r.status ?? "unknown",
+      );
+      const run = runs[0];
       repo.recentWorkflowConclusion = run.conclusion ?? run.status ?? null;
       if (run.updated_at) {
         repo.recentWorkflowAgeDays = daysBetween(run.updated_at, now);

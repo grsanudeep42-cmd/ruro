@@ -40,10 +40,10 @@ Not a vanity table. A place you operate from (web + CLI), refreshed by Actions.
 
 | Layer | Role |
 |---|---|
-| **Kernel** | Collect → probe → fitness → score → optional Copilot review |
-| **Memory** | `data/latest.json`, history, `data/ai/` |
+| **Kernel** | Collect → probe (auditable proof) → fitness → score → regressions |
+| **Memory** | `data/latest.json`, `data/history/`, `data/proofs/`, `data/ai/` |
 | **Desktop** | `docs/index.html` (OS home on Pages) |
-| **Terminal** | `npm run ruro` agent session · `--json` for scripts |
+| **Terminal** | `brief` / `next` / `diff` / `why` · Copilot `review` is garnish |
 | **Install** | Action + `ruro.yml` owner switch |
 
 ---
@@ -54,18 +54,22 @@ Not a vanity table. A place you operate from (web + CLI), refreshed by Actions.
 Showability = 0.40 * Quality + 0.35 * Alive + 0.25 * Structure
 ```
 
-- **Quality** — tests, CI, lint, lockfile, **tree fitness** (source/test files without AI)  
-- **Alive** — push cadence, **verified demo**, releases, fresh CI  
+- **Quality** — tests, CI matrix, lint, lockfile, **tree fitness**, owner commit share  
+- **Alive** — push cadence, **verified demo + body hash**, releases, fresh CI  
 - **Structure** — README, license, description, topics, **verified homepage only**
 
 `LIVE` requires a **verified** deployment probe **and** a push within `active_days` (default 90). Verified but quiet sites stay ACTIVE/STALE by age — no LIVE zombies.
+
+**Proof artifacts** (`data/proofs/`): final URL, redirect chain, HTTP status, latency, body hash, SPA shell flag, hash stability, probedAt.
+
+**Operator commands:** `brief` (show path + regressions + next fixes), `next` (playbook), `diff` (vs previous history day).
 
 ---
 
 ## 5. Two brains
 
-1. **Without AI** — tree fitness + live probes + platform signals  
-2. **With Copilot** — `/review` judgment for “is this real / showable” (cached, soft-fail)
+1. **Without AI** — tree fitness + auditable probes + platform signals + regressions  
+2. **With Copilot** — optional `/review` judgment (never the wow; soft-fail)
 
 ---
 

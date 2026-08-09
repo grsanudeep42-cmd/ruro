@@ -2,9 +2,9 @@
 
 # Ruro
 
-**GitHub OS** — prove which projects are real, alive, and verified-deployed.
+**GitHub OS** — prove which projects are real, alive, and verified-deployed. Then operate them.
 
-Deterministic core. Optional Copilot judgment. Agent CLI + Pages desktop.
+Deterministic core. Operator briefings. Optional Copilot garnish.
 
 <a href="./OVERVIEW.md"><img src="./assets/ruro-card.svg" width="600" alt="Ruro CLI terminal" /></a>
 
@@ -14,65 +14,53 @@ Deterministic core. Optional Copilot judgment. Agent CLI + Pages desktop.
 
 ---
 
-## 30-second start
+## 20-second demo
 
 ```bash
 git clone https://github.com/grsanudeep42-cmd/ruro.git
 cd ruro && npm ci
-# edit owner in ruro.yml if needed
 npm run ruro
 ```
 
 ```text
-────────────────────────────────────────────────────────
-        .--.
-       |o_o |       RURI
-       |:_/ |       ruro fleet operator
-…
-  RURO v0.2.0  ▸ live
-────────────────────────────────────────────────────────
-● ruri ·
-› view
-› aryanbloodbank
-› why phantom
+› brief          # show path + regressions + next fixes
+› why phantom    # contribution math + playbook
+› aryanbloodbank # dossier + deploy proof (hash / SPA)
+› diff           # vs previous history day
 › /exit
 ```
 
-**One-shot / scripts:**
+**Scripts:**
 
 ```bash
-npm run ruro -- view
+npm run ruro -- brief
 npm run ruro -- --json why phantom
-npm run ruro -- status aryanbloodbank
 ```
 
 | Command | What |
 | --- | --- |
-| *(no args)* | Live agent session |
-| `scan` | Refresh truth (needs `GITHUB_TOKEN`) |
-| `view` / `top` / `status` / `why` | Inspect fleet |
-| `review` | Copilot audit (never moves scores) |
+| `brief` / `next` / `diff` | Operator surfaces (demo these) |
+| `view` / `status` / `why` | Fleet + proof + score math |
+| `scan` | Refresh truth (needs token) |
+| `review` | Optional Copilot judgment — never moves scores |
 | `--json` | Machine output |
 
-Point `owner` in [`ruro.yml`](./ruro.yml) at any GitHub login to boot **their** fleet.
-
-Profile README sync is **off by default** (`profile.enabled: false`).
+Point `owner` in [`ruro.yml`](./ruro.yml) at any GitHub login.
 
 ## Truth vs vibes
 
-- Scores = quality / alive / structure from **named contributions** (same inputs ⇒ same scores).
-- **LIVE** = verified deploy **and** push within `active_days` (default 90). No LIVE zombies.
-- Fitness = tree signals (source/test paths) — not “code beauty.”
-- Copilot is optional judgment; rejected without real path citations.
+- Scores = named contributions (same inputs ⇒ same scores)
+- **LIVE** = verified deploy **and** push within `active_days`
+- Deploy proof stores body hash, SPA flag, redirect chain under `data/proofs/`
+- Fitness / CI matrix / owner commit share = tree + Actions signals
+- Copilot is optional commentary
 
-## Actions setup
+## Actions
 
 1. `owner` in `ruro.yml`
-2. Repo secret `RURO_TOKEN` (classic PAT, `repo`)
+2. Secret `RURO_TOKEN`
 3. Actions → Ruro Scorecard
-4. Pages → branch `main` → `/docs`
-
-Commits as you via `RURO_TOKEN`, not `github-actions[bot]`.
+4. Pages → `main` → `/docs`
 
 ## License
 

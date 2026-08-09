@@ -53,6 +53,10 @@ export const SIGNAL_EXPLAIN: Record<string, string> = {
   no_topics: "No topics.",
   homepage_verified: "Homepage URL verified by probe.",
   has_language: "Primary language detected by GitHub.",
+  owner_authored: "≥70% of sampled commits authored by the fleet owner.",
+  low_owner_share: "Owner authored <30% of sampled commits — vanity/fork risk.",
+  ci_matrix_green: "Last 3–5 workflow runs all succeeded.",
+  ci_matrix_red: "Last 3–5 workflow runs all failed.",
   fork: "Repository is a fork — structure penalty.",
 };
 

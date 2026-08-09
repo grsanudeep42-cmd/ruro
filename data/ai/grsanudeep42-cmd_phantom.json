@@ -1,0 +1,23 @@
+{
+  "fullName": "grsanudeep42-cmd/phantom",
+  "status": "ok",
+  "score": 59,
+  "repoStatus": "ACTIVE",
+  "why_showable": "PHANTOM is a legitimate, multi-module security agent with real architecture. It ships **executable code**: CLI entry (`./cli/main.py`), agents (`./agents/red_agent.py`, `./agents/blue_agent.py`, `./agents/intel_agent.py`), core orchestration (`./core/orchestrator.py`, `./core/llm.py`), and a registry system (`./registry/runner.py`). Version 0.5.0 with documented features (red team, blue team, IDOR hunting, AI vulnerability testing, prompt injection detection). Active pushes, high cadence, 42 src files + 17 test files. Real dependency graph (Anthropic, OpenAI, Click, Rich, aiohttp). Pytest configured with fixtures (`./tests/conftest.py` has `sample_session`, `fresh_db`). *It's not glue.*",
+  "strengths": [
+    "**Layered architecture**: Modular design (agents, identity, reporting, registry, core) suggests extensibility beyond security.",
+    "**Test infrastructure**: Proper pytest setup with shared fixtures, mocking patterns, async support.",
+    "**Feature depth**: IDOR hunting at scale, JS analysis pipeline, LLM prompt injection testing, hypothesis chaining—these are nontrivial.",
+    "**CLI multiplexing**: Eight distinct commands (scan, tools, blue, identity, sessions, red, report, monitor) show scope.",
+    "**Active maintenance**: Recent pushes, consistent versioning, Python 3.12+ enforced."
+  ],
+  "weaknesses": [
+    "**No CI/CD**: Fitness blockers include `no_ci`—no GitHub Actions visible. Tests exist but can't verify they pass automatically. *Critical gap.*",
+    "**Incomplete README**: Core doc cuts off mid-sentence (\"Continuous change detection tracking new subdomains (CT logs),\"). Undermines credibility.",
+    "**Test file fragments**: `test_chainer.py` and `test_hypothesis.py` cut off mid-implementation; duplicate mocks in `test_chainer.py` suggest unpolished code.",
+    "**No license enforcement**: Dossier flags `no_license` and `no_topics`; pyproject.toml claims MIT but repo metadata missing.",
+    "**ALPHA status**: Still development stage. Heavy LLM API dependency (requires credentials, non-deterministic outputs).",
+    "**No demo**: Zero recorded demo, zero proof of end-to-end execution."
+  ],
+  "review": "**Architecture is sound**: Separation of agents, core, CLI, registry avoids monolith. Fixture-based testing (conftest.py) shows maturity. Async-first pattern (pytest_asyncio, aiohttp) fits security tooling.\n\n**Quality concerns**: Test mocks incomplete; incomplete test files suggest copy-paste velocity over precision. `test_ai_vuln.py` stubs MCP types at runtime—fragile. `test_blue_agent.py` validates IOC extraction (good), but incomplete truncation hides the assertion outcome.\n\n**Ship readiness: 60/100.** Feature claims are bold (bug-bounty grade IDOR hunting, multi-step vulnerability chaining). Without CI, no verifiable proof they work. Incomplete README + missing license metadata signal \"pushed before polish.\" The codebase itself is real and substantive, but portfolio honesty requires CI logs and working demo video.\n\n_Cited:_ cli/main.py, agents/red_agent.py, agents/blue_agent.py, agents/intel_agent.py, core/orchestrator.py, core/llm.py, registry/runner.py, tests/conftest.py, test_chainer.py, test_hypothesis.py, pyproject.toml, conftest.py"
+}

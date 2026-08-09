@@ -13,6 +13,11 @@ export function emptyDemo(
     proofBytes: null,
     contentType: null,
     verified: false,
+    redirectChain: [],
+    bodyHash: null,
+    spaShell: false,
+    probedAt: null,
+    hashStable: null,
     ...patch,
   };
 }
@@ -68,6 +73,8 @@ export function baseSignals(patch: Partial<RepoSignals> = {}): RepoSignals {
     hasContainerfile: false,
     recentWorkflowConclusion: "success",
     recentWorkflowAgeDays: 3,
+    ciConclusions: ["success"],
+    ownerCommitShare: 90,
     commitsLast30Days: 4,
     commitsLast90Days: 10,
     commitsLast365Days: 30,

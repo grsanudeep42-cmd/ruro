@@ -21,6 +21,13 @@ export interface DemoProbeResult {
   contentType: string | null;
   /** True only when probe proved a real deployment (not github.com/repo, not parking). */
   verified: boolean;
+  /** Auditable proof fields (v0.3) */
+  redirectChain: string[];
+  bodyHash: string | null;
+  spaShell: boolean;
+  probedAt: string | null;
+  /** Second GET matched body hash (null if not checked) */
+  hashStable: boolean | null;
 }
 
 /** Deterministic without-AI code fitness from repo tree. */
@@ -71,6 +78,10 @@ export interface RepoSignals {
   hasContainerfile: boolean;
   recentWorkflowConclusion: string | null;
   recentWorkflowAgeDays: number | null;
+  /** Last N workflow conclusions (newest first) */
+  ciConclusions: string[];
+  /** Owner author share of recent commits 0–100, null if unknown */
+  ownerCommitShare: number | null;
   commitsLast30Days: number;
   commitsLast90Days: number;
   commitsLast365Days: number;
@@ -123,5 +134,12 @@ export interface RuroReport {
     to: RepoStatus;
     scoreFrom: number;
     scoreTo: number;
+  }>;
+  /** Structured regressions vs previous snapshot (v0.3) */
+  regressions?: Array<{
+    kind: string;
+    fullName: string;
+    name: string;
+    detail: string;
   }>;
 }

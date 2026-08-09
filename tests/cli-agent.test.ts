@@ -57,7 +57,7 @@ describe("cli narrate + loaders", () => {
     const out = log.mock.calls.flat().join("\n");
     expect(out).toContain("ruri");
     expect(out).toContain("alpha");
-    expect(out).toContain("contributions");
+    expect(out).toContain("biggest movers");
     expect(out).not.toContain("RURO FLEET");
     log.mockRestore();
   });

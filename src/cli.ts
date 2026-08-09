@@ -3,6 +3,9 @@ import { loadConfig, defaultConfig } from "./config.js";
 import { annotateWithCopilot, readAiCache } from "./ai/copilot.js";
 import { printBanner } from "./cli/banner.js";
 import {
+  narrateBrief,
+  narrateDiff,
+  narrateNext,
   narrateReview,
   narrateStatus,
   narrateTop,
@@ -22,16 +25,16 @@ function usage(): never {
   ruro                         live agent session (Ruri)
   ruro repl|live|shell         same
   ruro scan                    refresh truth (needs token)
+  ruro brief | next | diff     operator surfaces
   ruro view | top [n]          fleet / shortlist
-  ruro status <repo>           short dossier
-  ruro why <repo>              score math + contributions
-  ruro review [repo]           Copilot audit (optional)
-  ruro --json <cmd> …          machine output (no chrome)
+  ruro status <repo>           dossier + deploy proof
+  ruro why <repo>              contributions + playbook
+  ruro review [repo]           Copilot garnish (optional)
+  ruro --json <cmd> …          machine output
 
 Live:
   $ npm run ruro
-  › view
-  › aryanbloodbank
+  › brief
   › why phantom
   › /exit
 
@@ -240,11 +243,14 @@ async function main(): Promise<void> {
     "why",
     "review",
     "explain",
+    "brief",
+    "next",
+    "diff",
   ].includes(cmd);
 
   if (!isSub) {
-    await runScan(argv, asJson);
-    return;
+    console.error(`Unknown command: ${cmd}`);
+    usage();
   }
 
   const subArgs = argv.slice(1);
@@ -267,6 +273,44 @@ async function main(): Promise<void> {
       return;
     }
     narrateView(report);
+    return;
+  }
+  if (cmd === "brief") {
+    if (asJson) {
+      emitJson({
+        owner: report.owner,
+        regressions: report.regressions ?? [],
+        top: report.repos.slice(0, 5).map(summarizeRepo),
+      });
+      return;
+    }
+    narrateBrief(report, config);
+    return;
+  }
+  if (cmd === "next") {
+    if (asJson) {
+      emitJson({
+        actions: report.repos.flatMap((r) =>
+          r.blockers.slice(0, 2).map((b) => ({
+            repo: r.signals.name,
+            blocker: b,
+          })),
+        ).slice(0, 10),
+      });
+      return;
+    }
+    narrateNext(report);
+    return;
+  }
+  if (cmd === "diff") {
+    if (asJson) {
+      emitJson({
+        transitions: report.transitions,
+        regressions: report.regressions ?? [],
+      });
+      return;
+    }
+    narrateDiff(report, config);
     return;
   }
   if (cmd === "top") {
@@ -324,8 +368,13 @@ function summarizeRepo(repo: ScoredRepo) {
       status: repo.signals.demo.status,
       verified: repo.signals.demo.verified,
       url: repo.signals.demo.url,
+      bodyHash: repo.signals.demo.bodyHash ?? null,
+      spaShell: repo.signals.demo.spaShell ?? false,
+      hashStable: repo.signals.demo.hashStable ?? null,
     },
     fitness: repo.signals.fitness.score,
+    ciConclusions: repo.signals.ciConclusions ?? [],
+    ownerCommitShare: repo.signals.ownerCommitShare ?? null,
     drivers: repo.drivers,
     blockers: repo.blockers,
     contributions: repo.contributions ?? [],

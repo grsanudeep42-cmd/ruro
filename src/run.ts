@@ -3,6 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { annotateWithCopilot } from "./ai/copilot.js";
 import type { RuroConfig } from "./config.js";
 import { collectRepoSignals, createClients } from "./github/collect.js";
+import { computeRegressions } from "./history/regressions.js";
 import { computeTransitions } from "./history/transitions.js";
 import { probeAll } from "./probes/demo.js";
 import { syncProfileReadme } from "./profile/sync.js";
@@ -49,6 +50,40 @@ function loadPreviousReport(dataPath: string): RuroReport | null {
   }
 }
 
+function writeProofArtifacts(cwd: string, report: RuroReport): void {
+  const dir = resolve(cwd, "data/proofs");
+  mkdirSync(dir, { recursive: true });
+  const index: unknown[] = [];
+  for (const repo of report.repos) {
+    const d = repo.signals.demo;
+    if (!d.url && d.status === "NONE") continue;
+    const safe = repo.signals.fullName.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const artifact = {
+      fullName: repo.signals.fullName,
+      status: repo.status,
+      score: repo.score,
+      demo: d,
+    };
+    writeFileSync(
+      join(dir, `${safe}.json`),
+      `${JSON.stringify(artifact, null, 2)}\n`,
+      "utf8",
+    );
+    index.push({
+      fullName: repo.signals.fullName,
+      verified: d.verified,
+      bodyHash: d.bodyHash,
+      finalUrl: d.finalUrl,
+      probedAt: d.probedAt,
+    });
+  }
+  writeFileSync(
+    join(dir, "latest.json"),
+    `${JSON.stringify({ generated_at: report.generated_at, repos: index }, null, 2)}\n`,
+    "utf8",
+  );
+}
+
 export async function runRuro(options: RunOptions): Promise<RunResult> {
   const cwd = resolve(options.cwd ?? process.cwd());
   const dataPath = resolve(cwd, options.config.render.data_path);
@@ -75,7 +110,8 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
   const scored = scoreAll(included, options.config);
   const draft = buildReport(options.config, scored, excludedCount, []);
   const transitions = computeTransitions(previous, draft);
-  const report: RuroReport = { ...draft, transitions };
+  const regressions = computeRegressions(previous, draft);
+  const report: RuroReport = { ...draft, transitions, regressions };
   const dashboardMarkdown = renderDashboard(report, options.config);
   const profileSnippet = renderProfileSnippet(report, options.config);
   const profileSvg = renderProfileSvg(report, options.config);
@@ -107,6 +143,7 @@ export async function runRuro(options: RunOptions): Promise<RunResult> {
     writeFileSync(profileSvgPath, profileSvg, "utf8");
     writeFileSync(overviewPath, overviewMarkdown, "utf8");
     writeFileSync(webPath, webHtml, "utf8");
+    writeProofArtifacts(cwd, report);
 
     if (options.config.render.history) {
       const day = report.generated_at.slice(0, 10);

@@ -118,6 +118,12 @@ function aliveFeatures(
     a("ci_fresh", 7);
   }
 
+  if (s.ciConclusions.length >= 3) {
+    const ok = s.ciConclusions.filter((c) => c === "success").length;
+    if (ok === s.ciConclusions.length) a("ci_matrix_green", 5);
+    else if (ok === 0) a("ci_matrix_red", -6);
+  }
+
   return out;
 }
 
@@ -145,6 +151,11 @@ function structureFeatures(s: RepoSignals): ScoreContribution[] {
 
   if (s.primaryLanguage) st("has_language", 8);
   if (s.isFork) st("fork", -20);
+
+  if (s.ownerCommitShare !== null) {
+    if (s.ownerCommitShare >= 70) st("owner_authored", 6);
+    else if (s.ownerCommitShare < 30) st("low_owner_share", -8);
+  }
 
   return out;
 }
@@ -183,6 +194,8 @@ const HURT_CODES = new Set([
   "homepage_is_github_repo_not_deploy",
   "redirected_to_github_repo",
   "empty_or_tiny_response",
+  "low_owner_share",
+  "ci_matrix_red",
 ]);
 
 function driversFrom(features: ScoreContribution[]): string[] {

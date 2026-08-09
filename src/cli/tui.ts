@@ -45,6 +45,57 @@ export function tool(label: string): void {
   console.log(`  ${c("mute", "↳")} ${c("sand", label)}`);
 }
 
+export function startProgress(label: string): {
+  tick: (msg?: string) => void;
+  done: (msg?: string) => void;
+  fail: (msg?: string) => void;
+} {
+  const t0 = Date.now();
+  const tty = Boolean(process.stdout.isTTY);
+  let frame = 0;
+  const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+  let timer: ReturnType<typeof setInterval> | null = null;
+  let last = label;
+
+  const render = (): void => {
+    if (!tty) return;
+    const spin = frames[frame % frames.length];
+    frame += 1;
+    const sec = ((Date.now() - t0) / 1000).toFixed(1);
+    process.stdout.write(
+      `\r  ${c("mute", "↳")} ${c("sand", `${spin} ${last}`)} ${c("mute", `${sec}s`)}   `,
+    );
+  };
+
+  if (tty) {
+    render();
+    timer = setInterval(render, 80);
+  } else {
+    tool(`${label}…`);
+  }
+
+  const clearLine = (): void => {
+    if (tty) process.stdout.write("\r" + " ".repeat(72) + "\r");
+  };
+
+  return {
+    tick(msg?: string) {
+      if (msg) last = msg;
+    },
+    done(msg?: string) {
+      if (timer) clearInterval(timer);
+      clearLine();
+      const sec = ((Date.now() - t0) / 1000).toFixed(1);
+      tool(`${msg ?? last} · ${sec}s`);
+    },
+    fail(msg?: string) {
+      if (timer) clearInterval(timer);
+      clearLine();
+      tool(`${msg ?? last} · failed`);
+    },
+  };
+}
+
 /** Live session boot — ASCII Ruri + soft Claude/Cursor chrome. */
 export function printBoot(meta?: { owner?: string; repos?: number }): void {
   const bar = c("mute", "─".repeat(56));
@@ -58,13 +109,13 @@ export function printBoot(meta?: { owner?: string; repos?: number }): void {
   console.log(L("        .--.      "));
   console.log(L("       |o_o |     ") + B("  RURI"));
   console.log(L("       |:_/ |     ") + S("  ruro fleet operator"));
-  console.log(L("      //   \\ \\    ") + M("  github os · no vibes"));
+  console.log(L("      //   \\ \\    ") + M("  github os · prove · operate"));
   console.log(L("     (|     | )   "));
   console.log(L("    /'\\_   _/`\\   "));
   console.log(L("    \\___)=(___/   "));
   console.log("");
   console.log(
-    `  ${c("bold", c("ink", "RURO"))} ${c("mute", "v0.2.0")}  ${c("lime", "▸")} ${c("sand", "live")}`,
+    `  ${c("bold", c("ink", "RURO"))} ${c("mute", "v0.3.0")}  ${c("lime", "▸")} ${c("sand", "live")}`,
   );
   if (meta?.owner) {
     console.log(
@@ -77,7 +128,7 @@ export function printBoot(meta?: { owner?: string; repos?: number }): void {
   console.log(
     c(
       "mute",
-      "  talk naturally · /view /status /why /review /scan · /exit",
+      "  /brief /diff /next /view /why /status · tab completes repos · /exit",
     ),
   );
   console.log(bar);

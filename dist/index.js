@@ -604,7 +604,7 @@ function buildRepoDossier(repoDir, repo) {
 }
 function extractCitedPaths(text) {
   const found = /* @__PURE__ */ new Set();
-  const re = /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|md|json|toml|yml|yaml|css|swift|kt|java|sql))(?=[\s`"'),.:;!?]|$)/gim;
+  const re = /(?:^|[\s`"'(])((?:\.\/)?(?:[\w.-]+\/)*[\w.-]+\.(?:tsx|jsx|mjs|cjs|json|toml|yaml|yml|swift|java|sql|css|ts|js|py|go|rs|md|kt))(?=[\s`"'),.:;!?]|$)/gim;
   let m;
   while ((m = re.exec(text)) !== null) {
     found.add(m[1].replace(/^\.\//, ""));
@@ -757,7 +757,11 @@ var REPO_FIELDS = `
           target {
             ... on Commit {
               history(first: 100) {
-                nodes { committedDate }
+                totalCount
+                nodes {
+                  committedDate
+                  author { user { login } }
+                }
               }
             }
           }
@@ -809,10 +813,21 @@ function daysBetween(iso, now) {
 function countCommitsSince(dates, now, withinDays) {
   return dates.filter((d) => daysBetween(d, now) <= withinDays).length;
 }
-function mapRepo(node, now) {
-  const commitDates = node.defaultBranchRef?.target?.history?.nodes.map((n) => n.committedDate) ?? [];
+function mapRepo(node, now, ownerLogin) {
+  const history = node.defaultBranchRef?.target?.history;
+  const commitDates = history?.nodes.map((n) => n.committedDate) ?? [];
   const readmeText = node.object?.text ?? null;
   const latestReleaseAt = node.releases.nodes[0]?.publishedAt ?? node.releases.nodes[0]?.createdAt ?? null;
+  const authors = history?.nodes ?? [];
+  let ownerShare = null;
+  if (authors.length > 0) {
+    const mine = authors.filter(
+      (n) => n.author?.user?.login?.toLowerCase() === ownerLogin.toLowerCase()
+    ).length;
+    ownerShare = Math.round(mine / authors.length * 100);
+  }
+  const totalHint = history?.totalCount;
+  const commits365 = totalHint != null && totalHint > commitDates.length ? Math.min(totalHint, countCommitsSince(commitDates, now, 365) + (totalHint - commitDates.length)) : countCommitsSince(commitDates, now, 365);
   return {
     name: node.name,
     fullName: node.nameWithOwner,
@@ -852,9 +867,11 @@ function mapRepo(node, now) {
     hasContainerfile: false,
     recentWorkflowConclusion: null,
     recentWorkflowAgeDays: null,
+    ciConclusions: [],
+    ownerCommitShare: ownerShare,
     commitsLast30Days: countCommitsSince(commitDates, now, 30),
     commitsLast90Days: countCommitsSince(commitDates, now, 90),
-    commitsLast365Days: countCommitsSince(commitDates, now, 365),
+    commitsLast365Days: commits365,
     releasesCount: node.releases.totalCount,
     latestReleaseAt,
     demo: {
@@ -866,7 +883,12 @@ function mapRepo(node, now) {
       error: null,
       proofBytes: null,
       contentType: null,
-      verified: false
+      verified: false,
+      redirectChain: [],
+      bodyHash: null,
+      spaShell: false,
+      probedAt: null,
+      hashStable: null
     },
     fitness: {
       sourceFiles: 0,
@@ -914,7 +936,7 @@ async function collectRepoSignals(clients, config) {
         excludedCount += 1;
         continue;
       }
-      collected.push(mapRepo(node, now));
+      collected.push(mapRepo(node, now, config.owner));
     }
     hasNext = conn.pageInfo.hasNextPage;
     cursor = conn.pageInfo.endCursor;
@@ -934,13 +956,17 @@ async function enrichWorkflowSignals(clients, repos, now) {
         () => clients.octokit.actions.listWorkflowRunsForRepo({
           owner,
           repo: name,
-          per_page: 1,
+          per_page: 5,
           branch: repo.defaultBranch ?? void 0
         }),
         { attempts: 3, baseDelayMs: 250 }
       );
-      const run = data.workflow_runs[0];
-      if (!run) continue;
+      const runs = data.workflow_runs ?? [];
+      if (!runs.length) continue;
+      repo.ciConclusions = runs.map(
+        (r) => r.conclusion ?? r.status ?? "unknown"
+      );
+      const run = runs[0];
       repo.recentWorkflowConclusion = run.conclusion ?? run.status ?? null;
       if (run.updated_at) {
         repo.recentWorkflowAgeDays = daysBetween(run.updated_at, now);
@@ -948,6 +974,53 @@ async function enrichWorkflowSignals(clients, repos, now) {
     } catch {
     }
   }
+}
+
+// src/history/regressions.ts
+function computeRegressions(previous, current) {
+  if (!previous) return [];
+  const prevMap = new Map(previous.repos.map((r) => [r.signals.fullName, r]));
+  const out = [];
+  for (const repo of current.repos) {
+    const prior = prevMap.get(repo.signals.fullName);
+    if (!prior) continue;
+    if (prior.status !== repo.status) {
+      out.push({
+        kind: "status_flip",
+        fullName: repo.signals.fullName,
+        name: repo.signals.name,
+        detail: `${prior.status} \u2192 ${repo.status}`
+      });
+    }
+    if (repo.score <= prior.score - 5) {
+      out.push({
+        kind: "score_drop",
+        fullName: repo.signals.fullName,
+        name: repo.signals.name,
+        detail: `score ${prior.score} \u2192 ${repo.score}`
+      });
+    }
+    if (prior.signals.demo.verified && !repo.signals.demo.verified) {
+      out.push({
+        kind: "demo_lost",
+        fullName: repo.signals.fullName,
+        name: repo.signals.name,
+        detail: `lost verified deploy (${repo.signals.demo.error ?? repo.signals.demo.status})`
+      });
+    }
+    const priorBlock = new Set(prior.blockers);
+    for (const b of repo.blockers) {
+      if (!priorBlock.has(b) && /no_ci|demo_|homepage_|ci_failing|no_tests/.test(b)) {
+        out.push({
+          kind: "new_blocker",
+          fullName: repo.signals.fullName,
+          name: repo.signals.name,
+          detail: `new blocker: ${b}`
+        });
+      }
+    }
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // src/history/transitions.ts
@@ -978,6 +1051,7 @@ function computeTransitions(previous, current) {
 }
 
 // src/probes/demo.ts
+import { createHash } from "node:crypto";
 var PARKING_MARKERS = [
   "buy this domain",
   "domain is for sale",
@@ -1059,47 +1133,65 @@ function emptyResult(status, patch = {}) {
     proofBytes: null,
     contentType: null,
     verified: false,
+    redirectChain: [],
+    bodyHash: null,
+    spaShell: false,
+    probedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    hashStable: null,
     ...patch
+  };
+}
+function sha256(buf) {
+  return createHash("sha256").update(buf).digest("hex").slice(0, 16);
+}
+async function fetchOnce(url, config, signal) {
+  const started = Date.now();
+  const response = await fetch(url, {
+    method: "GET",
+    redirect: config.probes.follow_redirects ? "follow" : "manual",
+    signal,
+    headers: {
+      "user-agent": config.probes.user_agent,
+      accept: "text/html,application/json;q=0.9,*/*;q=0.8"
+    }
+  });
+  const buf = Buffer.from(await response.arrayBuffer());
+  return {
+    response,
+    buf,
+    latencyMs: Date.now() - started,
+    finalUrl: response.url || url
   };
 }
 async function probeDemoUrl(homepageUrl, config, ctx = {}) {
   if (!config.probes.enabled) {
     return emptyResult("NONE", {
       url: homepageUrl ?? null,
-      verified: false
+      verified: false,
+      probedAt: (/* @__PURE__ */ new Date()).toISOString()
     });
   }
   const url = homepageUrl ? normalizeUrl(homepageUrl) : null;
-  if (!url) {
-    return emptyResult("NONE");
-  }
+  if (!url) return emptyResult("NONE");
   if (isGithubRepoUrl(url, ctx)) {
     return emptyResult("DOWN", {
       url,
       finalUrl: url,
       error: "homepage_is_github_repo_not_deploy",
-      verified: false
+      redirectChain: [url]
     });
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.probes.timeout_ms);
-  const started = Date.now();
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: config.probes.follow_redirects ? "follow" : "manual",
-      signal: controller.signal,
-      headers: {
-        "user-agent": config.probes.user_agent,
-        accept: "text/html,application/json;q=0.9,*/*;q=0.8"
-      }
-    });
-    const latencyMs = Date.now() - started;
-    const finalUrl = response.url || url;
+    const first = await fetchOnce(url, config, controller.signal);
+    const { response, buf, latencyMs, finalUrl } = first;
     const contentType = response.headers.get("content-type");
-    const buf = Buffer.from(await response.arrayBuffer());
     const proofBytes = buf.byteLength;
     const bodyText = buf.toString("utf8");
+    const bodyHash = sha256(buf);
+    const spaShell = isSpaShell(bodyText);
+    const redirectChain = finalUrl && finalUrl !== url ? [url, finalUrl] : [url];
     if (isGithubRepoUrl(finalUrl, ctx)) {
       return emptyResult("DOWN", {
         url,
@@ -1109,7 +1201,9 @@ async function probeDemoUrl(homepageUrl, config, ctx = {}) {
         error: "redirected_to_github_repo",
         proofBytes,
         contentType,
-        verified: false
+        redirectChain,
+        bodyHash,
+        spaShell
       });
     }
     const httpOk = response.status >= 200 && response.status < 400;
@@ -1122,7 +1216,9 @@ async function probeDemoUrl(homepageUrl, config, ctx = {}) {
         error: `HTTP ${response.status}`,
         proofBytes,
         contentType,
-        verified: false
+        redirectChain,
+        bodyHash,
+        spaShell
       });
     }
     if (proofBytes < 64) {
@@ -1134,7 +1230,9 @@ async function probeDemoUrl(homepageUrl, config, ctx = {}) {
         error: "empty_or_tiny_response",
         proofBytes,
         contentType,
-        verified: false
+        redirectChain,
+        bodyHash,
+        spaShell
       });
     }
     if (looksParkedOrFake(bodyText, contentType)) {
@@ -1146,8 +1244,17 @@ async function probeDemoUrl(homepageUrl, config, ctx = {}) {
         error: "parking_or_soft_404",
         proofBytes,
         contentType,
-        verified: false
+        redirectChain,
+        bodyHash,
+        spaShell
       });
+    }
+    let hashStable = null;
+    try {
+      const second = await fetchOnce(finalUrl, config, controller.signal);
+      hashStable = sha256(second.buf) === bodyHash;
+    } catch {
+      hashStable = null;
     }
     return {
       status: "UP",
@@ -1158,15 +1265,19 @@ async function probeDemoUrl(homepageUrl, config, ctx = {}) {
       error: null,
       proofBytes,
       contentType,
-      verified: true
+      verified: true,
+      redirectChain,
+      bodyHash,
+      spaShell,
+      probedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      hashStable
     };
   } catch (err) {
     return emptyResult("ERROR", {
       url,
       finalUrl: null,
-      latencyMs: Date.now() - started,
-      error: err instanceof Error ? err.message : String(err),
-      verified: false
+      latencyMs: null,
+      error: err instanceof Error ? err.message : String(err)
     });
   } finally {
     clearTimeout(timer);
@@ -1537,13 +1648,20 @@ function loadAiReviews(config, cwd = process.cwd()) {
   }
 }
 function attentionItems(report) {
-  return report.repos.filter(
-    (r) => r.blockers.some(
-      (b) => /demo_|homepage_unproven|ci_failing|no_tests|no_source|tiny_tree/.test(
+  const byName = new Map(report.repos.map((r) => [r.signals.fullName, r]));
+  const fromRegs = (report.regressions ?? []).map((r) => byName.get(r.fullName)).filter((r) => Boolean(r));
+  const uniq = new Map(fromRegs.map((r) => [r.signals.fullName, r]));
+  for (const r of report.repos) {
+    if (uniq.size >= 6) break;
+    if (r.blockers.some(
+      (b) => /demo_|homepage_unproven|ci_failing|no_tests|no_source|tiny_tree|no_ci/.test(
         b
       )
-    ) || r.signals.homepageUrl && !r.signals.demo.verified
-  ).slice(0, 6);
+    ) || r.signals.homepageUrl && !r.signals.demo.verified) {
+      uniq.set(r.signals.fullName, r);
+    }
+  }
+  return [...uniq.values()].slice(0, 6);
 }
 function liveVerified(report) {
   return report.repos.filter((r) => r.signals.demo.verified);
@@ -1931,11 +2049,11 @@ function renderWebDashboard(report, config, cwd = process.cwd()) {
   <div class="wrap">
     <header class="hero">
       <h1 class="brand">RURO<em>.</em></h1>
-      <p class="headline">Your GitHub, operated.</p>
-      <p class="sub">Automatic truth for <code>${esc2(report.owner)}</code>. Deployed means verified. Core is deterministic \u2014 Copilot is optional judgment. ${esc2(leadLine)}</p>
+      <p class="headline">Prove. Remember. Operate.</p>
+      <p class="sub">GitHub OS for <code>${esc2(report.owner)}</code>. Auditable deploys \xB7 contribution scores \xB7 regressions. Run <code>npm run ruro</code> \u2192 <code>brief</code>. ${esc2(leadLine)}</p>
       <div class="cta">
-        <a class="btn" href="#proven"><span class="pulse" aria-hidden="true"></span> See proven live</a>
-        <a class="btn btn-ghost" href="#fleet">Open fleet</a>
+        <a class="btn" href="#proven"><span class="pulse" aria-hidden="true"></span> Proven deploys</a>
+        <a class="btn btn-ghost" href="#fleet">Fleet map</a>
       </div>
     </header>
 
@@ -1956,13 +2074,13 @@ function renderWebDashboard(report, config, cwd = process.cwd()) {
         <div>
           <p class="sec-kicker">Attention</p>
           <h2 class="sec-title">Fix these first</h2>
-          <p class="sec-copy">Blockers the OS will not politely ignore.</p>
+          <p class="sec-copy">Regressions and blockers the OS will not politely ignore.</p>
           ${attentionHtml}
         </div>
         <div id="proven">
           <p class="sec-kicker">Proven</p>
           <h2 class="sec-title">Deployments that answered</h2>
-          <p class="sec-copy">HTTP proof with body \u2014 not a homepage string on GitHub.</p>
+          <p class="sec-copy">Auditable probe: hash, SPA shell, redirects \u2014 not a homepage string on GitHub.</p>
           ${liveHtml}
         </div>
       </div>
@@ -1977,8 +2095,8 @@ function renderWebDashboard(report, config, cwd = process.cwd()) {
 
     <section aria-label="Judgment">
       <p class="sec-kicker">Judgment</p>
-      <h2 class="sec-title">Copilot depth</h2>
-      <p class="sec-copy">Optional. Never moves scores. When present, this is the blunt skim of whether the code feels real.</p>
+      <h2 class="sec-title">Optional judgment</h2>
+      <p class="sec-copy">Copilot garnish only. Never moves scores. Prefer <code>brief</code> / <code>why</code> in the CLI for truth.</p>
       ${aiHtml}
     </section>
 
@@ -2089,6 +2207,11 @@ function aliveFeatures(s, thresholds, now) {
   if (s.recentWorkflowConclusion === "success" && s.recentWorkflowAgeDays !== null && s.recentWorkflowAgeDays <= 30) {
     a("ci_fresh", 7);
   }
+  if (s.ciConclusions.length >= 3) {
+    const ok = s.ciConclusions.filter((c) => c === "success").length;
+    if (ok === s.ciConclusions.length) a("ci_matrix_green", 5);
+    else if (ok === 0) a("ci_matrix_red", -6);
+  }
   return out;
 }
 function structureFeatures(s) {
@@ -2109,6 +2232,10 @@ function structureFeatures(s) {
   else if (s.homepageUrl) st("homepage_unproven", 0);
   if (s.primaryLanguage) st("has_language", 8);
   if (s.isFork) st("fork", -20);
+  if (s.ownerCommitShare !== null) {
+    if (s.ownerCommitShare >= 70) st("owner_authored", 6);
+    else if (s.ownerCommitShare < 30) st("low_owner_share", -8);
+  }
   return out;
 }
 function pillarFrom(pillar, features) {
@@ -2137,7 +2264,9 @@ var HURT_CODES = /* @__PURE__ */ new Set([
   "parking_or_soft_404",
   "homepage_is_github_repo_not_deploy",
   "redirected_to_github_repo",
-  "empty_or_tiny_response"
+  "empty_or_tiny_response",
+  "low_owner_share",
+  "ci_matrix_red"
 ]);
 function driversFrom(features) {
   return [
@@ -2217,6 +2346,41 @@ function loadPreviousReport(dataPath) {
     return null;
   }
 }
+function writeProofArtifacts(cwd, report) {
+  const dir = resolve4(cwd, "data/proofs");
+  mkdirSync2(dir, { recursive: true });
+  const index = [];
+  for (const repo of report.repos) {
+    const d = repo.signals.demo;
+    if (!d.url && d.status === "NONE") continue;
+    const safe = repo.signals.fullName.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const artifact = {
+      fullName: repo.signals.fullName,
+      status: repo.status,
+      score: repo.score,
+      demo: d
+    };
+    writeFileSync2(
+      join2(dir, `${safe}.json`),
+      `${JSON.stringify(artifact, null, 2)}
+`,
+      "utf8"
+    );
+    index.push({
+      fullName: repo.signals.fullName,
+      verified: d.verified,
+      bodyHash: d.bodyHash,
+      finalUrl: d.finalUrl,
+      probedAt: d.probedAt
+    });
+  }
+  writeFileSync2(
+    join2(dir, "latest.json"),
+    `${JSON.stringify({ generated_at: report.generated_at, repos: index }, null, 2)}
+`,
+    "utf8"
+  );
+}
 async function runRuro(options) {
   const cwd = resolve4(options.cwd ?? process.cwd());
   const dataPath = resolve4(cwd, options.config.render.data_path);
@@ -2240,7 +2404,8 @@ async function runRuro(options) {
   const scored = scoreAll(included, options.config);
   const draft = buildReport(options.config, scored, excludedCount, []);
   const transitions = computeTransitions(previous, draft);
-  const report = { ...draft, transitions };
+  const regressions = computeRegressions(previous, draft);
+  const report = { ...draft, transitions, regressions };
   const dashboardMarkdown = renderDashboard(report, options.config);
   const profileSnippet = renderProfileSnippet(report, options.config);
   const profileSvg = renderProfileSvg(report, options.config);
@@ -2270,6 +2435,7 @@ async function runRuro(options) {
     writeFileSync2(profileSvgPath, profileSvg, "utf8");
     writeFileSync2(overviewPath, overviewMarkdown, "utf8");
     writeFileSync2(webPath, webHtml, "utf8");
+    writeProofArtifacts(cwd, report);
     if (options.config.render.history) {
       const day = report.generated_at.slice(0, 10);
       const historyPath = resolve4(

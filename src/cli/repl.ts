@@ -3,7 +3,10 @@ import type { RuroConfig } from "../config.js";
 import { annotateWithCopilot, readAiCache } from "../ai/copilot.js";
 import {
   findIn,
+  narrateBrief,
+  narrateDiff,
   narrateFull,
+  narrateNext,
   narrateReview,
   narrateStatus,
   narrateTop,
@@ -12,25 +15,51 @@ import {
   parseIntent,
 } from "./narrate.js";
 import { loadLatestReport } from "./view.js";
-import { agent, c, printBoot, tool } from "./tui.js";
+import { agent, c, printBoot, startProgress } from "./tui.js";
 import { runRuro } from "../run.js";
 
 function help(): void {
   agent(
     [
-      "I’m Ruri — fleet operator for this GitHub OS.",
+      "Ruri — fleet operator. Deterministic truth first; Copilot is optional.",
       "",
-      "  view                 show path",
-      "  top 5                ranked shortlist",
-      "  aryanbloodbank      short dossier (any repo name)",
-      "  full phantom         long dossier",
-      "  why phantom          score math",
-      "  review <repo>        Copilot audit",
-      "  scan                 refresh truth",
+      "  brief / next / diff     operator surfaces (demo these)",
+      "  view / top 5            fleet path",
+      "  <repo> / status <repo>  dossier + deploy proof",
+      "  why <repo>              contribution math + fixes",
+      "  scan                    refresh truth",
+      "  review <repo>           Copilot judgment (garnish)",
       "",
-      "Slash forms work too. /exit to leave.",
+      "Tab completes repo names. Blank line is silent. /exit to leave.",
     ].join("\n"),
   );
+}
+
+function completer(reportRepos: string[]): readline.Completer {
+  const cmds = [
+    "brief",
+    "next",
+    "diff",
+    "view",
+    "top",
+    "status",
+    "why",
+    "full",
+    "scan",
+    "review",
+    "help",
+    "exit",
+  ];
+  return (line: string): [string[], string] => {
+    const parts = line.split(/\s+/);
+    const last = parts[parts.length - 1] ?? "";
+    const pool =
+      parts.length <= 1
+        ? [...cmds, ...reportRepos]
+        : reportRepos;
+    const hits = pool.filter((name) => name.startsWith(last));
+    return [hits.length ? hits : pool, last];
+  };
 }
 
 export async function startRepl(opts: {
@@ -40,30 +69,43 @@ export async function startRepl(opts: {
   const cwd = opts.cwd ?? process.cwd();
   const config = opts.config;
   let report = loadLatestReport(config, cwd);
+  let abort: AbortController | null = null;
+  const repoNames = report.repos.map((r) => r.signals.name);
 
   printBoot({ owner: report.owner, repos: report.included_count });
-  agent(
-    `Online. Ask for the fleet, a repo name, why, or a review.`,
-  );
+  agent(`Online. Start with brief — or a repo name. Copilot is optional.`);
 
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: `${c("lime", "›")} `,
     terminal: true,
+    completer: completer(repoNames),
   });
 
   const reload = (): void => {
     report = loadLatestReport(config, cwd);
+    repoNames.splice(0, repoNames.length, ...report.repos.map((r) => r.signals.name));
     agent(
       `Reloaded · ${report.included_count} repos · ${report.generated_at.slice(0, 19)}`,
     );
   };
 
+  const onSigInt = (): void => {
+    if (abort) {
+      abort.abort();
+      abort = null;
+      agent("Cancelled.");
+    }
+  };
+  process.on("SIGINT", onSigInt);
+
   const handle = async (line: string): Promise<"continue" | "exit"> => {
     const intent = parseIntent(line);
     try {
       switch (intent.kind) {
+        case "empty":
+          return "continue";
         case "exit":
           agent("Offline.");
           return "exit";
@@ -79,6 +121,15 @@ export async function startRepl(opts: {
           return "continue";
         case "view":
           narrateView(report);
+          return "continue";
+        case "brief":
+          narrateBrief(report, config, cwd);
+          return "continue";
+        case "next":
+          narrateNext(report);
+          return "continue";
+        case "diff":
+          narrateDiff(report, config, cwd);
           return "continue";
         case "top":
           narrateTop(report, intent.n ?? 5);
@@ -116,28 +167,39 @@ export async function startRepl(opts: {
             return "continue";
           }
           const target = findIn(report, intent.arg);
-          tool(`auditing ${target.signals.fullName} with Copilot…`);
-          const aiConfig = {
-            ...config,
-            ai: {
-              ...config.ai,
-              enabled: true,
-              provider: "copilot" as const,
-              top_n: 1,
-            },
-          };
-          const result = await annotateWithCopilot({
-            report: { ...report, repos: [target] },
-            config: aiConfig,
-            cwd,
-            token,
-          });
-          if (result.skipped) {
-            agent(`Audit skipped — ${result.reason ?? "unknown"}`);
-          } else {
-            agent(`Audit stored.`);
+          const prog = startProgress(`auditing ${target.signals.name}`);
+          abort = new AbortController();
+          try {
+            const aiConfig = {
+              ...config,
+              ai: {
+                ...config.ai,
+                enabled: true,
+                provider: "copilot" as const,
+                top_n: 1,
+              },
+            };
+            const result = await annotateWithCopilot({
+              report: { ...report, repos: [target] },
+              config: aiConfig,
+              cwd,
+              token,
+            });
+            if (abort.signal.aborted) {
+              prog.fail("cancelled");
+              return "continue";
+            }
+            prog.done(result.skipped ? "audit skipped" : "audit stored");
+            if (result.skipped) {
+              agent(`Audit skipped — ${result.reason ?? "unknown"}`);
+            }
+            narrateReview(readAiCache(cwd, config.ai.cache_dir), intent.arg);
+          } catch (err) {
+            prog.fail("audit failed");
+            throw err;
+          } finally {
+            abort = null;
           }
-          narrateReview(readAiCache(cwd, config.ai.cache_dir), intent.arg);
           return "continue";
         }
         case "scan": {
@@ -147,16 +209,31 @@ export async function startRepl(opts: {
             agent("Set GITHUB_TOKEN (or GH_TOKEN) to scan.");
             return "continue";
           }
-          tool("scanning GitHub + probes + fitness…");
-          const result = await runRuro({ token, config, cwd });
-          agent(
-            `Done · ${result.report.included_count} scored · lead ${result.report.repos[0]?.signals.name ?? "—"}`,
-          );
-          reload();
+          const prog = startProgress("scanning GitHub + probes + fitness");
+          abort = new AbortController();
+          try {
+            const result = await runRuro({ token, config, cwd });
+            if (abort.signal.aborted) {
+              prog.fail("cancelled");
+              return "continue";
+            }
+            prog.done(
+              `scored ${result.report.included_count} · lead ${result.report.repos[0]?.signals.name ?? "—"}`,
+            );
+            agent(
+              `Done · ${result.report.included_count} scored · lead ${result.report.repos[0]?.signals.name ?? "—"}`,
+            );
+            reload();
+          } catch (err) {
+            prog.fail("scan failed");
+            throw err;
+          } finally {
+            abort = null;
+          }
           return "continue";
         }
         default:
-          agent(`Didn’t catch that. Try “view”, a repo name, or /help.`);
+          agent(`Unknown. Try brief, next, diff, view, a repo name, or /help.`);
           return "continue";
       }
     } catch (err) {
@@ -169,6 +246,7 @@ export async function startRepl(opts: {
   for await (const line of rl) {
     const next = await handle(line);
     if (next === "exit") {
+      process.off("SIGINT", onSigInt);
       rl.close();
       break;
     }
