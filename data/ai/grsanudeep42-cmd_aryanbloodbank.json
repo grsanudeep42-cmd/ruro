@@ -3,16 +3,16 @@
   "status": "ok",
   "score": 63,
   "repoStatus": "LIVE",
-  "why_showable": "Real product — live demo verified at https://www.aryanbloodbank.org/. Substantial TypeScript frontend and backend code (e.g. package.json, bloodlink/src/main.tsx, bloodlink/supabase/functions/_shared/otpDelivery.ts) and an internal audit document (bloodlink/docs/BLOODLINK_FULL_AUDIT_2026-08-02.md) support a genuine effort, not a toy repo.",
+  "why_showable": "Live, production-facing app (demo verified). Substantial frontend + serverless pieces and mobile packaging indicate a real product rather than “thin glue.”",
   "strengths": [
-    "Full-stack app with real features: React/Vite frontend (bloodlink/vite.config.ts, bloodlink/src/...), Supabase Edge Functions (bloodlink/supabase/functions/kyc-otp/index.ts), KYC/OTP, geocoding and analytics code.",
-    "Good separation and TypeScript usage: contexts, hooks, services, and security modules (security/*.ts).",
-    "Live demo + audit doc increase credibility."
+    "Verified demo and app config: bloodlink/capacitor.config.ts, bloodlink/vite.config.ts.",
+    "Backend edge functions and infra helpers: bloodlink/supabase/functions/_shared/sandbox.ts.",
+    "Internal audit exists: bloodlink/docs/BLOODLINK_FULL_AUDIT_2026-08-02.md."
   ],
   "weaknesses": [
-    "Sparse automated coverage: dossier shows 249 source / 1 test and top-level package.json has empty scripts — minimal tests and NO CI (blocker: no_ci).",
-    "Missing governance: no license, thin README, no topics — hurts reuse/hiring claims.",
-    "Risky runtime defaults: permissive dev CORS and env-driven dev OTP (bloodlink/supabase/functions/_shared/otpDelivery.ts) can leak OTPs if misconfigured. Several functions throw on missing env — brittle deploy UX."
+    "Very light testing: dossier shows 249 src / 1 tests and sparse test scripts; top-level package.json has empty \"scripts\".",
+    "No CI, no license, thin README (flags: no_ci, no_license, thin_readme).",
+    "Potential risk: permissive CORS defaults, runtime secret reliance, and dev-OTP fallback."
   ],
-  "review": "Codebase is well-organized and production-minded: supabase helpers, sanitize/rateLimit/sessionManager modules show security thinking. However, hard-coded dev-fallbacks and env-dependent guards need tightening: require safe defaults, fail-closed for OTP/CORS, and remove DEV_RETURN_OTP from production. Add CI (lint, build, test), expand tests, add a clear CONTRIBUTING/license, and run secret-scans before claiming showable. Paths to inspect first: package.json, bloodlink/src/main.tsx, bloodlink/supabase/functions/_shared/otpDelivery.ts.\n\n_Cited:_ package.json, bloodlink/src/main.tsx, bloodlink/supabase/functions/_shared/otpDelivery.ts, bloodlink/docs/BLOODLINK_FULL_AUDIT_2026-08-02.md, bloodlink/vite.config.ts, bloodlink/supabase/functions/kyc-otp/index.ts"
+  "review": "Real, shipping product with readable structure (src/components, features, supabase functions). Fixes needed: add CI, meaningful test suite, license, stricter CORS/secret handling, and audit OTP/error paths. Key files to address first: package.json, bloodlink/vite.config.ts, bloodlink/supabase/functions/_shared/sandbox.ts.\n\n_Cited:_ bloodlink/capacitor.config.ts, bloodlink/vite.config.ts, bloodlink/supabase/functions/_shared/sandbox.ts, bloodlink/docs/BLOODLINK_FULL_AUDIT_2026-08-02.md, package.json"
 }
