@@ -7,7 +7,7 @@
     "url": "https://railtrack-ai-ntlv.vercel.app/",
     "finalUrl": "https://railtrack-ai-ntlv.vercel.app/",
     "httpStatus": 200,
-    "latencyMs": 1940,
+    "latencyMs": 758,
     "error": null,
     "proofBytes": 23852,
     "contentType": "text/html; charset=utf-8",
@@ -17,7 +17,7 @@
     ],
     "bodyHash": "f0c173e3a9c92ed4",
     "spaShell": false,
-    "probedAt": "2026-08-09T18:34:03.665Z",
+    "probedAt": "2026-08-10T08:03:48.999Z",
     "hashStable": true
   }
 }

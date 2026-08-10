@@ -21,5 +21,5 @@ npx --yes tsx github.com/grsanudeep42-cmd/ruro  # or clone + npm run ruro -- vie
 | **[railtrack-ai](https://github.com/grsanudeep42-cmd/railtrack-ai)** | `STALE` | **62** | TypeScript | verified |
 | **[skillswap](https://github.com/grsanudeep42-cmd/skillswap)** | `STALE` | **57** | Dart | none |
 
-<sub>[Open OS](https://grsanudeep42-cmd.github.io/ruro/) · [Ruro](https://github.com/grsanudeep42-cmd/ruro) · 2026-08-09</sub>
+<sub>[Open OS](https://grsanudeep42-cmd.github.io/ruro/) · [Ruro](https://github.com/grsanudeep42-cmd/ruro) · 2026-08-10</sub>
 <!-- RURO:END -->

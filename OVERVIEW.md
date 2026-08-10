@@ -10,7 +10,7 @@ GitHub OS for `grsanudeep42-cmd` — automatic truth, verified deploys, optional
 
 ```text
 $ ruro view
-  16 fleet · 3 verified live · 2026-08-09 18:34 UTC
+  16 fleet · 3 verified live · 2026-08-10 08:03 UTC
 ```
 
 | Project | Status | Score | Stack | Deploy |
@@ -31,4 +31,4 @@ $ ruro view
 | [docs/](./docs/) | Pages OS |
 | [DASHBOARD.md](./DASHBOARD.md) | Full markdown scorecard |
 
-<sub>Generated 2026-08-09T18:34:03.676Z · [Open OS](https://grsanudeep42-cmd.github.io/ruro/)</sub>
+<sub>Generated 2026-08-10T08:03:49.008Z · [Open OS](https://grsanudeep42-cmd.github.io/ruro/)</sub>

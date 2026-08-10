@@ -7,7 +7,7 @@
     "url": "https://portfolio-v2-pi-liard.vercel.app/",
     "finalUrl": "https://portfolio-v2-pi-liard.vercel.app/",
     "httpStatus": 200,
-    "latencyMs": 816,
+    "latencyMs": 233,
     "error": null,
     "proofBytes": 1449,
     "contentType": "text/html; charset=utf-8",
@@ -17,7 +17,7 @@
     ],
     "bodyHash": "9ce807fec30d2a2f",
     "spaShell": true,
-    "probedAt": "2026-08-09T18:34:02.493Z",
+    "probedAt": "2026-08-10T08:03:48.451Z",
     "hashStable": true
   }
 }
