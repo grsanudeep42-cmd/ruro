@@ -36,5 +36,5 @@ outputs:
     description: Whether the profile README was updated.
 
 runs:
-  using: node24
+  using: node20
   main: dist/index.js

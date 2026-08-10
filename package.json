@@ -10,6 +10,8 @@
   },
   "scripts": {
     "build": "esbuild src/index.ts src/cli.ts --bundle --platform=node --target=node20 --outdir=dist --format=esm --packages=external",
+    "build:action": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --format=esm",
+    "build:all": "npm run build:action && esbuild src/cli.ts --bundle --platform=node --target=node20 --outfile=dist/cli.js --format=esm --packages=external",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
