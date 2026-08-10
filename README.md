@@ -299,6 +299,9 @@ No. Core path is zero-AI. Review is garnish.
 **Will scores match if I re-scan?**  
 Yes for the deterministic core (same GitHub + probe inputs ⇒ same scores). Live probe latency/hash can change if the site changed.
 
+[![Marketplace](https://img.shields.io/badge/Marketplace-Ruro-blue?logo=github)](https://github.com/marketplace/actions/ruro-portfolio-scorecard)
+
+
 **License?**  
 MIT — use it, fork it, run it on any account you control.
 
